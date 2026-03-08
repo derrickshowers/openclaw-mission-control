@@ -1,5 +1,5 @@
-const API_BASE = process.env.NEXT_PUBLIC_API_URL || "https://api.mission.showerstech.com";
-const API_KEY = process.env.MISSION_API_KEY || "";
+// Client-side API — all calls go through Next.js /api/proxy routes
+// API key stays server-side, never exposed to the browser
 
 interface FetchOptions extends RequestInit {
   params?: Record<string, string>;
@@ -8,7 +8,7 @@ interface FetchOptions extends RequestInit {
 async function apiFetch<T = any>(path: string, options: FetchOptions = {}): Promise<T> {
   const { params, ...fetchOptions } = options;
 
-  let url = `${API_BASE}/api${path}`;
+  let url = `/api/proxy${path}`;
   if (params) {
     const searchParams = new URLSearchParams(
       Object.entries(params).filter(([, v]) => v !== undefined && v !== "")
@@ -22,10 +22,8 @@ async function apiFetch<T = any>(path: string, options: FetchOptions = {}): Prom
     ...fetchOptions,
     headers: {
       "Content-Type": "application/json",
-      Authorization: `Bearer ${API_KEY}`,
       ...fetchOptions.headers,
     },
-    cache: "no-store",
   });
 
   if (!res.ok) {

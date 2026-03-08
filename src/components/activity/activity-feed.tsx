@@ -50,10 +50,7 @@ export function ActivityFeed() {
 
   // SSE connection for real-time updates
   useEffect(() => {
-    const apiUrl = process.env.NEXT_PUBLIC_API_URL || "";
-    if (!apiUrl) return;
-
-    const es = new EventSource(`${apiUrl}/api/activity/stream`);
+    const es = new EventSource(`/api/proxy/activity/stream`);
     eventSourceRef.current = es;
 
     es.onopen = () => setConnected(true);
