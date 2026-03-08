@@ -3,10 +3,20 @@
 import { Card, CardBody, CardHeader, Chip } from "@heroui/react";
 import type { Task } from "@/lib/api";
 
+interface ActivityEntry {
+  id: number;
+  seq: number;
+  event_type: string;
+  agent: string | null;
+  payload: Record<string, any>;
+  created_at: string;
+}
+
 interface DashboardContentProps {
   tasks: Task[];
   agents: any[];
   status: any;
+  recentActivity: ActivityEntry[];
 }
 
 const priorityLabels: Record<number, { label: string; color: "default" | "warning" | "danger" }> = {
@@ -24,7 +34,36 @@ const agentRoles: Record<string, string> = {
   joanna: "UX/Product Designer",
 };
 
-export function DashboardContent({ tasks, agents, status }: DashboardContentProps) {
+const eventTypeColors: Record<string, "default" | "primary" | "success" | "warning" | "danger"> = {
+  "task.created": "primary",
+  "task.updated": "default",
+  "task.deleted": "danger",
+  "task.moved": "warning",
+  "agent.session.start": "success",
+  "agent.session.end": "default",
+  "agent.tool.call": "default",
+  "agent.error": "danger",
+};
+
+function formatEventPayload(payload: Record<string, any>): string {
+  if (payload.task?.title) return payload.task.title;
+  if (payload.message) return payload.message;
+  if (payload.summary) return payload.summary;
+  if (payload.tool) return `${payload.tool}(${payload.target || ""})`;
+  return JSON.stringify(payload).slice(0, 80);
+}
+
+function timeAgo(dateStr: string): string {
+  const diff = Date.now() - new Date(dateStr).getTime();
+  const mins = Math.floor(diff / 60000);
+  if (mins < 1) return "just now";
+  if (mins < 60) return `${mins}m ago`;
+  const hours = Math.floor(mins / 60);
+  if (hours < 24) return `${hours}h ago`;
+  return `${Math.floor(hours / 24)}d ago`;
+}
+
+export function DashboardContent({ tasks, agents, status, recentActivity }: DashboardContentProps) {
   const inProgress = tasks.filter((t) => t.status === "in_progress");
   const blocked = tasks.filter((t) => t.status === "blocked");
   const done = tasks.filter((t) => t.status === "done");
@@ -119,6 +158,54 @@ export function DashboardContent({ tasks, agents, status }: DashboardContentProp
           </CardBody>
         </Card>
       </div>
+
+      {/* Recent Activity */}
+      <Card className="border border-[#222222] bg-[#121212]">
+        <CardHeader className="border-b border-[#222222] px-4 py-3">
+          <div className="flex w-full items-center justify-between">
+            <h2 className="text-sm font-medium">Recent Activity</h2>
+            <a href="/activity" className="text-xs text-[#888888] hover:text-white transition-colors">
+              View all →
+            </a>
+          </div>
+        </CardHeader>
+        <CardBody className="p-0">
+          {recentActivity.length === 0 ? (
+            <p className="py-6 text-center font-mono text-xs text-[#555555]">
+              No recent activity
+            </p>
+          ) : (
+            <div className="divide-y divide-[#1A1A1A]">
+              {recentActivity.slice(0, 5).map((entry, i) => (
+                <div
+                  key={entry.id || i}
+                  className="flex items-center gap-3 px-4 py-2.5 hover:bg-[#0A0A0A] transition-colors"
+                >
+                  <Chip
+                    size="sm"
+                    variant="flat"
+                    color={eventTypeColors[entry.event_type] || "default"}
+                    className="flex-shrink-0 text-[10px] h-5"
+                  >
+                    {entry.event_type}
+                  </Chip>
+                  {entry.agent && (
+                    <span className="flex-shrink-0 text-xs text-[#888888] capitalize w-14 font-mono">
+                      {entry.agent}
+                    </span>
+                  )}
+                  <span className="flex-1 truncate font-mono text-xs text-[#CCCCCC]">
+                    {formatEventPayload(entry.payload)}
+                  </span>
+                  <span className="flex-shrink-0 text-[10px] text-[#555555] font-mono">
+                    {timeAgo(entry.created_at)}
+                  </span>
+                </div>
+              ))}
+            </div>
+          )}
+        </CardBody>
+      </Card>
     </div>
   );
 }

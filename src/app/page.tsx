@@ -7,12 +7,14 @@ export default async function DashboardPage() {
   let tasks: any[] = [];
   let agents: any[] = [];
   let status: any = null;
+  let recentActivity: any[] = [];
 
   try {
-    [tasks, agents, status] = await Promise.all([
+    [tasks, agents, status, recentActivity] = await Promise.all([
       api.getTasks().catch(() => []),
       api.getAgents().catch(() => []),
       api.getStatus().catch(() => null),
+      api.getActivity({ limit: "5" }).catch(() => []),
     ]);
   } catch {
     // API might not be running yet
@@ -23,6 +25,7 @@ export default async function DashboardPage() {
       tasks={tasks}
       agents={agents}
       status={status}
+      recentActivity={recentActivity}
     />
   );
 }
