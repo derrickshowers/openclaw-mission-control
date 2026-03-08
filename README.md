@@ -1,36 +1,105 @@
-This is a [Next.js](https://nextjs.org) project bootstrapped with [`create-next-app`](https://nextjs.org/docs/app/api-reference/cli/create-next-app).
+# Mission Control v2 — Frontend
 
-## Getting Started
+Next.js 15 dashboard for Raincheck team management.
 
-First, run the development server:
+## Stack
+
+- **Next.js 15** (App Router)
+- **HeroUI v3** (component library on Tailwind v3)
+- **NextAuth.js** (Google OAuth)
+- **TypeScript**
+
+## Setup
 
 ```bash
+npm install
+cp .env.example .env.local
+# Edit .env.local with real values
 npm run dev
-# or
-yarn dev
-# or
-pnpm dev
-# or
-bun dev
 ```
 
-Open [http://localhost:3000](http://localhost:3000) with your browser to see the result.
+## Environment Variables
 
-You can start editing the page by modifying `app/page.tsx`. The page auto-updates as you edit the file.
+Required in `.env.local`:
 
-This project uses [`next/font`](https://nextjs.org/docs/app/building-your-application/optimizing/fonts) to automatically optimize and load [Geist](https://vercel.com/font), a new font family for Vercel.
+```bash
+# NextAuth
+AUTH_SECRET=generate-with-openssl-rand-base64-32
+GOOGLE_CLIENT_ID=your-google-oauth-client-id
+GOOGLE_CLIENT_SECRET=your-google-oauth-client-secret
 
-## Learn More
+# API Proxy
+MISSION_API_KEY=same-as-proxy-server
+PROXY_API_URL=http://localhost:3001  # for dev
+NEXT_PUBLIC_API_URL=https://api.mission.showerstech.com  # for production
+```
 
-To learn more about Next.js, take a look at the following resources:
+## Deployment
 
-- [Next.js Documentation](https://nextjs.org/docs) - learn about Next.js features and API.
-- [Learn Next.js](https://nextjs.org/learn) - an interactive Next.js tutorial.
+This app deploys to **Vercel**. Derrick will:
+1. Push this repo to GitHub
+2. Connect to Vercel
+3. Add environment variables in Vercel dashboard
+4. Auto-deploys on push to `main`
 
-You can check out [the Next.js GitHub repository](https://github.com/vercel/next.js) - your feedback and contributions are welcome!
+## Structure
 
-## Deploy on Vercel
+```
+src/
+├── app/
+│   ├── api/proxy/           # Route handlers that forward to VPS proxy
+│   ├── activity/            # Live activity feed
+│   ├── memory/              # Agent memory browser
+│   ├── tasks/               # Kanban board
+│   ├── team/                # Agent hierarchy
+│   └── login/               # Google OAuth login
+├── components/
+│   ├── shell/               # Sidebar, top bar, mobile nav
+│   ├── tasks/               # Kanban, task cards, drawer
+│   ├── team/                # Agent cards
+│   ├── memory/              # File tree, markdown renderer
+│   └── activity/            # Event feed with SSE
+└── lib/
+    ├── api.ts               # Typed API client
+    ├── proxy.ts             # Proxy request helper
+    └── auth.ts              # NextAuth config
+```
 
-The easiest way to deploy your Next.js app is to use the [Vercel Platform](https://vercel.com/new?utm_medium=default-template&filter=next.js&utm_source=create-next-app&utm_campaign=create-next-app-readme) from the creators of Next.js.
+## Pages
 
-Check out our [Next.js deployment documentation](https://nextjs.org/docs/app/building-your-application/deploying) for more details.
+| Route | Description |
+|-------|-------------|
+| `/` | Dashboard overview |
+| `/tasks` | Kanban task board |
+| `/team` | Agent hierarchy & controls |
+| `/memory` | Browse agent memory files |
+| `/activity` | Live event feed (SSE) |
+| `/login` | Google OAuth sign-in |
+
+## Design
+
+- **Dark theme** (#080808 background, #121212 surfaces)
+- **Fonts:** Inter (UI), JetBrains Mono (code)
+- **Borders:** 1px solid #222222
+- **High density:** Minimal padding, Linear-inspired aesthetic
+- **Responsive:** Desktop sidebar, mobile bottom nav
+
+## Development
+
+```bash
+npm run dev     # Start dev server (http://localhost:3000)
+npm run build   # Production build
+npm run start   # Serve production build
+npm run lint    # ESLint
+```
+
+## Notes
+
+- All API calls go through Next.js Route Handlers in `/api/proxy/*` which forward to the VPS proxy with auth
+- The `MISSION_API_KEY` is never exposed to the browser — it's server-side only
+- SSE activity feed connects directly to `api.mission.showerstech.com/api/activity/stream` from the browser
+- Tailwind v3 is used (not v4) for HeroUI compatibility
+
+## Built By
+
+Michael (Full Stack Engineer, Raincheck team)
