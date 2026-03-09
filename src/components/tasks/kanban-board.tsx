@@ -1,9 +1,9 @@
 "use client";
 
-import { useState, useCallback, useEffect } from "react";
+import { useState, useCallback, useEffect, useRef } from "react";
 import { Button, Input, Textarea, Select, SelectItem, Modal, ModalContent, ModalHeader, ModalBody, ModalFooter, useDisclosure } from "@heroui/react";
-import { Plus } from "lucide-react";
-import type { Task } from "@/lib/api";
+import { Plus, Paperclip, ImagePlus, X } from "lucide-react";
+import { api, type Task } from "@/lib/api";
 import { TaskCard } from "./task-card";
 import { TaskDrawer } from "./task-drawer";
 
@@ -39,34 +39,67 @@ export function KanbanBoard({ initialTasks }: KanbanBoardProps) {
   const [newAssignee, setNewAssignee] = useState("");
   const [newPriority, setNewPriority] = useState("0");
   const [newStatus, setNewStatus] = useState("backlog");
+  const [pendingAttachments, setPendingAttachments] = useState<File[]>([]);
+  const [isSubmitting, setIsSubmitting] = useState(false);
+  const fileInputRef = useRef<HTMLInputElement>(null);
+
+  const handleFileSelect = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const files = Array.from(e.target.files || []);
+    const allowed = ["image/png", "image/jpeg", "image/gif", "image/webp"];
+    const validFiles = files.filter(file => {
+      if (!allowed.includes(file.type)) {
+        alert(`${file.name} is not a supported image type.`);
+        return false;
+      }
+      if (file.size > 5 * 1024 * 1024) {
+        alert(`${file.name} is too large (max 5MB).`);
+        return false;
+      }
+      return true;
+    });
+
+    setPendingAttachments(prev => [...prev, ...validFiles].slice(0, 10));
+    if (fileInputRef.current) fileInputRef.current.value = "";
+  };
+
+  const removePendingAttachment = (index: number) => {
+    setPendingAttachments(prev => prev.filter((_, i) => i !== index));
+  };
 
   const createTask = useCallback(async () => {
-    if (!newTitle.trim()) return;
+    if (!newTitle.trim() || isSubmitting) return;
 
+    setIsSubmitting(true);
     try {
-      const res = await fetch("/api/mc/tasks", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          title: newTitle,
-          description: newDescription || undefined,
-          assignee: newAssignee || undefined,
-          priority: parseInt(newPriority),
-          status: newStatus,
-        }),
+      const task = await api.createTask({
+        title: newTitle,
+        description: newDescription || undefined,
+        assignee: newAssignee || undefined,
+        priority: parseInt(newPriority),
+        status: newStatus,
       });
-      const task = await res.json();
+
+      // Upload attachments if any
+      if (pendingAttachments.length > 0) {
+        await Promise.all(
+          pendingAttachments.map(file => api.uploadAttachment(task.id, file, "derrick"))
+        );
+      }
+
       setTasks((prev) => [...prev, task]);
       setNewTitle("");
       setNewDescription("");
       setNewAssignee("");
       setNewPriority("0");
       setNewStatus("backlog");
+      setPendingAttachments([]);
       onClose();
     } catch (err) {
       console.error("Failed to create task:", err);
+    } finally {
+      setIsSubmitting(false);
     }
-  }, [newTitle, newDescription, newAssignee, newPriority, newStatus, onClose]);
+  }, [newTitle, newDescription, newAssignee, newPriority, newStatus, pendingAttachments, isSubmitting, onClose]);
 
   // Global keyboard shortcuts
   useEffect(() => {
@@ -244,6 +277,59 @@ export function KanbanBoard({ initialTasks }: KanbanBoardProps) {
                 <SelectItem key={c.id}>{c.label}</SelectItem>
               ))}
             </Select>
+
+            {/* Attachments UI */}
+            <div className="space-y-2 pt-2">
+              <div className="flex items-center justify-between">
+                <span className="text-[10px] font-medium text-[#888888] uppercase tracking-wider flex items-center gap-1">
+                  <Paperclip size={10} strokeWidth={1.5} />
+                  Attachments
+                  {pendingAttachments.length > 0 && (
+                    <span className="text-[#555555]">({pendingAttachments.length}/10)</span>
+                  )}
+                </span>
+                <input
+                  ref={fileInputRef}
+                  type="file"
+                  multiple
+                  accept="image/png,image/jpeg,image/gif,image/webp"
+                  className="hidden"
+                  onChange={handleFileSelect}
+                />
+                <Button
+                  size="sm"
+                  variant="flat"
+                  onPress={() => fileInputRef.current?.click()}
+                  startContent={<ImagePlus size={14} strokeWidth={1.5} />}
+                  className="h-7 text-xs bg-[#080808] border border-[#222222]"
+                >
+                  Attach
+                </Button>
+              </div>
+
+              {pendingAttachments.length > 0 && (
+                <div className="flex flex-wrap gap-2">
+                  {pendingAttachments.map((file, i) => (
+                    <div
+                      key={i}
+                      className="group relative h-12 w-12 rounded border border-[#222222] bg-[#0A0A0A] overflow-hidden"
+                    >
+                      <img
+                        src={URL.createObjectURL(file)}
+                        alt={file.name}
+                        className="h-full w-full object-cover"
+                      />
+                      <button
+                        className="absolute top-0 right-0 p-0.5 bg-black/60 text-white hover:text-red-400 opacity-0 group-hover:opacity-100 transition-opacity"
+                        onClick={() => removePendingAttachment(i)}
+                      >
+                        <X size={10} strokeWidth={2} />
+                      </button>
+                    </div>
+                  ))}
+                </div>
+              )}
+            </div>
           </ModalBody>
           <ModalFooter className="border-t border-[#222222] flex items-center">
             <span className="text-[10px] text-[#555555] mr-auto">⇧ Enter to submit</span>
@@ -254,6 +340,7 @@ export function KanbanBoard({ initialTasks }: KanbanBoardProps) {
               color="primary"
               onPress={createTask}
               size="sm"
+              isLoading={isSubmitting}
               isDisabled={!newTitle.trim()}
             >
               Create
