@@ -365,7 +365,7 @@ export function TaskDrawer({ task, isOpen, onClose, onUpdate }: TaskDrawerProps)
                 size="sm"
                 placeholder="Unassigned"
                 className="max-w-[160px]"
-                classNames={{ trigger: "border-[#222222] bg-[#080808] h-8 min-h-8" }}
+                classNames={{ trigger: "border-[#222222] bg-[#080808] h-8 min-h-8 capitalize" }}
               >
                 {AGENTS.map((a) => (
                   <SelectItem key={a} className="capitalize">{a}</SelectItem>

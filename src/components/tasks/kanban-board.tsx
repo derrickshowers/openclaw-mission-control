@@ -246,10 +246,10 @@ export function KanbanBoard({ initialTasks }: KanbanBoardProps) {
                 onSelectionChange={(keys) => setNewAssignee(Array.from(keys)[0] as string || "")}
                 variant="bordered"
                 size="sm"
-                classNames={{ trigger: "border-[#222222] bg-[#080808]" }}
+                classNames={{ trigger: "border-[#222222] bg-[#080808] capitalize" }}
               >
                 {AGENTS.map((a) => (
-                  <SelectItem key={a}>{a}</SelectItem>
+                  <SelectItem key={a} className="capitalize">{a}</SelectItem>
                 ))}
               </Select>
               <Select
