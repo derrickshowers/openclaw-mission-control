@@ -20,6 +20,13 @@ body {
   border-color: #444 !important;
 }
 
+/* Kill native browser focus outline on inner input/textarea elements */
+[data-slot="input"]:focus,
+[data-slot="input"]:focus-visible {
+  outline: none !important;
+  box-shadow: none !important;
+}
+
 [data-slot="input-wrapper"]:hover,
 [data-slot="trigger"]:hover {
   border-color: #333 !important;
