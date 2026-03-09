@@ -1,6 +1,7 @@
 "use client";
 
 import { Button } from "@heroui/react";
+import { signIn } from "next-auth/react";
 
 export default function LoginPage() {
   return (
@@ -16,10 +17,7 @@ export default function LoginPage() {
           fullWidth
           variant="flat"
           className="border border-[#222222] bg-[#080808]"
-          onPress={() => {
-            // NextAuth v5 — use callbackUrl to redirect back after login
-            window.location.href = "/api/auth/signin?callbackUrl=%2F";
-          }}
+          onPress={() => signIn("google", { callbackUrl: "/" })}
         >
           Sign in with Google
         </Button>
