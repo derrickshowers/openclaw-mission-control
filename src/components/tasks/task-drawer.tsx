@@ -1,6 +1,7 @@
 "use client";
 
 import { useState, useEffect, useRef } from "react";
+import { useSession } from "next-auth/react";
 import { Button, Input, Textarea, Select, SelectItem, Chip } from "@heroui/react";
 import { X, Trash2, Send, Paperclip, ImagePlus, XCircle } from "lucide-react";
 import { api } from "@/lib/api";
@@ -30,12 +31,12 @@ interface TaskDrawerProps {
 }
 
 export function TaskDrawer({ task, isOpen, onClose, onUpdate }: TaskDrawerProps) {
+  const { data: session } = useSession();
   const [editing, setEditing] = useState(false);
   const [title, setTitle] = useState(task.title);
   const [description, setDescription] = useState(task.description || "");
   const [comments, setComments] = useState<TaskComment[]>([]);
   const [newComment, setNewComment] = useState("");
-  const [commentAuthor, setCommentAuthor] = useState("derrick");
   const [submitting, setSubmitting] = useState(false);
   const [attachments, setAttachments] = useState<TaskAttachment[]>([]);
   const [uploading, setUploading] = useState(false);
@@ -59,9 +60,10 @@ export function TaskDrawer({ task, isOpen, onClose, onUpdate }: TaskDrawerProps)
 
   const postComment = async () => {
     if (!newComment.trim()) return;
+    const author = session?.user?.name?.split(" ")[0].toLowerCase() || "unknown";
     setSubmitting(true);
     try {
-      const comment = await api.addComment(task.id, commentAuthor, newComment.trim());
+      const comment = await api.addComment(task.id, author, newComment.trim());
       setComments((prev) => [...prev, comment]);
       setNewComment("");
       setTimeout(() => commentsEndRef.current?.scrollIntoView({ behavior: "smooth" }), 50);
@@ -429,22 +431,6 @@ export function TaskDrawer({ task, isOpen, onClose, onUpdate }: TaskDrawerProps)
 
             {/* New comment input */}
             <div className="space-y-2">
-              <Select
-                selectedKeys={[commentAuthor]}
-                onSelectionChange={(keys) => {
-                  const v = Array.from(keys)[0] as string;
-                  if (v) setCommentAuthor(v);
-                }}
-                variant="bordered"
-                size="sm"
-                label="Comment as"
-                className="max-w-[160px]"
-                classNames={{ trigger: "border-[#222222] bg-[#080808] h-8 min-h-8" }}
-              >
-                {AGENTS.map((a) => (
-                  <SelectItem key={a} className="capitalize">{a}</SelectItem>
-                ))}
-              </Select>
               <div className="flex gap-2">
                 <Textarea
                   value={newComment}
