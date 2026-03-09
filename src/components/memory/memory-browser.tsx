@@ -26,7 +26,7 @@ export function MemoryBrowser() {
     setLoading(true);
     try {
       const params = dir ? `?dir=${encodeURIComponent(dir)}` : "";
-      const res = await fetch(`/api/proxy/memory/${agent}${params}`);
+      const res = await fetch(`/api/mc/memory/${agent}${params}`);
       const data = await res.json();
       setFiles(Array.isArray(data) ? data : []);
     } catch {
@@ -39,7 +39,7 @@ export function MemoryBrowser() {
   const loadFile = useCallback(async (agent: string, path: string) => {
     setLoading(true);
     try {
-      const res = await fetch(`/api/proxy/memory/${agent}/${path}`);
+      const res = await fetch(`/api/mc/memory/${agent}/${path}`);
       const data = await res.json();
       setFileContent(data.content || "");
       setCurrentFile(path);
@@ -56,7 +56,7 @@ export function MemoryBrowser() {
     setLoading(true);
     try {
       const res = await fetch(
-        `/api/proxy/memory/search?q=${encodeURIComponent(searchQuery)}&agent=${selectedAgent}`
+        `/api/mc/memory/search?q=${encodeURIComponent(searchQuery)}&agent=${selectedAgent}`
       );
       const data = await res.json();
       setSearchResults(Array.isArray(data) ? data : []);

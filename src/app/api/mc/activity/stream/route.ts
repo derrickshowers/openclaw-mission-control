@@ -1,6 +1,6 @@
 import { NextRequest } from "next/server";
 
-const PROXY_URL = process.env.PROXY_API_URL || "http://localhost:3001";
+const PROXY_URL = process.env.MISSION_API_URL || "http://localhost:3001";
 const API_KEY = process.env.MISSION_API_KEY || "";
 
 export async function GET(request: NextRequest) {

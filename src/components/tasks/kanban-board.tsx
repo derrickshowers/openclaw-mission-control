@@ -43,7 +43,7 @@ export function KanbanBoard({ initialTasks }: KanbanBoardProps) {
     if (!newTitle.trim()) return;
 
     try {
-      const res = await fetch("/api/proxy/tasks", {
+      const res = await fetch("/api/mc/tasks", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
@@ -69,7 +69,7 @@ export function KanbanBoard({ initialTasks }: KanbanBoardProps) {
 
   const updateTaskStatus = useCallback(async (taskId: string, newStatus: string) => {
     try {
-      const res = await fetch(`/api/proxy/tasks/${taskId}`, {
+      const res = await fetch(`/api/mc/tasks/${taskId}`, {
         method: "PATCH",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ status: newStatus }),

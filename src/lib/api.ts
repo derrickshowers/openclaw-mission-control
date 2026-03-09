@@ -1,4 +1,4 @@
-// Client-side API — all calls go through Next.js /api/proxy routes
+// Client-side API — all calls go through Next.js /api/mc routes
 // API key stays server-side, never exposed to the browser
 
 interface FetchOptions extends RequestInit {
@@ -22,7 +22,7 @@ function getBaseUrl() {
 async function apiFetch<T = any>(path: string, options: FetchOptions = {}): Promise<T> {
   const { params, ...fetchOptions } = options;
 
-  let url = `${getBaseUrl()}/api/proxy${path}`;
+  let url = `${getBaseUrl()}/api/mc${path}`;
   if (params) {
     const searchParams = new URLSearchParams(
       Object.entries(params).filter(([, v]) => v !== undefined && v !== "")

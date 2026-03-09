@@ -1,5 +1,5 @@
 import { NextRequest } from "next/server";
-import { proxyRequest } from "@/lib/proxy";
+import { proxyRequest } from "@/lib/mission-api";
 
 export async function POST(
   request: NextRequest,

@@ -2,7 +2,7 @@
 // Used by server components that can't go through Next.js API routes
 // (middleware blocks internal server-to-server calls that lack a session cookie)
 
-const API_URL = process.env.PROXY_API_URL || "http://localhost:3001";
+const API_URL = process.env.MISSION_API_URL || "http://localhost:3001";
 const API_KEY = process.env.MISSION_API_KEY || "";
 
 async function serverFetch<T = any>(path: string): Promise<T> {

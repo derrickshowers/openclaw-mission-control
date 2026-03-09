@@ -43,7 +43,7 @@ export function TeamView({ agents }: TeamViewProps) {
     if (!messageTarget || !messageText.trim()) return;
     setSending(true);
     try {
-      await fetch(`/api/proxy/agents/${messageTarget}/message`, {
+      await fetch(`/api/mc/agents/${messageTarget}/message`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ message: messageText }),

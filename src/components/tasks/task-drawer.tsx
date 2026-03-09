@@ -36,7 +36,7 @@ export function TaskDrawer({ task, isOpen, onClose, onUpdate }: TaskDrawerProps)
 
   const saveEdits = async () => {
     try {
-      const res = await fetch(`/api/proxy/tasks/${task.id}`, {
+      const res = await fetch(`/api/mc/tasks/${task.id}`, {
         method: "PATCH",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ title, description }),
@@ -51,7 +51,7 @@ export function TaskDrawer({ task, isOpen, onClose, onUpdate }: TaskDrawerProps)
 
   const updateField = async (field: string, value: any) => {
     try {
-      const res = await fetch(`/api/proxy/tasks/${task.id}`, {
+      const res = await fetch(`/api/mc/tasks/${task.id}`, {
         method: "PATCH",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ [field]: value }),
@@ -65,7 +65,7 @@ export function TaskDrawer({ task, isOpen, onClose, onUpdate }: TaskDrawerProps)
 
   const deleteTask = async () => {
     try {
-      await fetch(`/api/proxy/tasks/${task.id}`, { method: "DELETE" });
+      await fetch(`/api/mc/tasks/${task.id}`, { method: "DELETE" });
       onClose();
     } catch (err) {
       console.error("Failed to delete:", err);

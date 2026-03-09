@@ -38,7 +38,7 @@ export function ActivityFeed() {
     const loadActivity = async () => {
       try {
         const params = agentFilter ? `?agent=${agentFilter}&limit=50` : "?limit=50";
-        const res = await fetch(`/api/proxy/activity${params}`);
+        const res = await fetch(`/api/mc/activity${params}`);
         const data = await res.json();
         setActivities(Array.isArray(data) ? data.reverse() : []);
       } catch {
@@ -50,7 +50,7 @@ export function ActivityFeed() {
 
   // SSE connection for real-time updates
   useEffect(() => {
-    const es = new EventSource(`/api/proxy/activity/stream`);
+    const es = new EventSource(`/api/mc/activity/stream`);
     eventSourceRef.current = es;
 
     es.onopen = () => setConnected(true);
