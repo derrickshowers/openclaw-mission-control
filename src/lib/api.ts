@@ -5,10 +5,24 @@ interface FetchOptions extends RequestInit {
   params?: Record<string, string>;
 }
 
+function getBaseUrl() {
+  // Server-side: need absolute URL
+  if (typeof window === "undefined") {
+    // Vercel provides this automatically
+    const vercelUrl = process.env.NEXTAUTH_URL || process.env.VERCEL_URL;
+    if (vercelUrl) {
+      return vercelUrl.startsWith("http") ? vercelUrl : `https://${vercelUrl}`;
+    }
+    return "http://localhost:3000";
+  }
+  // Client-side: relative URL works
+  return "";
+}
+
 async function apiFetch<T = any>(path: string, options: FetchOptions = {}): Promise<T> {
   const { params, ...fetchOptions } = options;
 
-  let url = `/api/proxy${path}`;
+  let url = `${getBaseUrl()}/api/proxy${path}`;
   if (params) {
     const searchParams = new URLSearchParams(
       Object.entries(params).filter(([, v]) => v !== undefined && v !== "")
