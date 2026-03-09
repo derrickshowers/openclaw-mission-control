@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect, useCallback } from "react";
+import { useState, useEffect, useCallback, useMemo } from "react";
 import { Select, SelectItem } from "@heroui/react";
 import {
   AreaChart,
@@ -90,19 +90,18 @@ const PERIOD_OPTIONS = [
   { value: "30", label: "30 days" },
 ];
 
-/** Determine the best chart interval for a given period */
-function intervalForDays(d: string): string {
-  if (d === "1") return "hour";
-  if (d === "30") return "week";
-  return "day"; // 7d, 14d
+/** Auto-select interval based on period */
+function intervalForDays(days: string): string {
+  switch (days) {
+    case "1": return "hour";
+    case "30": return "week";
+    default: return "day"; // 7d, 14d
+  }
 }
 
-/** Parse a backend datetime string (always UTC, no Z suffix) into a Date */
-function parseUTC(s: string): Date {
-  // Backend returns "2026-03-09 14:00" or "2026-03-09" — always UTC
-  const normalized = s.includes("T") ? s : s.replace(" ", "T");
-  const withZ = normalized.endsWith("Z") ? normalized : normalized + "Z";
-  return new Date(withZ);
+/** Get client timezone offset in minutes (for backend SQL adjustment) */
+function getTzOffset(): number {
+  return new Date().getTimezoneOffset();
 }
 
 function formatTokens(n: number): string {
@@ -114,6 +113,80 @@ function formatTokens(n: number): string {
 function formatCost(n: number): string {
   if (n < 0.01) return `$${n.toFixed(4)}`;
   return `$${n.toFixed(2)}`;
+}
+
+/** Parse a date string from the backend (already adjusted to local tz) into a display string */
+function formatChartDate(v: string, interval: string): string {
+  if (interval === "hour") {
+    // "2026-03-09 14:00" → "2 PM"
+    try {
+      // This string is already in local time (backend adjusted), parse it directly
+      const [, timePart] = v.split(" ");
+      const hour = parseInt(timePart, 10);
+      const ampm = hour >= 12 ? "PM" : "AM";
+      const h12 = hour === 0 ? 12 : hour > 12 ? hour - 12 : hour;
+      return `${h12} ${ampm}`;
+    } catch {
+      return v;
+    }
+  }
+  if (interval === "week") {
+    // "2026-W10" → "W10"
+    const m = v.match(/W(\d+)/);
+    return m ? `W${m[1]}` : v;
+  }
+  // "2026-03-09" → "3/9"
+  try {
+    const parts = v.split("-");
+    return `${parseInt(parts[1], 10)}/${parseInt(parts[2], 10)}`;
+  } catch {
+    return v;
+  }
+}
+
+/** Format tooltip label for the chart */
+function formatTooltipLabel(v: string, interval: string): string {
+  if (interval === "hour") {
+    try {
+      const [datePart, timePart] = v.split(" ");
+      const hour = parseInt(timePart, 10);
+      const nextHour = (hour + 1) % 24;
+      const fmt = (h: number) => {
+        const ampm = h >= 12 ? "PM" : "AM";
+        const h12 = h === 0 ? 12 : h > 12 ? h - 12 : h;
+        return `${h12}:00 ${ampm}`;
+      };
+      const [y, m, d] = datePart.split("-");
+      return `${parseInt(m, 10)}/${parseInt(d, 10)} ${fmt(hour)} – ${fmt(nextHour)}`;
+    } catch {
+      return v;
+    }
+  }
+  if (interval === "week") {
+    return `Week ${v}`;
+  }
+  // Daily
+  try {
+    const parts = v.split("-");
+    return `${parseInt(parts[1], 10)}/${parseInt(parts[2], 10)}/${parts[0]}`;
+  } catch {
+    return v;
+  }
+}
+
+/** Format a UTC timestamp to local time string */
+function formatLocalTime(utcStr: string): string {
+  try {
+    // Backend stores UTC. Append Z if missing to ensure UTC parsing.
+    const d = new Date(utcStr.endsWith("Z") ? utcStr : utcStr + "Z");
+    return d.toLocaleTimeString("en-US", {
+      hour: "numeric",
+      minute: "2-digit",
+      second: "2-digit",
+    });
+  } catch {
+    return utcStr;
+  }
 }
 
 interface MetricCardProps {
@@ -145,28 +218,7 @@ interface CustomTooltipProps {
 
 function CustomTooltip({ active, payload, label, interval }: CustomTooltipProps) {
   if (!active || !payload?.length) return null;
-
-  let displayLabel = label || "";
-  if (label) {
-    try {
-      if (interval === "hour") {
-        // "2026-03-09 14:00" (UTC) → "10:00 AM – 11:00 AM" (local)
-        const d = parseUTC(label);
-        const end = new Date(d.getTime() + 60 * 60 * 1000);
-        const fmt = (dt: Date) =>
-          dt.toLocaleTimeString(undefined, { hour: "numeric", minute: "2-digit" });
-        displayLabel = `${fmt(d)} – ${fmt(end)}`;
-      } else if (interval === "week") {
-        const d = parseUTC(label);
-        displayLabel = `Week of ${d.toLocaleDateString(undefined, { month: "short", day: "numeric" })}`;
-      } else {
-        const d = parseUTC(label);
-        displayLabel = d.toLocaleDateString(undefined, { weekday: "short", month: "short", day: "numeric" });
-      }
-    } catch {
-      displayLabel = label;
-    }
-  }
+  const displayLabel = formatTooltipLabel(label || "", interval || "day");
 
   return (
     <div className="rounded border border-[#333333] bg-[#080808] p-2 text-xs font-mono">
@@ -201,6 +253,13 @@ function ContextBar({ avg, max }: { avg: number; max: number }) {
   );
 }
 
+/** Interval label for the chart subtitle */
+const INTERVAL_LABELS: Record<string, string> = {
+  hour: "Hourly",
+  day: "Daily",
+  week: "Weekly",
+};
+
 export function UsageDashboard() {
   const [days, setDays] = useState("7");
   const [summary, setSummary] = useState<Summary | null>(null);
@@ -209,15 +268,16 @@ export function UsageDashboard() {
   const [recentLogs, setRecentLogs] = useState<LogRow[]>([]);
   const [loading, setLoading] = useState(true);
 
-  // Derive interval from selected period — no manual toggle
-  const interval = intervalForDays(days);
+  // Auto-derived interval based on period
+  const interval = useMemo(() => intervalForDays(days), [days]);
 
   const fetchData = useCallback(async () => {
     setLoading(true);
     try {
+      const tzOffset = getTzOffset();
       const [summaryRes, chartRes, breakdownRes, logRes] = await Promise.all([
         fetch(`/api/mc/usage/summary?days=${days}`),
-        fetch(`/api/mc/usage/chart?days=${days}&interval=${interval}`),
+        fetch(`/api/mc/usage/chart?days=${days}&interval=${interval}&tzOffset=${tzOffset}`),
         fetch(`/api/mc/usage/breakdown?days=${days}`),
         fetch(`/api/mc/usage/log?limit=25`),
       ]);
@@ -265,23 +325,21 @@ export function UsageDashboard() {
           <TrendingUp size={16} strokeWidth={1.5} className="text-[#888888]" />
           <span className="text-sm font-medium">Model Usage</span>
         </div>
-        <div className="flex items-center gap-2">
-          <Select
-            selectedKeys={[days]}
-            onSelectionChange={(keys) => {
-              const v = Array.from(keys)[0] as string;
-              if (v) setDays(v);
-            }}
-            variant="bordered"
-            size="sm"
-            className="max-w-[120px]"
-            classNames={{ trigger: "border-[#222222] bg-[#080808] h-8 min-h-8" }}
-          >
-            {PERIOD_OPTIONS.map((p) => (
-              <SelectItem key={p.value}>{p.label}</SelectItem>
-            ))}
-          </Select>
-        </div>
+        <Select
+          selectedKeys={[days]}
+          onSelectionChange={(keys) => {
+            const v = Array.from(keys)[0] as string;
+            if (v) setDays(v);
+          }}
+          variant="bordered"
+          size="sm"
+          className="max-w-[120px]"
+          classNames={{ trigger: "border-[#222222] bg-[#080808] h-8 min-h-8" }}
+        >
+          {PERIOD_OPTIONS.map((p) => (
+            <SelectItem key={p.value}>{p.label}</SelectItem>
+          ))}
+        </Select>
       </div>
 
       {/* Hero Cards */}
@@ -327,9 +385,7 @@ export function UsageDashboard() {
       <div className="rounded border border-[#222222] bg-[#0A0A0A] p-4">
         <p className="text-xs text-[#888888] mb-3 uppercase tracking-wider">
           Token Usage by Agent
-          <span className="text-[#555555]">
-            {interval === "hour" ? " · Hourly" : interval === "week" ? " · Weekly" : " · Daily"}
-          </span>
+          <span className="text-[#555555]"> · {INTERVAL_LABELS[interval] || interval}</span>
         </p>
         {chartData.length === 0 ? (
           <div className="flex h-48 items-center justify-center">
@@ -346,20 +402,7 @@ export function UsageDashboard() {
                 tick={{ fill: "#888888", fontSize: 11, fontFamily: "monospace" }}
                 axisLine={{ stroke: "#333333" }}
                 tickLine={false}
-                tickFormatter={(v) => {
-                  try {
-                    const d = parseUTC(v);
-                    if (interval === "hour") {
-                      return d.toLocaleTimeString(undefined, { hour: "numeric" });
-                    }
-                    if (interval === "week") {
-                      return d.toLocaleDateString(undefined, { month: "short", day: "numeric" });
-                    }
-                    return `${d.getMonth() + 1}/${d.getDate()}`;
-                  } catch {
-                    return v;
-                  }
-                }}
+                tickFormatter={(v) => formatChartDate(v, interval)}
               />
               <YAxis
                 tick={{ fill: "#888888", fontSize: 11, fontFamily: "monospace" }}
@@ -484,11 +527,7 @@ export function UsageDashboard() {
                   return (
                     <tr key={row.id} className="hover:bg-[#0D0D0D] transition-colors">
                       <td className="px-4 py-1 text-xs font-mono text-[#666666]">
-                        {parseUTC(row.created_at).toLocaleTimeString(undefined, {
-                          hour: "numeric",
-                          minute: "2-digit",
-                          second: "2-digit",
-                        })}
+                        {formatLocalTime(row.created_at)}
                       </td>
                       <td className="px-4 py-1">
                         <div className="flex items-center gap-1.5">
