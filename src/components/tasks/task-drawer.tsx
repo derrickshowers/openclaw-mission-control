@@ -1,9 +1,10 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect, useRef } from "react";
 import { Button, Input, Textarea, Select, SelectItem, Chip } from "@heroui/react";
-import { X, Trash2 } from "lucide-react";
-import type { Task } from "@/lib/api";
+import { X, Trash2, Send } from "lucide-react";
+import { api } from "@/lib/api";
+import type { Task, TaskComment } from "@/lib/api";
 
 const COLUMNS = [
   { id: "backlog", label: "Backlog" },
@@ -32,6 +33,37 @@ export function TaskDrawer({ task, isOpen, onClose, onUpdate }: TaskDrawerProps)
   const [editing, setEditing] = useState(false);
   const [title, setTitle] = useState(task.title);
   const [description, setDescription] = useState(task.description || "");
+  const [comments, setComments] = useState<TaskComment[]>([]);
+  const [newComment, setNewComment] = useState("");
+  const [commentAuthor, setCommentAuthor] = useState("derrick");
+  const [submitting, setSubmitting] = useState(false);
+  const commentsEndRef = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    if (isOpen) {
+      api.getComments(task.id).then(setComments).catch(console.error);
+    }
+  }, [isOpen, task.id]);
+
+  useEffect(() => {
+    setTitle(task.title);
+    setDescription(task.description || "");
+  }, [task.title, task.description]);
+
+  const postComment = async () => {
+    if (!newComment.trim()) return;
+    setSubmitting(true);
+    try {
+      const comment = await api.addComment(task.id, commentAuthor, newComment.trim());
+      setComments((prev) => [...prev, comment]);
+      setNewComment("");
+      setTimeout(() => commentsEndRef.current?.scrollIntoView({ behavior: "smooth" }), 50);
+    } catch (err) {
+      console.error("Failed to post comment:", err);
+    } finally {
+      setSubmitting(false);
+    }
+  };
 
   if (!isOpen) return null;
 
@@ -218,6 +250,80 @@ export function TaskDrawer({ task, isOpen, onClose, onUpdate }: TaskDrawerProps)
             <p>Created: {new Date(task.created_at).toLocaleString()}</p>
             <p>Updated: {new Date(task.updated_at).toLocaleString()}</p>
             <p>Created by: {task.created_by}</p>
+          </div>
+
+          {/* Comments */}
+          <div className="space-y-3 border-t border-[#222222] pt-4">
+            <span className="text-xs font-medium text-[#888888] uppercase tracking-wider">Comments</span>
+
+            {comments.length === 0 && (
+              <p className="text-xs text-[#555555]">No comments yet.</p>
+            )}
+
+            <div className="space-y-3 max-h-64 overflow-y-auto">
+              {comments.map((c) => (
+                <div key={c.id} className="rounded-md bg-[#111111] border border-[#1a1a1a] px-3 py-2">
+                  <div className="flex items-center justify-between mb-1">
+                    <span className="text-xs font-medium text-white capitalize">{c.author}</span>
+                    <span className="text-[10px] text-[#555555]">
+                      {new Date(c.created_at).toLocaleString()}
+                    </span>
+                  </div>
+                  <p className="text-sm text-[#aaaaaa] whitespace-pre-wrap">{c.content}</p>
+                </div>
+              ))}
+              <div ref={commentsEndRef} />
+            </div>
+
+            {/* New comment input */}
+            <div className="space-y-2">
+              <Select
+                selectedKeys={[commentAuthor]}
+                onSelectionChange={(keys) => {
+                  const v = Array.from(keys)[0] as string;
+                  if (v) setCommentAuthor(v);
+                }}
+                variant="bordered"
+                size="sm"
+                label="Comment as"
+                className="max-w-[160px]"
+                classNames={{ trigger: "border-[#222222] bg-[#080808] h-8 min-h-8" }}
+              >
+                {AGENTS.map((a) => (
+                  <SelectItem key={a} className="capitalize">{a}</SelectItem>
+                ))}
+              </Select>
+              <div className="flex gap-2">
+                <Textarea
+                  value={newComment}
+                  onValueChange={setNewComment}
+                  variant="bordered"
+                  size="sm"
+                  minRows={1}
+                  maxRows={4}
+                  placeholder="Add a comment..."
+                  classNames={{ inputWrapper: "border-[#222222] bg-[#080808]" }}
+                  onKeyDown={(e) => {
+                    if (e.key === "Enter" && (e.metaKey || e.ctrlKey)) {
+                      e.preventDefault();
+                      postComment();
+                    }
+                  }}
+                />
+                <Button
+                  isIconOnly
+                  size="sm"
+                  color="primary"
+                  variant="flat"
+                  isLoading={submitting}
+                  onPress={postComment}
+                  isDisabled={!newComment.trim()}
+                  className="self-end"
+                >
+                  <Send size={14} strokeWidth={1.5} />
+                </Button>
+              </div>
+            </div>
           </div>
 
           {/* Delete */}

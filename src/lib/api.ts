@@ -64,6 +64,14 @@ export interface Task {
   deleted_at: string | null;
 }
 
+export interface TaskComment {
+  id: string;
+  task_id: string;
+  author: string;
+  content: string;
+  created_at: string;
+}
+
 export const api = {
   // Tasks
   getTasks: (params?: { status?: string; assignee?: string }) =>
@@ -82,6 +90,16 @@ export const api = {
 
   moveTask: (id: string, status: string, position: number) =>
     apiFetch<Task>(`/tasks/${id}/position`, { method: "PATCH", body: JSON.stringify({ status, position }) }),
+
+  // Comments
+  getComments: (taskId: string) =>
+    apiFetch<TaskComment[]>(`/tasks/${taskId}/comments`),
+
+  addComment: (taskId: string, author: string, content: string) =>
+    apiFetch<TaskComment>(`/tasks/${taskId}/comments`, {
+      method: "POST",
+      body: JSON.stringify({ author, content }),
+    }),
 
   // Agents
   getAgents: () => apiFetch<any[]>("/agents"),
