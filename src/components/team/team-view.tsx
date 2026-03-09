@@ -5,26 +5,30 @@ import { Card, CardBody, CardHeader, Chip, Button, Textarea } from "@heroui/reac
 import { Crosshair, Landmark, Zap, Palette, Bot, X, Send, BookOpen } from "lucide-react";
 import type { LucideIcon } from "lucide-react";
 
-const agentMeta: Record<string, { role: string; description: string; Icon: LucideIcon }> = {
+const agentMeta: Record<string, { role: string; description: string; Icon: LucideIcon; avatar?: string }> = {
   frank: {
     role: "Orchestrator",
     description: "Routes tasks, manages the team, delivers results to Derrick. The glue.",
     Icon: Crosshair,
+    avatar: "/avatars/frank.png",
   },
   tom: {
     role: "Lead Architect",
     description: "System design, technical specs, infrastructure decisions, code review.",
     Icon: Landmark,
+    avatar: "/avatars/tom.png",
   },
   michael: {
     role: "Full Stack Engineer",
     description: "Builds things. React, Next.js, TypeScript, APIs, the full stack.",
     Icon: Zap,
+    avatar: "/avatars/michael.png",
   },
   joanna: {
     role: "UX/Product Designer",
     description: "User experience, design direction, interaction patterns, accessibility.",
     Icon: Palette,
+    avatar: "/avatars/joanna.png",
   },
 };
 
@@ -167,7 +171,7 @@ function AgentCard({
   onMessage,
 }: {
   agent: any;
-  meta: { role: string; description: string; Icon: LucideIcon };
+  meta: { role: string; description: string; Icon: LucideIcon; avatar?: string };
   onMessage: () => void;
 }) {
   const IconComponent = meta?.Icon || Bot;
@@ -177,9 +181,19 @@ function AgentCard({
     <Card className="border border-[#222222] bg-[#121212]">
       <CardBody className="p-4">
         <div className="flex items-start gap-3">
-          <div className="flex h-10 w-10 flex-shrink-0 items-center justify-center rounded-lg bg-[#1A1A1A] text-muted-foreground">
-            <IconComponent size={20} strokeWidth={1.5} />
-          </div>
+          {meta?.avatar ? (
+            <div className="h-10 w-10 flex-shrink-0 overflow-hidden rounded-lg">
+              <img
+                src={meta.avatar}
+                alt={agent.name}
+                className="h-full w-full object-cover"
+              />
+            </div>
+          ) : (
+            <div className="flex h-10 w-10 flex-shrink-0 items-center justify-center rounded-lg bg-[#1A1A1A] text-muted-foreground">
+              <IconComponent size={20} strokeWidth={1.5} />
+            </div>
+          )}
           <div className="flex-1 min-w-0">
             <div className="flex items-center gap-2">
               <h3 className="text-sm font-medium capitalize">{agent.name}</h3>
