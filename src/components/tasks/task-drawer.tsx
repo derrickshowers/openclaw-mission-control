@@ -4,6 +4,7 @@ import { useState, useEffect, useRef } from "react";
 import { useSession } from "next-auth/react";
 import { useSSE } from "@/hooks/use-sse";
 import { Button, Input, Textarea, Select, SelectItem, Chip } from "@heroui/react";
+import { MentionTextarea } from "@/components/shared/mention-textarea";
 import { X, Trash2, Send, Paperclip, ImagePlus, XCircle } from "lucide-react";
 import { api } from "@/lib/api";
 import type { Task, TaskComment, TaskAttachment } from "@/lib/api";
@@ -469,14 +470,10 @@ export function TaskDrawer({ task, isOpen, onClose, onUpdate }: TaskDrawerProps)
             {/* New comment input */}
             <div className="space-y-2">
               <div className="flex gap-2">
-                <Textarea
+                <MentionTextarea
                   value={newComment}
                   onValueChange={setNewComment}
-                  variant="bordered"
-                  size="sm"
-                  minRows={1}
-                  maxRows={4}
-                  placeholder="Add a comment..."
+                  placeholder="Add a comment... (type @ to mention)"
                   classNames={{ inputWrapper: "border-[#222222] bg-[#080808]" }}
                   onKeyDown={(e) => {
                     if (e.key === "Enter" && e.shiftKey) {
