@@ -160,8 +160,13 @@ function AgentCard({
           <div className="flex-1 min-w-0">
             <div className="flex items-center gap-2">
               <h3 className="text-sm font-medium capitalize">{agent.name}</h3>
-              <Chip size="sm" variant="flat" color="default" className="text-[10px] h-5">
-                idle
+              <Chip
+                size="sm"
+                variant="flat"
+                color={agent.status === "active" ? "success" : "default"}
+                className="text-[10px] h-5"
+              >
+                {agent.status || "idle"}
               </Chip>
             </div>
             <p className="text-xs text-[#888888] mt-0.5">
