@@ -298,8 +298,8 @@ export function UsageDashboard() {
                 </tr>
               </thead>
               <tbody className="divide-y divide-[#1A1A1A]">
-                {breakdown.map((row, i) => (
-                  <tr key={i} className="hover:bg-[#111111] transition-colors">
+                {breakdown.map((row) => (
+                  <tr key={`${row.agent}-${row.model}`} className="hover:bg-[#111111] transition-colors">
                     <td className="px-4 py-2">
                       <div className="flex items-center gap-2">
                         <div
