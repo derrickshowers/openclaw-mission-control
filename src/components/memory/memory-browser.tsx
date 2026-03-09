@@ -4,6 +4,7 @@ import { useState, useEffect, useCallback } from "react";
 import { Button, Input } from "@heroui/react";
 import { Folder, FileText, Search, ArrowLeft, X } from "lucide-react";
 import ReactMarkdown from "react-markdown";
+import remarkGfm from "remark-gfm";
 
 const AGENTS = ["frank", "tom", "michael", "joanna"];
 
@@ -184,21 +185,23 @@ export function MemoryBrowser() {
             ))}
           </div>
         ) : fileContent !== null ? (
-          <div>
-            <div className="mb-3 flex items-center justify-between border-b border-[#222222] pb-2">
-              <span className="text-xs font-mono text-[#888888]">{currentFile}</span>
-              <Button
-                size="sm"
-                variant="flat"
-                className="text-xs border border-[#222222] bg-[#080808]"
-                onPress={() => { setFileContent(null); setCurrentFile(""); }}
-              >
-                Close
-              </Button>
+          <div className="px-8 py-12">
+            <div className="mx-auto max-w-3xl">
+              <div className="mb-6 flex items-center justify-between border-b border-[#222222] pb-3">
+                <span className="text-xs font-mono text-[#888888]">{currentFile}</span>
+                <Button
+                  size="sm"
+                  variant="flat"
+                  className="text-xs border border-[#222222] bg-[#080808]"
+                  onPress={() => { setFileContent(null); setCurrentFile(""); }}
+                >
+                  Close
+                </Button>
+              </div>
+              <article className="prose prose-invert prose-sm max-w-none leading-relaxed prose-p:text-[#D4D4D8] prose-p:mb-4 prose-headings:text-white prose-h1:text-2xl prose-h1:font-semibold prose-h1:mb-4 prose-h2:text-lg prose-h2:font-semibold prose-h2:mb-3 prose-h3:text-sm prose-h3:font-bold prose-h3:mb-2 prose-strong:text-white prose-a:text-[#8b5cf6] prose-a:no-underline hover:prose-a:underline prose-code:text-[#CCCCCC] prose-code:bg-[#1a1a1a] prose-code:border prose-code:border-[#333333] prose-code:px-1 prose-code:py-0.5 prose-code:rounded-sm prose-code:text-xs prose-code:font-mono prose-pre:bg-[#111111] prose-pre:border prose-pre:border-[#333333] prose-pre:rounded-md prose-pre:p-4 prose-pre:text-xs prose-table:border-collapse prose-th:border prose-th:border-[#333333] prose-th:bg-[#111111] prose-th:px-3 prose-th:py-1.5 prose-th:text-left prose-th:text-xs prose-th:font-medium prose-td:border prose-td:border-[#333333] prose-td:px-3 prose-td:py-1.5 prose-td:text-xs prose-blockquote:border-l-2 prose-blockquote:border-[#555555] prose-blockquote:text-[#888888] prose-blockquote:italic prose-li:text-[#D4D4D8]">
+                <ReactMarkdown remarkPlugins={[remarkGfm]}>{fileContent}</ReactMarkdown>
+              </article>
             </div>
-            <article className="prose prose-invert prose-sm max-w-none prose-headings:text-white prose-p:text-[#CCCCCC] prose-code:text-[#8b5cf6] prose-code:font-mono prose-pre:bg-[#121212] prose-pre:border prose-pre:border-[#222222]">
-              <ReactMarkdown>{fileContent}</ReactMarkdown>
-            </article>
           </div>
         ) : (
           <div className="flex h-full items-center justify-center">
