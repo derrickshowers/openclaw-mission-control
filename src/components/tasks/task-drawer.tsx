@@ -452,7 +452,15 @@ export function TaskDrawer({ task, isOpen, onClose, onUpdate }: TaskDrawerProps)
                       {new Date(c.created_at).toLocaleString()}
                     </span>
                   </div>
-                  <p className="text-sm text-[#aaaaaa] whitespace-pre-wrap">{c.content}</p>
+                  <p className="text-sm text-[#aaaaaa] whitespace-pre-wrap">
+                    {c.content.split(/(@\w+)/g).map((part: string, j: number) =>
+                      /^@\w+$/.test(part) ? (
+                        <span key={j} className="text-[#8b5cf6] font-medium">{part}</span>
+                      ) : (
+                        part
+                      )
+                    )}
+                  </p>
                 </div>
               ))}
               <div ref={commentsEndRef} />
