@@ -17,7 +17,7 @@ export default function RootLayout({
 }>) {
   return (
     <html lang="en" className="dark">
-      <body className="bg-[#080808] text-white antialiased">
+      <body className="bg-[#080808] text-white antialiased font-sans">
         <Providers>
           <div className="flex h-screen overflow-hidden">
             {/* Desktop Sidebar */}

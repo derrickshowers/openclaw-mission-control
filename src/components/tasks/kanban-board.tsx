@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useCallback } from "react";
+import { useState, useCallback, useEffect } from "react";
 import { Button, Input, Textarea, Select, SelectItem, Modal, ModalContent, ModalHeader, ModalBody, ModalFooter, useDisclosure } from "@heroui/react";
 import { Plus } from "lucide-react";
 import type { Task } from "@/lib/api";
@@ -67,6 +67,23 @@ export function KanbanBoard({ initialTasks }: KanbanBoardProps) {
       console.error("Failed to create task:", err);
     }
   }, [newTitle, newDescription, newAssignee, newPriority, newStatus, onClose]);
+
+  // Global keyboard shortcuts
+  useEffect(() => {
+    const handler = (e: KeyboardEvent) => {
+      // Don't trigger when typing in an input/textarea or when modal is open
+      const tag = (e.target as HTMLElement).tagName;
+      if (tag === "INPUT" || tag === "TEXTAREA" || tag === "SELECT") return;
+      if (e.metaKey || e.ctrlKey || e.altKey) return;
+
+      if (e.key === "c" || e.key === "n") {
+        e.preventDefault();
+        onOpen();
+      }
+    };
+    window.addEventListener("keydown", handler);
+    return () => window.removeEventListener("keydown", handler);
+  }, [onOpen]);
 
   const updateTaskStatus = useCallback(async (taskId: string, newStatus: string) => {
     try {
@@ -165,6 +182,13 @@ export function KanbanBoard({ initialTasks }: KanbanBoardProps) {
               variant="bordered"
               size="sm"
               classNames={{ inputWrapper: "border-[#222222] bg-[#080808]" }}
+              onKeyDown={(e) => {
+                if (e.key === "Enter" && e.shiftKey && newTitle.trim()) {
+                  e.preventDefault();
+                  createTask();
+                }
+              }}
+              autoFocus
             />
             <Textarea
               label="Description"
@@ -174,6 +198,12 @@ export function KanbanBoard({ initialTasks }: KanbanBoardProps) {
               variant="bordered"
               size="sm"
               classNames={{ inputWrapper: "border-[#222222] bg-[#080808]" }}
+              onKeyDown={(e) => {
+                if (e.key === "Enter" && e.shiftKey && newTitle.trim()) {
+                  e.preventDefault();
+                  createTask();
+                }
+              }}
             />
             <div className="grid grid-cols-2 gap-3">
               <Select
@@ -215,7 +245,8 @@ export function KanbanBoard({ initialTasks }: KanbanBoardProps) {
               ))}
             </Select>
           </ModalBody>
-          <ModalFooter className="border-t border-[#222222]">
+          <ModalFooter className="border-t border-[#222222] flex items-center">
+            <span className="text-[10px] text-[#555555] mr-auto">⇧ Enter to submit</span>
             <Button variant="flat" onPress={onClose} size="sm">
               Cancel
             </Button>

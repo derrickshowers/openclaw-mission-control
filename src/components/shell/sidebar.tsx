@@ -2,7 +2,9 @@
 
 import Link from "next/link";
 import { usePathname } from "next/navigation";
+import { useSession } from "next-auth/react";
 import { LayoutDashboard, CheckSquare, Users, Brain, Activity, Umbrella } from "lucide-react";
+import { Avatar, Skeleton } from "@heroui/react";
 import type { LucideIcon } from "lucide-react";
 
 const navItems: { href: string; label: string; Icon: LucideIcon }[] = [
@@ -15,14 +17,21 @@ const navItems: { href: string; label: string; Icon: LucideIcon }[] = [
 
 export function Sidebar() {
   const pathname = usePathname();
+  const { data: session, status } = useSession();
+
+  const userName = session?.user?.name || "User";
+  const userImage = session?.user?.image || undefined;
 
   return (
     <aside className="flex h-screen w-sidebar flex-col border-r border-[#222222] bg-[#080808]">
       {/* Logo */}
       <div className="flex h-14 items-center border-b border-[#222222] px-4">
-        <span className="flex items-center gap-2 text-sm font-semibold tracking-wide">
+        <span className="flex items-center gap-2">
           <Umbrella size={16} strokeWidth={1.5} />
-          MISSION CONTROL
+          <span className="flex flex-col leading-tight">
+            <span className="text-sm font-semibold tracking-wide">RAINCHECK</span>
+            <span className="text-[10px] text-[#888888] tracking-wider">MISSION CONTROL</span>
+          </span>
         </span>
       </div>
 
@@ -54,12 +63,24 @@ export function Sidebar() {
         </ul>
       </nav>
 
-      {/* Footer */}
+      {/* Footer - Dynamic User */}
       <div className="border-t border-[#222222] px-4 py-3">
-        <div className="flex items-center gap-2">
-          <div className="h-6 w-6 rounded-full bg-[#222222]" />
-          <span className="text-xs text-[#888888]">Derrick Showers</span>
-        </div>
+        {status === "loading" ? (
+          <div className="flex items-center gap-2">
+            <Skeleton className="h-6 w-6 rounded-full" />
+            <Skeleton className="h-3 w-20 rounded" />
+          </div>
+        ) : (
+          <div className="flex items-center gap-2">
+            <Avatar
+              src={userImage}
+              name={userName}
+              size="sm"
+              className="h-6 w-6 text-[10px]"
+            />
+            <span className="text-xs text-[#888888]">{userName}</span>
+          </div>
+        )}
       </div>
     </aside>
   );

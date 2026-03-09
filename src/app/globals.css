@@ -12,6 +12,29 @@ body {
   -moz-osx-font-smoothing: grayscale;
 }
 
+/* HeroUI focus ring overrides — Linear aesthetic */
+[data-slot="input-wrapper"][data-focus="true"],
+[data-slot="inner-wrapper"][data-focus="true"] {
+  --tw-ring-shadow: none !important;
+  box-shadow: none !important;
+  border-color: #444 !important;
+}
+
+[data-slot="input-wrapper"]:hover,
+[data-slot="trigger"]:hover {
+  border-color: #333 !important;
+}
+
+[data-slot="input-wrapper"],
+[data-slot="trigger"] {
+  transition: border-color 0.15s ease;
+}
+
+/* Ensure font inheritance on all form elements */
+input, textarea, select, button {
+  font-family: inherit;
+}
+
 /* Scrollbar styling */
 ::-webkit-scrollbar {
   width: 6px;

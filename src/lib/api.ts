@@ -64,6 +64,17 @@ export interface Task {
   deleted_at: string | null;
 }
 
+export interface TaskAttachment {
+  id: string;
+  task_id: string;
+  filename: string;
+  mime_type: string;
+  size: number;
+  uploaded_by: string;
+  url: string;
+  created_at: string;
+}
+
 export interface TaskComment {
   id: string;
   task_id: string;
@@ -90,6 +101,31 @@ export const api = {
 
   moveTask: (id: string, status: string, position: number) =>
     apiFetch<Task>(`/tasks/${id}/position`, { method: "PATCH", body: JSON.stringify({ status, position }) }),
+
+  // Attachments
+  getAttachments: (taskId: string) =>
+    apiFetch<TaskAttachment[]>(`/tasks/${taskId}/attachments`),
+
+  uploadAttachment: async (taskId: string, file: File, uploadedBy: string) => {
+    const formData = new FormData();
+    formData.append("file", file);
+    formData.append("uploaded_by", uploadedBy);
+
+    const res = await fetch(`${getBaseUrl()}/api/mc/tasks/${taskId}/attachments`, {
+      method: "POST",
+      body: formData,
+      // Do NOT set Content-Type — browser sets it with boundary
+    });
+
+    if (!res.ok) {
+      const error = await res.json().catch(() => ({ error: res.statusText }));
+      throw new Error(error.error || `Upload failed: ${res.status}`);
+    }
+    return res.json() as Promise<TaskAttachment>;
+  },
+
+  deleteAttachment: (attachmentId: string) =>
+    apiFetch(`/attachments/${attachmentId}`, { method: "DELETE" }),
 
   // Comments
   getComments: (taskId: string) =>

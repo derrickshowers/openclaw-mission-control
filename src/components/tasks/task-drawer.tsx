@@ -2,9 +2,9 @@
 
 import { useState, useEffect, useRef } from "react";
 import { Button, Input, Textarea, Select, SelectItem, Chip } from "@heroui/react";
-import { X, Trash2, Send } from "lucide-react";
+import { X, Trash2, Send, Paperclip, ImagePlus, XCircle } from "lucide-react";
 import { api } from "@/lib/api";
-import type { Task, TaskComment } from "@/lib/api";
+import type { Task, TaskComment, TaskAttachment } from "@/lib/api";
 
 const COLUMNS = [
   { id: "backlog", label: "Backlog" },
@@ -13,7 +13,7 @@ const COLUMNS = [
   { id: "done", label: "Done" },
 ];
 
-const AGENTS = ["frank", "tom", "michael", "joanna"];
+const AGENTS = ["derrick", "frank", "tom", "michael", "joanna"];
 
 const statusColors: Record<string, "default" | "primary" | "danger" | "success"> = {
   backlog: "default",
@@ -37,11 +37,18 @@ export function TaskDrawer({ task, isOpen, onClose, onUpdate }: TaskDrawerProps)
   const [newComment, setNewComment] = useState("");
   const [commentAuthor, setCommentAuthor] = useState("derrick");
   const [submitting, setSubmitting] = useState(false);
+  const [attachments, setAttachments] = useState<TaskAttachment[]>([]);
+  const [uploading, setUploading] = useState(false);
+  const [lightboxUrl, setLightboxUrl] = useState<string | null>(null);
+  const [dragOver, setDragOver] = useState(false);
+  const [confirmDelete, setConfirmDelete] = useState(false);
+  const fileInputRef = useRef<HTMLInputElement>(null);
   const commentsEndRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
     if (isOpen) {
       api.getComments(task.id).then(setComments).catch(console.error);
+      api.getAttachments(task.id).then(setAttachments).catch(console.error);
     }
   }, [isOpen, task.id]);
 
@@ -64,8 +71,6 @@ export function TaskDrawer({ task, isOpen, onClose, onUpdate }: TaskDrawerProps)
       setSubmitting(false);
     }
   };
-
-  if (!isOpen) return null;
 
   const saveEdits = async () => {
     try {
@@ -104,6 +109,68 @@ export function TaskDrawer({ task, isOpen, onClose, onUpdate }: TaskDrawerProps)
       console.error("Failed to delete:", err);
     }
   };
+
+  const handleFileUpload = async (file: File) => {
+    if (uploading) return;
+    const allowed = ["image/png", "image/jpeg", "image/gif", "image/webp"];
+    if (!allowed.includes(file.type)) {
+      alert("Only PNG, JPG, GIF, and WebP images are allowed.");
+      return;
+    }
+    if (file.size > 5 * 1024 * 1024) {
+      alert("File too large (max 5MB).");
+      return;
+    }
+    setUploading(true);
+    try {
+      const attachment = await api.uploadAttachment(task.id, file, "derrick");
+      setAttachments((prev) => [...prev, attachment]);
+    } catch (err: any) {
+      console.error("Upload failed:", err);
+      alert(err.message || "Upload failed");
+    } finally {
+      setUploading(false);
+    }
+  };
+
+  const handleDeleteAttachment = async (attachmentId: string) => {
+    try {
+      await api.deleteAttachment(attachmentId);
+      setAttachments((prev) => prev.filter((a) => a.id !== attachmentId));
+    } catch (err) {
+      console.error("Failed to delete attachment:", err);
+    }
+  };
+
+  const handleDrop = (e: React.DragEvent) => {
+    e.preventDefault();
+    setDragOver(false);
+    const file = e.dataTransfer.files[0];
+    if (file) handleFileUpload(file);
+  };
+
+  const handlePaste = (e: React.ClipboardEvent) => {
+    // Kept for backward compatibility on the specific div
+    const items = e.clipboardData.items;
+    for (const item of items) {
+      if (item.type.startsWith("image/")) {
+        const file = item.getAsFile();
+        if (file) {
+          e.preventDefault();
+          handleFileUpload(file);
+          return;
+        }
+      }
+    }
+  };
+
+  const formatFileSize = (bytes: number) => {
+    if (bytes < 1024) return `${bytes}B`;
+    if (bytes < 1024 * 1024) return `${(bytes / 1024).toFixed(1)}KB`;
+    return `${(bytes / (1024 * 1024)).toFixed(1)}MB`;
+  };
+
+  if (!isOpen) return null;
 
   return (
     <>
@@ -177,6 +244,91 @@ export function TaskDrawer({ task, isOpen, onClose, onUpdate }: TaskDrawerProps)
               </div>
             </>
           )}
+
+          {/* Attachments */}
+          <div
+            className={`space-y-3 border-t border-[#222222] pt-4 ${dragOver ? "ring-1 ring-blue-500/50 rounded-lg" : ""}`}
+            onDragOver={(e) => { e.preventDefault(); setDragOver(true); }}
+            onDragLeave={() => setDragOver(false)}
+            onDrop={handleDrop}
+            onPaste={handlePaste}
+          >
+            <div className="flex items-center justify-between">
+              <span className="text-xs font-medium text-[#888888] uppercase tracking-wider flex items-center gap-1">
+                <Paperclip size={12} strokeWidth={1.5} />
+                Attachments
+                {attachments.length > 0 && (
+                  <span className="text-[10px] text-[#555555]">({attachments.length})</span>
+                )}
+              </span>
+              <input
+                ref={fileInputRef}
+                type="file"
+                accept="image/png,image/jpeg,image/gif,image/webp"
+                className="hidden"
+                onChange={(e) => {
+                  const file = e.target.files?.[0];
+                  if (file) handleFileUpload(file);
+                  e.target.value = "";
+                }}
+              />
+              <Button
+                size="sm"
+                variant="flat"
+                isLoading={uploading}
+                onPress={() => fileInputRef.current?.click()}
+                startContent={!uploading && <ImagePlus size={14} strokeWidth={1.5} />}
+                className="h-7 text-xs"
+              >
+                Attach
+              </Button>
+            </div>
+
+            {attachments.length === 0 && !dragOver && (
+              <p className="text-xs text-[#555555]">
+                No attachments. Drag & drop, paste, or click Attach.
+              </p>
+            )}
+
+            {dragOver && (
+              <div className="flex items-center justify-center rounded-md border border-dashed border-blue-500/50 bg-blue-500/5 py-6">
+                <p className="text-xs text-blue-400">Drop image here</p>
+              </div>
+            )}
+
+            {attachments.length > 0 && (
+              <div className="grid grid-cols-3 gap-2">
+                {attachments.map((a) => (
+                  <div
+                    key={a.id}
+                    className="group relative rounded-md border border-[#222222] bg-[#111111] overflow-hidden cursor-pointer"
+                    onClick={() => setLightboxUrl(`/api/mc${a.url}`)}
+                  >
+                    <img
+                      src={`/api/mc${a.url}`}
+                      alt={a.filename}
+                      className="w-full h-20 object-cover"
+                      loading="lazy"
+                    />
+                    <div className="absolute inset-0 bg-black/0 group-hover:bg-black/40 transition-colors" />
+                    <button
+                      className="absolute top-1.5 right-1.5 opacity-0 group-hover:opacity-100 transition-opacity text-white hover:text-red-400 bg-black/60 hover:bg-black/80 rounded-full p-1"
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        handleDeleteAttachment(a.id);
+                      }}
+                    >
+                      <X size={12} strokeWidth={2} />
+                    </button>
+                    <div className="px-1.5 py-1">
+                      <p className="text-[10px] text-[#888888] truncate">{a.filename}</p>
+                      <p className="text-[10px] text-[#555555]">{formatFileSize(a.size)}</p>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            )}
+          </div>
 
           {/* Fields */}
           <div className="space-y-3 border-t border-[#222222] pt-4">
@@ -304,7 +456,7 @@ export function TaskDrawer({ task, isOpen, onClose, onUpdate }: TaskDrawerProps)
                   placeholder="Add a comment..."
                   classNames={{ inputWrapper: "border-[#222222] bg-[#080808]" }}
                   onKeyDown={(e) => {
-                    if (e.key === "Enter" && (e.metaKey || e.ctrlKey)) {
+                    if (e.key === "Enter" && e.shiftKey) {
                       e.preventDefault();
                       postComment();
                     }
@@ -328,18 +480,50 @@ export function TaskDrawer({ task, isOpen, onClose, onUpdate }: TaskDrawerProps)
 
           {/* Delete */}
           <div className="border-t border-[#222222] pt-4">
-            <Button
-              size="sm"
-              variant="flat"
-              color="danger"
-              onPress={deleteTask}
-              startContent={<Trash2 size={14} strokeWidth={1.5} />}
-            >
-              Delete Task
-            </Button>
+            {confirmDelete ? (
+              <div className="flex items-center gap-2">
+                <Button size="sm" color="danger" onPress={deleteTask}>
+                  Confirm Delete
+                </Button>
+                <Button size="sm" variant="flat" onPress={() => setConfirmDelete(false)}>
+                  Cancel
+                </Button>
+              </div>
+            ) : (
+              <Button
+                size="sm"
+                variant="flat"
+                color="danger"
+                onPress={() => setConfirmDelete(true)}
+                startContent={<Trash2 size={14} strokeWidth={1.5} />}
+              >
+                Delete Task
+              </Button>
+            )}
           </div>
         </div>
       </div>
+
+      {/* Lightbox */}
+      {lightboxUrl && (
+        <div
+          className="fixed inset-0 z-[60] flex items-center justify-center bg-black/80 backdrop-blur-sm"
+          onClick={() => setLightboxUrl(null)}
+        >
+          <button
+            className="absolute top-4 right-4 text-white/60 hover:text-white"
+            onClick={() => setLightboxUrl(null)}
+          >
+            <X size={24} strokeWidth={1.5} />
+          </button>
+          <img
+            src={lightboxUrl}
+            alt="Attachment preview"
+            className="max-w-[90vw] max-h-[90vh] object-contain rounded-lg"
+            onClick={(e) => e.stopPropagation()}
+          />
+        </div>
+      )}
     </>
   );
 }
