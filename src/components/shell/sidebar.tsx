@@ -3,7 +3,7 @@
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { useSession } from "next-auth/react";
-import { LayoutDashboard, CheckSquare, Users, Brain, Activity, Umbrella } from "lucide-react";
+import { LayoutDashboard, CheckSquare, Users, Brain, Activity, Umbrella, BookOpen } from "lucide-react";
 import { Avatar, Skeleton } from "@heroui/react";
 import type { LucideIcon } from "lucide-react";
 
@@ -12,6 +12,7 @@ const navItems: { href: string; label: string; Icon: LucideIcon }[] = [
   { href: "/tasks", label: "Tasks", Icon: CheckSquare },
   { href: "/team", label: "Team", Icon: Users },
   { href: "/memory", label: "Memory", Icon: Brain },
+  { href: "/docs", label: "Docs", Icon: BookOpen },
   { href: "/activity", label: "Activity", Icon: Activity },
 ];
 

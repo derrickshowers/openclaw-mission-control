@@ -2,14 +2,14 @@
 
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { LayoutDashboard, CheckSquare, Activity, Users } from "lucide-react";
+import { LayoutDashboard, CheckSquare, Activity, Users, BookOpen } from "lucide-react";
 import type { LucideIcon } from "lucide-react";
 
 const navItems: { href: string; label: string; Icon: LucideIcon }[] = [
   { href: "/", label: "Home", Icon: LayoutDashboard },
   { href: "/tasks", label: "Tasks", Icon: CheckSquare },
+  { href: "/docs", label: "Docs", Icon: BookOpen },
   { href: "/activity", label: "Activity", Icon: Activity },
-  { href: "/team", label: "Team", Icon: Users },
 ];
 
 export function MobileNav() {
