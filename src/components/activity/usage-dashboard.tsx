@@ -40,6 +40,17 @@ interface BreakdownRow {
   requests: number;
 }
 
+interface LogRow {
+  id: number;
+  agent: string;
+  model: string;
+  input_tokens: number;
+  output_tokens: number;
+  cost_usd: number;
+  session_key: string | null;
+  created_at: string;
+}
+
 // Muted dark-mode colors for each agent
 const AGENT_COLORS: Record<string, string> = {
   frank: "#6366f1",   // indigo
@@ -49,11 +60,39 @@ const AGENT_COLORS: Record<string, string> = {
   derrick: "#64748b", // slate
 };
 
+// Max context window sizes per model (tokens)
+const MODEL_MAX_CONTEXT: Record<string, number> = {
+  "claude-sonnet-4-5":      200_000,
+  "claude-opus-4-6":        200_000,
+  "claude-haiku-4-5":       200_000,
+  "gemini-2.5-flash":       1_048_576,
+  "gemini-2.5-flash-lite":  1_048_576,
+  "gemini-2.5-pro":         1_048_576,
+  "gemini-3-flash-preview": 1_048_576,
+  "gemini-3-pro-preview":   1_048_576,
+  "gpt-4o":                 128_000,
+  "gpt-4o-mini":            128_000,
+  "o3":                     200_000,
+  "o4-mini":                200_000,
+};
+
+function getMaxContext(model: string): number {
+  const direct = MODEL_MAX_CONTEXT[model];
+  if (direct) return direct;
+  const key = Object.keys(MODEL_MAX_CONTEXT).find((k) => model.includes(k));
+  return key ? MODEL_MAX_CONTEXT[key] : 200_000;
+}
+
 const PERIOD_OPTIONS = [
   { value: "1", label: "Today" },
   { value: "7", label: "7 days" },
   { value: "14", label: "14 days" },
   { value: "30", label: "30 days" },
+];
+
+const INTERVAL_OPTIONS = [
+  { value: "hour", label: "Hour" },
+  { value: "day", label: "Day" },
 ];
 
 function formatTokens(n: number): string {
@@ -91,13 +130,29 @@ interface CustomTooltipProps {
   active?: boolean;
   payload?: any[];
   label?: string;
+  interval?: string;
 }
 
-function CustomTooltip({ active, payload, label }: CustomTooltipProps) {
+function CustomTooltip({ active, payload, label, interval }: CustomTooltipProps) {
   if (!active || !payload?.length) return null;
+
+  let displayLabel = label || "";
+  if (interval === "hour" && label) {
+    // Format "2026-03-09 14:00" → "2:00 PM - 3:00 PM"
+    try {
+      const d = new Date(label.replace(" ", "T") + ":00");
+      const end = new Date(d.getTime() + 60 * 60 * 1000);
+      const fmt = (dt: Date) =>
+        dt.toLocaleTimeString("en-US", { hour: "numeric", minute: "2-digit" });
+      displayLabel = `${fmt(d)} – ${fmt(end)}`;
+    } catch {
+      displayLabel = label;
+    }
+  }
+
   return (
     <div className="rounded border border-[#333333] bg-[#080808] p-2 text-xs font-mono">
-      <p className="text-[#888888] mb-1">{label}</p>
+      <p className="text-[#888888] mb-1">{displayLabel}</p>
       {payload.map((entry: any, i: number) => (
         <div key={i} className="flex items-center gap-2">
           <div className="h-2 w-2 rounded-full" style={{ backgroundColor: entry.color }} />
@@ -109,28 +164,61 @@ function CustomTooltip({ active, payload, label }: CustomTooltipProps) {
   );
 }
 
+/** Mini progress bar for context size */
+function ContextBar({ avg, max }: { avg: number; max: number }) {
+  const pct = Math.min((avg / max) * 100, 100);
+  const color = pct > 75 ? "#ef4444" : pct > 50 ? "#f59e0b" : "#8b5cf6";
+  return (
+    <div className="flex items-center gap-2">
+      <span className="text-[#CCCCCC] font-mono text-xs whitespace-nowrap">
+        {formatTokens(avg)} avg
+      </span>
+      <div className="w-16 h-1.5 rounded-full bg-[#222222] overflow-hidden">
+        <div
+          className="h-full rounded-full transition-all"
+          style={{ width: `${pct}%`, backgroundColor: color }}
+        />
+      </div>
+    </div>
+  );
+}
+
 export function UsageDashboard() {
   const [days, setDays] = useState("7");
+  const [interval, setInterval] = useState("day");
   const [summary, setSummary] = useState<Summary | null>(null);
   const [chartData, setChartData] = useState<any[]>([]);
   const [breakdown, setBreakdown] = useState<BreakdownRow[]>([]);
+  const [recentLogs, setRecentLogs] = useState<LogRow[]>([]);
   const [loading, setLoading] = useState(true);
+
+  // Auto-switch interval to "hour" when "Today" is selected
+  useEffect(() => {
+    if (days === "1") {
+      setInterval("hour");
+    } else {
+      setInterval("day");
+    }
+  }, [days]);
 
   const fetchData = useCallback(async () => {
     setLoading(true);
     try {
-      const [summaryRes, chartRes, breakdownRes] = await Promise.all([
+      const [summaryRes, chartRes, breakdownRes, logRes] = await Promise.all([
         fetch(`/api/mc/usage/summary?days=${days}`),
-        fetch(`/api/mc/usage/chart?days=${days}`),
+        fetch(`/api/mc/usage/chart?days=${days}&interval=${interval}`),
         fetch(`/api/mc/usage/breakdown?days=${days}`),
+        fetch(`/api/mc/usage/log?limit=25`),
       ]);
 
       const summaryData = await summaryRes.json();
       const chartRows: ChartRow[] = await chartRes.json();
       const breakdownData = await breakdownRes.json();
+      const logData = await logRes.json();
 
       setSummary(summaryData);
       setBreakdown(Array.isArray(breakdownData) ? breakdownData : []);
+      setRecentLogs(Array.isArray(logData) ? logData : []);
 
       // Transform chart data: pivot agent rows into { date, frank: N, tom: N, ... }
       const dateMap = new Map<string, Record<string, number>>();
@@ -147,7 +235,7 @@ export function UsageDashboard() {
     } finally {
       setLoading(false);
     }
-  }, [days]);
+  }, [days, interval]);
 
   useEffect(() => {
     fetchData();
@@ -166,21 +254,39 @@ export function UsageDashboard() {
           <TrendingUp size={16} strokeWidth={1.5} className="text-[#888888]" />
           <span className="text-sm font-medium">Model Usage</span>
         </div>
-        <Select
-          selectedKeys={[days]}
-          onSelectionChange={(keys) => {
-            const v = Array.from(keys)[0] as string;
-            if (v) setDays(v);
-          }}
-          variant="bordered"
-          size="sm"
-          className="max-w-[120px]"
-          classNames={{ trigger: "border-[#222222] bg-[#080808] h-8 min-h-8" }}
-        >
-          {PERIOD_OPTIONS.map((p) => (
-            <SelectItem key={p.value}>{p.label}</SelectItem>
-          ))}
-        </Select>
+        <div className="flex items-center gap-2">
+          {/* Interval toggle */}
+          <div className="flex rounded border border-[#222222] overflow-hidden">
+            {INTERVAL_OPTIONS.map((opt) => (
+              <button
+                key={opt.value}
+                onClick={() => setInterval(opt.value)}
+                className={`px-3 py-1 text-xs font-medium transition-colors ${
+                  interval === opt.value
+                    ? "bg-[#1A1A1A] text-white"
+                    : "bg-[#080808] text-[#555555] hover:text-[#888888]"
+                }`}
+              >
+                {opt.label}
+              </button>
+            ))}
+          </div>
+          <Select
+            selectedKeys={[days]}
+            onSelectionChange={(keys) => {
+              const v = Array.from(keys)[0] as string;
+              if (v) setDays(v);
+            }}
+            variant="bordered"
+            size="sm"
+            className="max-w-[120px]"
+            classNames={{ trigger: "border-[#222222] bg-[#080808] h-8 min-h-8" }}
+          >
+            {PERIOD_OPTIONS.map((p) => (
+              <SelectItem key={p.value}>{p.label}</SelectItem>
+            ))}
+          </Select>
+        </div>
       </div>
 
       {/* Hero Cards */}
@@ -224,7 +330,10 @@ export function UsageDashboard() {
 
       {/* Chart */}
       <div className="rounded border border-[#222222] bg-[#0A0A0A] p-4">
-        <p className="text-xs text-[#888888] mb-3 uppercase tracking-wider">Token Usage by Agent</p>
+        <p className="text-xs text-[#888888] mb-3 uppercase tracking-wider">
+          Token Usage by Agent
+          {interval === "hour" && <span className="text-[#555555]"> · Hourly</span>}
+        </p>
         {chartData.length === 0 ? (
           <div className="flex h-48 items-center justify-center">
             <p className="text-xs text-[#555555]">
@@ -241,6 +350,15 @@ export function UsageDashboard() {
                 axisLine={{ stroke: "#333333" }}
                 tickLine={false}
                 tickFormatter={(v) => {
+                  if (interval === "hour") {
+                    // "2026-03-09 14:00" → "2 PM"
+                    try {
+                      const d = new Date(v.replace(" ", "T") + ":00");
+                      return d.toLocaleTimeString("en-US", { hour: "numeric" });
+                    } catch {
+                      return v;
+                    }
+                  }
                   const d = new Date(v + "T00:00:00");
                   return `${d.getMonth() + 1}/${d.getDate()}`;
                 }}
@@ -251,7 +369,7 @@ export function UsageDashboard() {
                 tickLine={false}
                 tickFormatter={formatTokens}
               />
-              <Tooltip content={<CustomTooltip />} />
+              <Tooltip content={<CustomTooltip interval={interval} />} />
               <Legend
                 wrapperStyle={{ fontSize: "11px", fontFamily: "monospace" }}
                 formatter={(value: string) => (
@@ -294,36 +412,118 @@ export function UsageDashboard() {
                   <th className="px-4 py-2 font-medium text-right">Input</th>
                   <th className="px-4 py-2 font-medium text-right">Output</th>
                   <th className="px-4 py-2 font-medium text-right">Requests</th>
+                  <th className="px-4 py-2 font-medium">Avg Context</th>
                   <th className="px-4 py-2 font-medium text-right">Est. Cost</th>
                 </tr>
               </thead>
               <tbody className="divide-y divide-[#1A1A1A]">
-                {breakdown.map((row) => (
-                  <tr key={`${row.agent}-${row.model}`} className="hover:bg-[#111111] transition-colors">
-                    <td className="px-4 py-2">
-                      <div className="flex items-center gap-2">
-                        <div
-                          className="h-2 w-2 rounded-full"
-                          style={{ backgroundColor: AGENT_COLORS[row.agent] || "#888888" }}
-                        />
-                        <span className="capitalize text-white">{row.agent}</span>
-                      </div>
-                    </td>
-                    <td className="px-4 py-2 font-mono text-xs text-[#CCCCCC]">{row.model}</td>
-                    <td className="px-4 py-2 text-right font-mono text-xs text-[#CCCCCC]">
-                      {formatTokens(row.input_tokens)}
-                    </td>
-                    <td className="px-4 py-2 text-right font-mono text-xs text-[#CCCCCC]">
-                      {formatTokens(row.output_tokens)}
-                    </td>
-                    <td className="px-4 py-2 text-right font-mono text-xs text-[#CCCCCC]">
-                      {row.requests}
-                    </td>
-                    <td className="px-4 py-2 text-right font-mono text-xs text-white">
-                      {formatCost(row.cost_usd)}
-                    </td>
-                  </tr>
-                ))}
+                {breakdown.map((row) => {
+                  const avgContext = row.requests > 0 ? Math.round(row.input_tokens / row.requests) : 0;
+                  const maxCtx = getMaxContext(row.model);
+                  return (
+                    <tr key={`${row.agent}-${row.model}`} className="hover:bg-[#111111] transition-colors">
+                      <td className="px-4 py-2">
+                        <div className="flex items-center gap-2">
+                          <div
+                            className="h-2 w-2 rounded-full"
+                            style={{ backgroundColor: AGENT_COLORS[row.agent] || "#888888" }}
+                          />
+                          <span className="capitalize text-white">{row.agent}</span>
+                        </div>
+                      </td>
+                      <td className="px-4 py-2 font-mono text-xs text-[#CCCCCC]">{row.model}</td>
+                      <td className="px-4 py-2 text-right font-mono text-xs text-[#CCCCCC]">
+                        {formatTokens(row.input_tokens)}
+                      </td>
+                      <td className="px-4 py-2 text-right font-mono text-xs text-[#CCCCCC]">
+                        {formatTokens(row.output_tokens)}
+                      </td>
+                      <td className="px-4 py-2 text-right font-mono text-xs text-[#CCCCCC]">
+                        {row.requests}
+                      </td>
+                      <td className="px-4 py-2">
+                        <ContextBar avg={avgContext} max={maxCtx} />
+                      </td>
+                      <td className="px-4 py-2 text-right font-mono text-xs text-white">
+                        {formatCost(row.cost_usd)}
+                      </td>
+                    </tr>
+                  );
+                })}
+              </tbody>
+            </table>
+          </div>
+        )}
+      </div>
+
+      {/* Recent Contexts Table */}
+      <div className="rounded border border-[#222222] bg-[#0A0A0A]">
+        <div className="border-b border-[#222222] px-4 py-2.5">
+          <p className="text-xs text-[#888888] uppercase tracking-wider">Recent Contexts</p>
+        </div>
+        {recentLogs.length === 0 ? (
+          <div className="flex h-16 items-center justify-center">
+            <p className="text-xs text-[#555555]">No recent requests</p>
+          </div>
+        ) : (
+          <div className="overflow-x-auto">
+            <table className="w-full">
+              <thead>
+                <tr className="border-b border-[#222222] text-left text-[10px] text-[#666666] uppercase tracking-wider">
+                  <th className="px-4 py-1.5 font-medium">Time</th>
+                  <th className="px-4 py-1.5 font-medium">Agent</th>
+                  <th className="px-4 py-1.5 font-medium">Model</th>
+                  <th className="px-4 py-1.5 font-medium text-right">Context (Input)</th>
+                  <th className="px-4 py-1.5 font-medium text-right">Output</th>
+                  <th className="px-4 py-1.5 font-medium text-right">Cost</th>
+                </tr>
+              </thead>
+              <tbody className="divide-y divide-[#161616]">
+                {recentLogs.map((row) => {
+                  const maxCtx = getMaxContext(row.model);
+                  const pct = Math.min((row.input_tokens / maxCtx) * 100, 100);
+                  const barColor = pct > 75 ? "#ef4444" : pct > 50 ? "#f59e0b" : "#8b5cf6";
+                  return (
+                    <tr key={row.id} className="hover:bg-[#0D0D0D] transition-colors">
+                      <td className="px-4 py-1 text-xs font-mono text-[#666666]">
+                        {new Date(row.created_at).toLocaleTimeString("en-US", {
+                          hour: "numeric",
+                          minute: "2-digit",
+                          second: "2-digit",
+                        })}
+                      </td>
+                      <td className="px-4 py-1">
+                        <div className="flex items-center gap-1.5">
+                          <div
+                            className="h-1.5 w-1.5 rounded-full"
+                            style={{ backgroundColor: AGENT_COLORS[row.agent] || "#888888" }}
+                          />
+                          <span className="text-xs text-[#CCCCCC] capitalize">{row.agent}</span>
+                        </div>
+                      </td>
+                      <td className="px-4 py-1 text-xs font-mono text-[#888888]">{row.model}</td>
+                      <td className="px-4 py-1 text-right">
+                        <div className="flex items-center justify-end gap-2">
+                          <div className="w-12 h-1 rounded-full bg-[#222222] overflow-hidden">
+                            <div
+                              className="h-full rounded-full"
+                              style={{ width: `${pct}%`, backgroundColor: barColor }}
+                            />
+                          </div>
+                          <span className="text-xs font-mono text-[#CCCCCC] w-12 text-right">
+                            {formatTokens(row.input_tokens)}
+                          </span>
+                        </div>
+                      </td>
+                      <td className="px-4 py-1 text-right text-xs font-mono text-[#888888]">
+                        {formatTokens(row.output_tokens)}
+                      </td>
+                      <td className="px-4 py-1 text-right text-xs font-mono text-[#888888]">
+                        {formatCost(row.cost_usd)}
+                      </td>
+                    </tr>
+                  );
+                })}
               </tbody>
             </table>
           </div>
