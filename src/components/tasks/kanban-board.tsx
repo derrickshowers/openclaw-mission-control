@@ -200,7 +200,12 @@ export function KanbanBoard({ initialTasks }: KanbanBoardProps) {
         {COLUMNS.map((column) => {
           const columnTasks = tasks
             .filter((t) => t.status === column.id)
-            .sort((a, b) => a.position - b.position);
+            .sort((a, b) => {
+              // Most recently updated first
+              const aTime = new Date(a.updated_at || a.created_at).getTime();
+              const bTime = new Date(b.updated_at || b.created_at).getTime();
+              return bTime - aTime;
+            });
 
           return (
             <div
