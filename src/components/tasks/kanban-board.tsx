@@ -87,7 +87,10 @@ export function KanbanBoard({ initialTasks }: KanbanBoardProps) {
         );
       }
 
-      setTasks((prev) => [...prev, task]);
+      setTasks((prev) => {
+        if (prev.some((t) => t.id === task.id)) return prev;
+        return [...prev, task];
+      });
       setNewTitle("");
       setNewDescription("");
       setNewAssignee("");
