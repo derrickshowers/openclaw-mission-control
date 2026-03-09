@@ -334,10 +334,10 @@ export function TaskDrawer({ task, isOpen, onClose, onUpdate }: TaskDrawerProps)
                   <div
                     key={a.id}
                     className="group relative rounded-md border border-[#222222] bg-[#111111] overflow-hidden cursor-pointer"
-                    onClick={() => setLightboxUrl(`/api/mc${a.url}`)}
+                    onClick={() => setLightboxUrl(`/api/mc${a.url.replace(/^\/api/, "")}`)}
                   >
                     <img
-                      src={`/api/mc${a.url}`}
+                      src={`/api/mc${a.url.replace(/^\/api/, "")}`}
                       alt={a.filename}
                       className="w-full h-20 object-cover"
                       loading="lazy"
