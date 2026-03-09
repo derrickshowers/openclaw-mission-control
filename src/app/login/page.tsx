@@ -17,8 +17,8 @@ export default function LoginPage() {
           variant="flat"
           className="border border-[#222222] bg-[#080808]"
           onPress={() => {
-            // NextAuth sign in with Google
-            window.location.href = "/api/auth/signin/google";
+            // NextAuth v5 — use callbackUrl to redirect back after login
+            window.location.href = "/api/auth/signin?callbackUrl=%2F";
           }}
         >
           Sign in with Google
