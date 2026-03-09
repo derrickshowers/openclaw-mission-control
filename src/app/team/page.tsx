@@ -1,16 +1,10 @@
-import { api } from "@/lib/api";
 import { TeamView } from "@/components/team/team-view";
+import { serverApi } from "@/lib/server-api";
 
 export const dynamic = "force-dynamic";
 
 export default async function TeamPage() {
-  let agents: any[] = [];
-
-  try {
-    agents = await api.getAgents();
-  } catch {
-    // API not available
-  }
+  const agents = await serverApi.getAgents().catch(() => []);
 
   return <TeamView agents={agents} />;
 }

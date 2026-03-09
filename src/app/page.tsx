@@ -1,5 +1,5 @@
-import { api } from "@/lib/api";
 import { DashboardContent } from "@/components/dashboard/dashboard-content";
+import { serverApi } from "@/lib/server-api";
 
 export const dynamic = "force-dynamic";
 
@@ -11,10 +11,10 @@ export default async function DashboardPage() {
 
   try {
     [tasks, agents, status, recentActivity] = await Promise.all([
-      api.getTasks().catch(() => []),
-      api.getAgents().catch(() => []),
-      api.getStatus().catch(() => null),
-      api.getActivity({ limit: "5" }).catch(() => []),
+      serverApi.getTasks().catch(() => []),
+      serverApi.getAgents().catch(() => []),
+      serverApi.getStatus().catch(() => null),
+      serverApi.getActivity({ limit: "5" }).catch(() => []),
     ]);
   } catch {
     // API might not be running yet

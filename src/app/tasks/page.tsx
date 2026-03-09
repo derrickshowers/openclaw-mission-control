@@ -1,16 +1,10 @@
-import { api } from "@/lib/api";
 import { KanbanBoard } from "@/components/tasks/kanban-board";
+import { serverApi } from "@/lib/server-api";
 
 export const dynamic = "force-dynamic";
 
 export default async function TasksPage() {
-  let tasks: any[] = [];
-
-  try {
-    tasks = await api.getTasks();
-  } catch {
-    // API might not be running
-  }
+  const tasks = await serverApi.getTasks().catch(() => []);
 
   return (
     <div className="h-full">
