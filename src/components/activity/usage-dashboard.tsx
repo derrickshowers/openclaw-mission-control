@@ -90,10 +90,20 @@ const PERIOD_OPTIONS = [
   { value: "30", label: "30 days" },
 ];
 
-const INTERVAL_OPTIONS = [
-  { value: "hour", label: "Hour" },
-  { value: "day", label: "Day" },
-];
+/** Determine the best chart interval for a given period */
+function intervalForDays(d: string): string {
+  if (d === "1") return "hour";
+  if (d === "30") return "week";
+  return "day"; // 7d, 14d
+}
+
+/** Parse a backend datetime string (always UTC, no Z suffix) into a Date */
+function parseUTC(s: string): Date {
+  // Backend returns "2026-03-09 14:00" or "2026-03-09" — always UTC
+  const normalized = s.includes("T") ? s : s.replace(" ", "T");
+  const withZ = normalized.endsWith("Z") ? normalized : normalized + "Z";
+  return new Date(withZ);
+}
 
 function formatTokens(n: number): string {
   if (n >= 1_000_000) return `${(n / 1_000_000).toFixed(1)}M`;
@@ -137,14 +147,22 @@ function CustomTooltip({ active, payload, label, interval }: CustomTooltipProps)
   if (!active || !payload?.length) return null;
 
   let displayLabel = label || "";
-  if (interval === "hour" && label) {
-    // Format "2026-03-09 14:00" → "2:00 PM - 3:00 PM"
+  if (label) {
     try {
-      const d = new Date(label.replace(" ", "T") + ":00");
-      const end = new Date(d.getTime() + 60 * 60 * 1000);
-      const fmt = (dt: Date) =>
-        dt.toLocaleTimeString("en-US", { hour: "numeric", minute: "2-digit" });
-      displayLabel = `${fmt(d)} – ${fmt(end)}`;
+      if (interval === "hour") {
+        // "2026-03-09 14:00" (UTC) → "10:00 AM – 11:00 AM" (local)
+        const d = parseUTC(label);
+        const end = new Date(d.getTime() + 60 * 60 * 1000);
+        const fmt = (dt: Date) =>
+          dt.toLocaleTimeString(undefined, { hour: "numeric", minute: "2-digit" });
+        displayLabel = `${fmt(d)} – ${fmt(end)}`;
+      } else if (interval === "week") {
+        const d = parseUTC(label);
+        displayLabel = `Week of ${d.toLocaleDateString(undefined, { month: "short", day: "numeric" })}`;
+      } else {
+        const d = parseUTC(label);
+        displayLabel = d.toLocaleDateString(undefined, { weekday: "short", month: "short", day: "numeric" });
+      }
     } catch {
       displayLabel = label;
     }
@@ -185,21 +203,14 @@ function ContextBar({ avg, max }: { avg: number; max: number }) {
 
 export function UsageDashboard() {
   const [days, setDays] = useState("7");
-  const [interval, setInterval] = useState("day");
   const [summary, setSummary] = useState<Summary | null>(null);
   const [chartData, setChartData] = useState<any[]>([]);
   const [breakdown, setBreakdown] = useState<BreakdownRow[]>([]);
   const [recentLogs, setRecentLogs] = useState<LogRow[]>([]);
   const [loading, setLoading] = useState(true);
 
-  // Auto-switch interval to "hour" when "Today" is selected
-  useEffect(() => {
-    if (days === "1") {
-      setInterval("hour");
-    } else {
-      setInterval("day");
-    }
-  }, [days]);
+  // Derive interval from selected period — no manual toggle
+  const interval = intervalForDays(days);
 
   const fetchData = useCallback(async () => {
     setLoading(true);
@@ -255,22 +266,6 @@ export function UsageDashboard() {
           <span className="text-sm font-medium">Model Usage</span>
         </div>
         <div className="flex items-center gap-2">
-          {/* Interval toggle */}
-          <div className="flex rounded border border-[#222222] overflow-hidden">
-            {INTERVAL_OPTIONS.map((opt) => (
-              <button
-                key={opt.value}
-                onClick={() => setInterval(opt.value)}
-                className={`px-3 py-1 text-xs font-medium transition-colors ${
-                  interval === opt.value
-                    ? "bg-[#1A1A1A] text-white"
-                    : "bg-[#080808] text-[#555555] hover:text-[#888888]"
-                }`}
-              >
-                {opt.label}
-              </button>
-            ))}
-          </div>
           <Select
             selectedKeys={[days]}
             onSelectionChange={(keys) => {
@@ -332,7 +327,9 @@ export function UsageDashboard() {
       <div className="rounded border border-[#222222] bg-[#0A0A0A] p-4">
         <p className="text-xs text-[#888888] mb-3 uppercase tracking-wider">
           Token Usage by Agent
-          {interval === "hour" && <span className="text-[#555555]"> · Hourly</span>}
+          <span className="text-[#555555]">
+            {interval === "hour" ? " · Hourly" : interval === "week" ? " · Weekly" : " · Daily"}
+          </span>
         </p>
         {chartData.length === 0 ? (
           <div className="flex h-48 items-center justify-center">
@@ -350,17 +347,18 @@ export function UsageDashboard() {
                 axisLine={{ stroke: "#333333" }}
                 tickLine={false}
                 tickFormatter={(v) => {
-                  if (interval === "hour") {
-                    // "2026-03-09 14:00" → "2 PM"
-                    try {
-                      const d = new Date(v.replace(" ", "T") + ":00");
-                      return d.toLocaleTimeString("en-US", { hour: "numeric" });
-                    } catch {
-                      return v;
+                  try {
+                    const d = parseUTC(v);
+                    if (interval === "hour") {
+                      return d.toLocaleTimeString(undefined, { hour: "numeric" });
                     }
+                    if (interval === "week") {
+                      return d.toLocaleDateString(undefined, { month: "short", day: "numeric" });
+                    }
+                    return `${d.getMonth() + 1}/${d.getDate()}`;
+                  } catch {
+                    return v;
                   }
-                  const d = new Date(v + "T00:00:00");
-                  return `${d.getMonth() + 1}/${d.getDate()}`;
                 }}
               />
               <YAxis
@@ -486,7 +484,7 @@ export function UsageDashboard() {
                   return (
                     <tr key={row.id} className="hover:bg-[#0D0D0D] transition-colors">
                       <td className="px-4 py-1 text-xs font-mono text-[#666666]">
-                        {new Date(row.created_at).toLocaleTimeString("en-US", {
+                        {parseUTC(row.created_at).toLocaleTimeString(undefined, {
                           hour: "numeric",
                           minute: "2-digit",
                           second: "2-digit",
