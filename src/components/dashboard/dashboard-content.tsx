@@ -1,6 +1,8 @@
 "use client";
 
 import { Card, CardBody, CardHeader, Chip } from "@heroui/react";
+import { Crosshair, Landmark, Zap, Palette, Bot, Users, ListChecks, ArrowRight } from "lucide-react";
+import type { LucideIcon } from "lucide-react";
 import type { Task } from "@/lib/api";
 
 interface ActivityEntry {
@@ -32,6 +34,13 @@ const agentRoles: Record<string, string> = {
   tom: "Lead Architect",
   michael: "Full Stack Engineer",
   joanna: "UX/Product Designer",
+};
+
+const agentIcons: Record<string, LucideIcon> = {
+  frank: Crosshair,
+  tom: Landmark,
+  michael: Zap,
+  joanna: Palette,
 };
 
 const eventTypeColors: Record<string, "default" | "primary" | "success" | "warning" | "danger"> = {
@@ -83,7 +92,10 @@ export function DashboardContent({ tasks, agents, status, recentActivity }: Dash
         {/* Active Agents */}
         <Card className="border border-[#222222] bg-[#121212]">
           <CardHeader className="border-b border-[#222222] px-4 py-3">
-            <h2 className="text-sm font-medium">Team</h2>
+            <span className="flex items-center gap-2 text-sm font-medium">
+              <Users size={16} strokeWidth={1.5} className="text-muted-foreground" />
+              Team
+            </span>
           </CardHeader>
           <CardBody className="gap-2 p-3">
             {(agents.length > 0 ? agents : Object.keys(agentRoles).map(name => ({ name }))).map((agent: any) => (
@@ -92,8 +104,8 @@ export function DashboardContent({ tasks, agents, status, recentActivity }: Dash
                 className="flex items-center justify-between rounded border border-[#222222] bg-[#080808] px-3 py-2"
               >
                 <div className="flex items-center gap-3">
-                  <div className="flex h-7 w-7 items-center justify-center rounded-full bg-[#1A1A1A] text-xs">
-                    {agent.identity?.emoji || agent.name[0].toUpperCase()}
+                  <div className="flex h-7 w-7 items-center justify-center rounded-full bg-[#1A1A1A] text-muted-foreground">
+                    {(() => { const Icon = agentIcons[agent.name] || Bot; return <Icon size={16} strokeWidth={1.5} />; })()}
                   </div>
                   <div>
                     <p className="text-sm font-medium capitalize">{agent.name}</p>
@@ -113,7 +125,10 @@ export function DashboardContent({ tasks, agents, status, recentActivity }: Dash
         {/* Urgent / In-Progress Tasks */}
         <Card className="border border-[#222222] bg-[#121212]">
           <CardHeader className="border-b border-[#222222] px-4 py-3">
-            <h2 className="text-sm font-medium">Active Tasks</h2>
+            <span className="flex items-center gap-2 text-sm font-medium">
+              <ListChecks size={16} strokeWidth={1.5} className="text-muted-foreground" />
+              Active Tasks
+            </span>
           </CardHeader>
           <CardBody className="gap-2 p-3">
             {inProgress.length === 0 && blocked.length === 0 ? (
@@ -164,8 +179,8 @@ export function DashboardContent({ tasks, agents, status, recentActivity }: Dash
         <CardHeader className="border-b border-[#222222] px-4 py-3">
           <div className="flex w-full items-center justify-between">
             <h2 className="text-sm font-medium">Recent Activity</h2>
-            <a href="/activity" className="text-xs text-[#888888] hover:text-white transition-colors">
-              View all →
+            <a href="/activity" className="flex items-center gap-1 text-xs text-[#888888] hover:text-white transition-colors">
+              View all <ArrowRight size={12} strokeWidth={1.5} />
             </a>
           </div>
         </CardHeader>

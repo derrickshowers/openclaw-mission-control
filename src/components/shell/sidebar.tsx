@@ -2,13 +2,15 @@
 
 import Link from "next/link";
 import { usePathname } from "next/navigation";
+import { LayoutDashboard, CheckSquare, Users, Brain, Activity, Umbrella } from "lucide-react";
+import type { LucideIcon } from "lucide-react";
 
-const navItems = [
-  { href: "/", label: "Dashboard", icon: "◆" },
-  { href: "/tasks", label: "Tasks", icon: "☐" },
-  { href: "/team", label: "Team", icon: "◎" },
-  { href: "/memory", label: "Memory", icon: "◈" },
-  { href: "/activity", label: "Activity", icon: "◉" },
+const navItems: { href: string; label: string; Icon: LucideIcon }[] = [
+  { href: "/", label: "Dashboard", Icon: LayoutDashboard },
+  { href: "/tasks", label: "Tasks", Icon: CheckSquare },
+  { href: "/team", label: "Team", Icon: Users },
+  { href: "/memory", label: "Memory", Icon: Brain },
+  { href: "/activity", label: "Activity", Icon: Activity },
 ];
 
 export function Sidebar() {
@@ -18,32 +20,33 @@ export function Sidebar() {
     <aside className="flex h-screen w-sidebar flex-col border-r border-[#222222] bg-[#080808]">
       {/* Logo */}
       <div className="flex h-14 items-center border-b border-[#222222] px-4">
-        <span className="text-sm font-semibold tracking-wide">
-          ☔ MISSION CONTROL
+        <span className="flex items-center gap-2 text-sm font-semibold tracking-wide">
+          <Umbrella size={16} strokeWidth={1.5} />
+          MISSION CONTROL
         </span>
       </div>
 
       {/* Navigation */}
       <nav className="flex-1 px-2 py-3">
         <ul className="space-y-0.5">
-          {navItems.map((item) => {
+          {navItems.map(({ href, label, Icon }) => {
             const isActive =
-              item.href === "/"
+              href === "/"
                 ? pathname === "/"
-                : pathname.startsWith(item.href);
+                : pathname.startsWith(href);
 
             return (
-              <li key={item.href}>
+              <li key={href}>
                 <Link
-                  href={item.href}
+                  href={href}
                   className={`flex items-center gap-3 rounded px-3 py-2 text-sm transition-colors ${
                     isActive
                       ? "bg-[#1A1A1A] text-white"
                       : "text-[#888888] hover:bg-[#121212] hover:text-white"
                   }`}
                 >
-                  <span className="w-4 text-center text-xs">{item.icon}</span>
-                  {item.label}
+                  <Icon size={20} strokeWidth={1.5} className="flex-shrink-0" />
+                  {label}
                 </Link>
               </li>
             );

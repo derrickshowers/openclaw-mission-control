@@ -2,27 +2,29 @@
 
 import { useState } from "react";
 import { Card, CardBody, CardHeader, Chip, Button, Textarea } from "@heroui/react";
+import { Crosshair, Landmark, Zap, Palette, Bot, X, Send, BookOpen } from "lucide-react";
+import type { LucideIcon } from "lucide-react";
 
-const agentMeta: Record<string, { role: string; description: string; icon: string }> = {
+const agentMeta: Record<string, { role: string; description: string; Icon: LucideIcon }> = {
   frank: {
     role: "Orchestrator",
     description: "Routes tasks, manages the team, delivers results to Derrick. The glue.",
-    icon: "🎯",
+    Icon: Crosshair,
   },
   tom: {
     role: "Lead Architect",
     description: "System design, technical specs, infrastructure decisions, code review.",
-    icon: "🏗️",
+    Icon: Landmark,
   },
   michael: {
     role: "Full Stack Engineer",
     description: "Builds things. React, Next.js, TypeScript, APIs, the full stack.",
-    icon: "⚡",
+    Icon: Zap,
   },
   joanna: {
     role: "UX/Product Designer",
     description: "User experience, design direction, interaction patterns, accessibility.",
-    icon: "🎨",
+    Icon: Palette,
   },
 };
 
@@ -105,9 +107,9 @@ export function TeamView({ agents }: TeamViewProps) {
               </h3>
               <button
                 onClick={() => setMessageTarget(null)}
-                className="text-[#888888] hover:text-white text-sm"
+                className="text-[#888888] hover:text-white"
               >
-                ✕
+                <X size={16} strokeWidth={1.5} />
               </button>
             </CardHeader>
             <CardBody className="p-4 space-y-3">
@@ -147,15 +149,16 @@ function AgentCard({
   onMessage,
 }: {
   agent: any;
-  meta: { role: string; description: string; icon: string };
+  meta: { role: string; description: string; Icon: LucideIcon };
   onMessage: () => void;
 }) {
+  const IconComponent = meta?.Icon || Bot;
   return (
     <Card className="border border-[#222222] bg-[#121212]">
       <CardBody className="p-4">
         <div className="flex items-start gap-3">
-          <div className="flex h-10 w-10 flex-shrink-0 items-center justify-center rounded-lg bg-[#1A1A1A] text-lg">
-            {agent.identity?.emoji || meta?.icon || "🤖"}
+          <div className="flex h-10 w-10 flex-shrink-0 items-center justify-center rounded-lg bg-[#1A1A1A] text-muted-foreground">
+            <IconComponent size={20} strokeWidth={1.5} />
           </div>
           <div className="flex-1 min-w-0">
             <div className="flex items-center gap-2">
@@ -183,6 +186,7 @@ function AgentCard({
             variant="flat"
             className="text-xs border border-[#222222] bg-[#080808]"
             onPress={onMessage}
+            startContent={<Send size={14} strokeWidth={1.5} />}
           >
             Message
           </Button>
@@ -192,6 +196,7 @@ function AgentCard({
             className="text-xs border border-[#222222] bg-[#080808]"
             as="a"
             href={`/memory?agent=${agent.name}`}
+            startContent={<BookOpen size={14} strokeWidth={1.5} />}
           >
             Memory
           </Button>

@@ -1,6 +1,7 @@
 "use client";
 
 import { usePathname } from "next/navigation";
+import { Umbrella, Search } from "lucide-react";
 
 const pageTitles: Record<string, string> = {
   "/": "Dashboard",
@@ -23,7 +24,7 @@ export function TopBar() {
   return (
     <header className="flex h-14 items-center justify-between border-b border-[#222222] px-4 lg:px-6">
       <div className="flex items-center gap-3">
-        <span className="lg:hidden text-sm font-semibold">☔</span>
+        <Umbrella size={16} strokeWidth={1.5} className="lg:hidden text-muted-foreground" />
         <h1 className="text-sm font-medium">{title}</h1>
       </div>
       <div className="flex items-center gap-2">

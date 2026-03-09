@@ -2,6 +2,7 @@
 
 import { useState, useCallback } from "react";
 import { Button, Input, Textarea, Select, SelectItem, Modal, ModalContent, ModalHeader, ModalBody, ModalFooter, useDisclosure } from "@heroui/react";
+import { Plus } from "lucide-react";
 import type { Task } from "@/lib/api";
 import { TaskCard } from "./task-card";
 import { TaskDrawer } from "./task-drawer";
@@ -98,8 +99,9 @@ export function KanbanBoard({ initialTasks }: KanbanBoardProps) {
           variant="flat"
           onPress={onOpen}
           className="border border-[#222222] bg-[#121212] text-sm"
+          startContent={<Plus size={16} strokeWidth={1.5} />}
         >
-          + New Task
+          New Task
         </Button>
       </div>
 

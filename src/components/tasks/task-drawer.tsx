@@ -2,6 +2,7 @@
 
 import { useState } from "react";
 import { Button, Input, Textarea, Select, SelectItem, Chip } from "@heroui/react";
+import { X, Trash2 } from "lucide-react";
 import type { Task } from "@/lib/api";
 
 const COLUMNS = [
@@ -90,8 +91,8 @@ export function TaskDrawer({ task, isOpen, onClose, onUpdate }: TaskDrawerProps)
             </Chip>
             <span className="text-xs text-[#888888] font-mono">{task.id.slice(0, 8)}</span>
           </div>
-          <button onClick={onClose} className="text-[#888888] hover:text-white text-sm">
-            ✕
+          <button onClick={onClose} className="text-[#888888] hover:text-white">
+            <X size={16} strokeWidth={1.5} />
           </button>
         </div>
 
@@ -226,6 +227,7 @@ export function TaskDrawer({ task, isOpen, onClose, onUpdate }: TaskDrawerProps)
               variant="flat"
               color="danger"
               onPress={deleteTask}
+              startContent={<Trash2 size={14} strokeWidth={1.5} />}
             >
               Delete Task
             </Button>

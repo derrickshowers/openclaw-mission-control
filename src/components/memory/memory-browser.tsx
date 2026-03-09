@@ -2,6 +2,7 @@
 
 import { useState, useEffect, useCallback } from "react";
 import { Button, Input } from "@heroui/react";
+import { Folder, FileText, Search, ArrowLeft, X } from "lucide-react";
 import ReactMarkdown from "react-markdown";
 
 const AGENTS = ["frank", "tom", "michael", "joanna"];
@@ -119,9 +120,9 @@ export function MemoryBrowser() {
                 const parent = currentDir.split("/").slice(0, -1).join("/");
                 setCurrentDir(parent);
               }}
-              className="text-xs text-[#888888] hover:text-white"
+              className="flex items-center gap-1 text-xs text-[#888888] hover:text-white"
             >
-              ← {currentDir || "root"}
+              <ArrowLeft size={12} strokeWidth={1.5} /> {currentDir || "root"}
             </button>
           </div>
         )}
@@ -142,8 +143,8 @@ export function MemoryBrowser() {
                 currentFile === file.path ? "bg-[#1A1A1A] text-white" : "text-[#CCCCCC]"
               }`}
             >
-              <span className="text-[10px]">
-                {file.type === "directory" ? "📁" : "📄"}
+              <span className="text-muted-foreground">
+                {file.type === "directory" ? <Folder size={14} strokeWidth={1.5} /> : <FileText size={14} strokeWidth={1.5} />}
               </span>
               {file.name}
             </button>
