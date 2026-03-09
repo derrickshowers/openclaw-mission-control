@@ -28,6 +28,7 @@ export function DocsBrowser() {
   const [searchResults, setSearchResults] = useState<SearchResult[] | null>(null);
   const [expandedDirs, setExpandedDirs] = useState<Set<string>>(new Set());
   const [loading, setLoading] = useState(false);
+  const [treeLoading, setTreeLoading] = useState(true);
 
   // Load tree on mount
   useEffect(() => {
@@ -52,6 +53,8 @@ export function DocsBrowser() {
         }
       } catch {
         setTree([]);
+      } finally {
+        setTreeLoading(false);
       }
     }
     loadTree();
@@ -176,7 +179,16 @@ export function DocsBrowser() {
 
         {/* Tree */}
         <div className="p-1">
-          {tree.length === 0 ? (
+          {treeLoading ? (
+            <div className="space-y-1 px-2 py-2">
+              <div className="skeleton h-4 w-24" />
+              <div className="skeleton ml-3 h-4 w-32" />
+              <div className="skeleton ml-3 h-4 w-28" />
+              <div className="skeleton h-4 w-20" />
+              <div className="skeleton ml-3 h-4 w-36" />
+              <div className="skeleton ml-3 h-4 w-24" />
+            </div>
+          ) : tree.length === 0 ? (
             <p className="py-4 text-center text-xs text-[#555555]">No docs found</p>
           ) : (
             renderTree(tree)
