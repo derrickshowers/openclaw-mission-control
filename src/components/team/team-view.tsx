@@ -143,6 +143,24 @@ export function TeamView({ agents }: TeamViewProps) {
   );
 }
 
+const statusConfig: Record<string, { color: "success" | "warning" | "default"; label: string }> = {
+  active: { color: "success", label: "active" },
+  working: { color: "warning", label: "working" },
+  idle: { color: "default", label: "idle" },
+};
+
+function formatModel(model?: string): string {
+  if (!model) return "";
+  // e.g. "anthropic/claude-opus-4-6" → "Claude Opus 4.6"
+  const name = model.split("/").pop() || model;
+  return name
+    .replace(/^claude-/, "Claude ")
+    .replace(/^gemini-/, "Gemini ")
+    .replace(/-/g, " ")
+    .replace(/(\d+) (\d+)/, "$1.$2")
+    .replace(/\b\w/g, (c) => c.toUpperCase());
+}
+
 function AgentCard({
   agent,
   meta,
@@ -153,6 +171,8 @@ function AgentCard({
   onMessage: () => void;
 }) {
   const IconComponent = meta?.Icon || Bot;
+  const { color, label } = statusConfig[agent.status] || statusConfig.idle;
+
   return (
     <Card className="border border-[#222222] bg-[#121212]">
       <CardBody className="p-4">
@@ -166,18 +186,29 @@ function AgentCard({
               <Chip
                 size="sm"
                 variant="flat"
-                color={agent.status === "active" ? "success" : "default"}
+                color={color}
                 className="text-[10px] h-5"
               >
-                {agent.status || "idle"}
+                {label}
               </Chip>
             </div>
             <p className="text-xs text-[#888888] mt-0.5">
               {meta?.role || "Agent"}
             </p>
+            {agent.model && (
+              <p className="text-[11px] text-[#555555] mt-0.5 font-mono">
+                {formatModel(agent.model)}
+              </p>
+            )}
             <p className="text-xs text-[#555555] mt-2 line-clamp-2">
               {meta?.description || ""}
             </p>
+            {agent.currentTask && (
+              <div className="mt-2 rounded bg-[#1A1A1A] px-2 py-1.5 border border-[#222222]">
+                <p className="text-[10px] text-[#888888] uppercase tracking-wider">Current task</p>
+                <p className="text-xs text-[#cccccc] mt-0.5 truncate">{agent.currentTask.title}</p>
+              </div>
+            )}
           </div>
         </div>
         <div className="mt-3 flex gap-2">
