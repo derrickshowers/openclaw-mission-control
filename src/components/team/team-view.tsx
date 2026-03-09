@@ -1,8 +1,9 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { Card, CardBody, CardHeader, Chip, Button, Textarea } from "@heroui/react";
 import { Crosshair, Landmark, Zap, Palette, Bot, X, Send, BookOpen } from "lucide-react";
+import { useSSE } from "@/hooks/use-sse";
 import type { LucideIcon } from "lucide-react";
 
 const agentMeta: Record<string, { role: string; description: string; Icon: LucideIcon; avatar?: string }> = {
@@ -40,10 +41,34 @@ export function TeamView({ agents }: TeamViewProps) {
   const [messageTarget, setMessageTarget] = useState<string | null>(null);
   const [messageText, setMessageText] = useState("");
   const [sending, setSending] = useState(false);
+  const [liveStatuses, setLiveStatuses] = useState<Map<string, any>>(new Map());
 
-  const agentList = agents.length > 0
+  const { lastEvent } = useSSE("agent.status");
+
+  useEffect(() => {
+    if (!lastEvent?.data?.agent) return;
+    setLiveStatuses((prev) => {
+      const next = new Map(prev);
+      next.set(lastEvent.data.agent, lastEvent.data);
+      return next;
+    });
+  }, [lastEvent]);
+
+  const baseList = agents.length > 0
     ? agents
     : Object.keys(agentMeta).map((name) => ({ name }));
+
+  // Merge live status into agent data
+  const agentList = baseList.map((agent: any) => {
+    const live = liveStatuses.get(agent.name);
+    if (!live) return agent;
+    return {
+      ...agent,
+      status: live.status || agent.status,
+      model: live.model || agent.model,
+      currentTask: live.currentTask || agent.currentTask,
+    };
+  });
 
   const sendMessage = async () => {
     if (!messageTarget || !messageText.trim()) return;
@@ -147,10 +172,12 @@ export function TeamView({ agents }: TeamViewProps) {
   );
 }
 
-const statusConfig: Record<string, { color: "success" | "warning" | "default"; label: string }> = {
+const statusConfig: Record<string, { color: "success" | "warning" | "default" | "primary"; label: string; pulse?: boolean }> = {
+  thinking: { color: "success", label: "thinking", pulse: true },
   active: { color: "success", label: "active" },
   working: { color: "warning", label: "working" },
   idle: { color: "default", label: "idle" },
+  sleeping: { color: "default", label: "sleeping" },
 };
 
 function formatModel(model?: string): string {
@@ -175,7 +202,7 @@ function AgentCard({
   onMessage: () => void;
 }) {
   const IconComponent = meta?.Icon || Bot;
-  const { color, label } = statusConfig[agent.status] || statusConfig.idle;
+  const { color, label, pulse } = statusConfig[agent.status] || statusConfig.idle;
 
   return (
     <Card className="border border-[#222222] bg-[#121212]">
@@ -201,7 +228,7 @@ function AgentCard({
                 size="sm"
                 variant="flat"
                 color={color}
-                className="text-[10px] h-5"
+                className={`text-[10px] h-5 ${pulse ? "animate-pulse" : ""}`}
               >
                 {label}
               </Chip>

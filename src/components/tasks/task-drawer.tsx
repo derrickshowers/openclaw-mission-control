@@ -2,6 +2,7 @@
 
 import { useState, useEffect, useRef } from "react";
 import { useSession } from "next-auth/react";
+import { useSSE } from "@/hooks/use-sse";
 import { Button, Input, Textarea, Select, SelectItem, Chip } from "@heroui/react";
 import { X, Trash2, Send, Paperclip, ImagePlus, XCircle } from "lucide-react";
 import { api } from "@/lib/api";
@@ -57,6 +58,34 @@ export function TaskDrawer({ task, isOpen, onClose, onUpdate }: TaskDrawerProps)
     setTitle(task.title);
     setDescription(task.description || "");
   }, [task.title, task.description]);
+
+  // Live updates for comments and attachments
+  const drawerEvents = ["comment.created", "attachment.created", "attachment.deleted"];
+  const { lastEvent: drawerEvent } = useSSE(drawerEvents);
+
+  useEffect(() => {
+    if (!drawerEvent || !isOpen) return;
+    const { event, data } = drawerEvent;
+
+    if (event === "comment.created" && data.comment?.task_id === task.id) {
+      setComments((prev) => {
+        if (prev.some((c) => c.id === data.comment.id)) return prev;
+        return [...prev, data.comment];
+      });
+      setTimeout(() => commentsEndRef.current?.scrollIntoView({ behavior: "smooth" }), 50);
+    }
+
+    if (event === "attachment.created" && data.attachment?.task_id === task.id) {
+      setAttachments((prev) => {
+        if (prev.some((a) => a.id === data.attachment.id)) return prev;
+        return [...prev, data.attachment];
+      });
+    }
+
+    if (event === "attachment.deleted" && data.task_id === task.id) {
+      setAttachments((prev) => prev.filter((a) => a.id !== data.id));
+    }
+  }, [drawerEvent, isOpen, task.id]);
 
   const postComment = async () => {
     if (!newComment.trim()) return;

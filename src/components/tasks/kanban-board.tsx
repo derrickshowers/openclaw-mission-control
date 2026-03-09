@@ -1,6 +1,7 @@
 "use client";
 
 import { useState, useCallback, useEffect, useRef } from "react";
+import { useSSE } from "@/hooks/use-sse";
 import { Button, Input, Textarea, Select, SelectItem, Modal, ModalContent, ModalHeader, ModalBody, ModalFooter, useDisclosure } from "@heroui/react";
 import { Plus, Paperclip, ImagePlus, X } from "lucide-react";
 import { api, type Task } from "@/lib/api";
@@ -117,6 +118,45 @@ export function KanbanBoard({ initialTasks }: KanbanBoardProps) {
     window.addEventListener("keydown", handler);
     return () => window.removeEventListener("keydown", handler);
   }, [onOpen]);
+
+  // Live task updates via SSE
+  const taskEvents = ["task.created", "task.updated", "task.deleted", "task.moved"];
+  const { lastEvent } = useSSE(taskEvents);
+
+  useEffect(() => {
+    if (!lastEvent) return;
+    const { event, data } = lastEvent;
+
+    switch (event) {
+      case "task.created":
+        if (data.task) {
+          setTasks((prev) => {
+            // Deduplicate — skip if already present
+            if (prev.some((t) => t.id === data.task.id)) return prev;
+            return [...prev, data.task];
+          });
+        }
+        break;
+      case "task.updated":
+      case "task.moved":
+        if (data.task) {
+          setTasks((prev) =>
+            prev.map((t) => {
+              if (t.id !== data.task.id) return t;
+              // Skip if our local version is same or newer
+              if (t.updated_at >= data.task.updated_at) return t;
+              return data.task;
+            })
+          );
+        }
+        break;
+      case "task.deleted":
+        if (data.id) {
+          setTasks((prev) => prev.filter((t) => t.id !== data.id));
+        }
+        break;
+    }
+  }, [lastEvent]);
 
   const updateTaskStatus = useCallback(async (taskId: string, newStatus: string) => {
     try {
