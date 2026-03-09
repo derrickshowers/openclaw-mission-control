@@ -456,7 +456,7 @@ export function TaskDrawer({ task, isOpen, onClose, onUpdate }: TaskDrawerProps)
                   <p className="text-sm text-[#aaaaaa] whitespace-pre-wrap">
                     {c.content.split(/(@\w+)/g).map((part: string, j: number) =>
                       /^@\w+$/.test(part) ? (
-                        <span key={j} className="text-[#8b5cf6] font-medium">{part}</span>
+                        <span key={j} className="inline-block rounded px-1 py-0.5 bg-[#8b5cf6]/15 text-[#8b5cf6] font-medium">{part}</span>
                       ) : (
                         part
                       )
