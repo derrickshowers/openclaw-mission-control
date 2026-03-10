@@ -315,7 +315,7 @@ export function MentionTextarea({
       <div className="relative">
         {/* Placeholder */}
         {isEmpty && (
-          <div className="pointer-events-none absolute inset-0 flex items-center px-3 text-xs text-[#555555]">
+          <div className="pointer-events-none absolute inset-0 flex items-center px-3 text-sm text-[#555555]">
             {placeholder || "Add a comment..."}
           </div>
         )}
@@ -326,7 +326,7 @@ export function MentionTextarea({
           suppressContentEditableWarning
           role="textbox"
           aria-multiline="true"
-          className={`w-full min-h-[32px] max-h-[96px] overflow-y-auto rounded-lg border border-[#222222] bg-[#080808] px-3 py-1.5 text-xs text-[#CCCCCC] outline-none focus:border-[#333333] transition-colors ${
+          className={`w-full min-h-[36px] max-h-[96px] overflow-y-auto rounded-lg border border-[#222222] bg-[#080808] px-3 py-2 text-sm text-[#CCCCCC] outline-none focus:border-[#333333] transition-colors ${
             classNames?.inputWrapper || ""
           }`}
           onInput={handleInput}

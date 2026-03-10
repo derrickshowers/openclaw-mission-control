@@ -3,7 +3,7 @@
 import { useState, useEffect, useRef } from "react";
 import { useSession } from "next-auth/react";
 import { useSSE } from "@/hooks/use-sse";
-import { Button, Input, Textarea, Select, SelectItem, Chip } from "@heroui/react";
+import { Button, Input, Textarea, Select, SelectItem, Chip, Card, CardBody } from "@heroui/react";
 import { MentionTextarea } from "@/components/shared/mention-textarea";
 import { X, Trash2, Send, Paperclip, ImagePlus, XCircle } from "lucide-react";
 import { api } from "@/lib/api";
@@ -446,23 +446,25 @@ export function TaskDrawer({ task, isOpen, onClose, onUpdate }: TaskDrawerProps)
 
             <div className="space-y-3 max-h-64 overflow-y-auto">
               {comments.map((c) => (
-                <div key={c.id} className="rounded-md bg-[#111111] border border-[#1a1a1a] px-3 py-2">
-                  <div className="flex items-center justify-between mb-1">
-                    <span className="text-xs font-medium text-white capitalize">{c.author}</span>
-                    <span className="text-[10px] text-[#555555]">
-                      {new Date(c.created_at).toLocaleString()}
-                    </span>
-                  </div>
-                  <p className="text-sm text-[#aaaaaa] whitespace-pre-wrap">
-                    {c.content.split(/(@\w+)/g).map((part: string, j: number) =>
-                      /^@\w+$/.test(part) ? (
-                        <span key={j} className="inline-block rounded px-1 py-0.5 bg-[#8b5cf6]/15 text-[#8b5cf6] font-medium">{part}</span>
-                      ) : (
-                        part
-                      )
-                    )}
-                  </p>
-                </div>
+                <Card key={c.id} className="border border-[#1a1a1a] bg-[#111111]" shadow="none" radius="sm">
+                  <CardBody className="px-4 py-3">
+                    <div className="flex items-center justify-between mb-1.5">
+                      <span className="text-xs font-medium text-white capitalize">{c.author}</span>
+                      <span className="text-[10px] text-[#555555]">
+                        {new Date(c.created_at).toLocaleString()}
+                      </span>
+                    </div>
+                    <p className="text-sm text-[#aaaaaa] whitespace-pre-wrap leading-relaxed">
+                      {c.content.split(/(@\w+)/g).map((part: string, j: number) =>
+                        /^@\w+$/.test(part) ? (
+                          <span key={j} className="inline-block rounded px-1 py-0.5 bg-[#8b5cf6]/15 text-[#8b5cf6] font-medium text-xs">{part}</span>
+                        ) : (
+                          part
+                        )
+                      )}
+                    </p>
+                  </CardBody>
+                </Card>
               ))}
               <div ref={commentsEndRef} />
             </div>
