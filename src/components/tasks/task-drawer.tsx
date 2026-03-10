@@ -213,9 +213,9 @@ export function TaskDrawer({ task, isOpen, onClose, onUpdate }: TaskDrawerProps)
       />
 
       {/* Drawer */}
-      <div className="fixed right-0 top-0 z-50 h-full w-full max-w-md overflow-y-auto border-l border-[#222222] bg-[#0A0A0A]">
-        {/* Header */}
-        <div className="flex items-center justify-between border-b border-[#222222] px-4 py-3">
+      <div className="fixed right-0 top-0 z-50 flex h-[100dvh] w-full max-w-md flex-col border-l border-[#222222] bg-[#0A0A0A]">
+        {/* Header — shrink-0 */}
+        <div className="flex shrink-0 items-center justify-between border-b border-[#222222] px-4 py-3">
           <div className="flex items-center gap-2">
             <Chip size="sm" variant="flat" color={statusColors[task.status]}>
               {task.status.replace("_", " ")}
@@ -227,8 +227,8 @@ export function TaskDrawer({ task, isOpen, onClose, onUpdate }: TaskDrawerProps)
           </button>
         </div>
 
-        {/* Content */}
-        <div className="p-4 space-y-4">
+        {/* Scrollable Content */}
+        <div className="flex-1 overflow-y-auto p-4 space-y-4">
           {editing ? (
             <>
               <Input
@@ -467,35 +467,6 @@ export function TaskDrawer({ task, isOpen, onClose, onUpdate }: TaskDrawerProps)
               <div ref={commentsEndRef} />
             </div>
 
-            {/* New comment input */}
-            <div className="space-y-2">
-              <div className="flex gap-2">
-                <MentionTextarea
-                  value={newComment}
-                  onValueChange={setNewComment}
-                  placeholder="Add a comment... (type @ to mention)"
-                  classNames={{ inputWrapper: "border-[#222222] bg-[#080808]" }}
-                  onKeyDown={(e) => {
-                    if (e.key === "Enter" && e.shiftKey) {
-                      e.preventDefault();
-                      postComment();
-                    }
-                  }}
-                />
-                <Button
-                  isIconOnly
-                  size="sm"
-                  color="primary"
-                  variant="flat"
-                  isLoading={submitting}
-                  onPress={postComment}
-                  isDisabled={!newComment.trim()}
-                  className="self-end"
-                >
-                  <Send size={14} strokeWidth={1.5} />
-                </Button>
-              </div>
-            </div>
           </div>
 
           {/* Delete */}
@@ -520,6 +491,36 @@ export function TaskDrawer({ task, isOpen, onClose, onUpdate }: TaskDrawerProps)
                 Delete Task
               </Button>
             )}
+          </div>
+        </div>
+
+        {/* Comment input — pinned footer */}
+        <div className="shrink-0 border-t border-[#222222] bg-[#080808] p-3 pb-safe">
+          <div className="flex gap-2">
+            <MentionTextarea
+              value={newComment}
+              onValueChange={setNewComment}
+              placeholder="Add a comment... (type @ to mention)"
+              classNames={{ inputWrapper: "border-[#222222] bg-[#080808]" }}
+              onKeyDown={(e) => {
+                if (e.key === "Enter" && e.shiftKey) {
+                  e.preventDefault();
+                  postComment();
+                }
+              }}
+            />
+            <Button
+              isIconOnly
+              size="sm"
+              color="primary"
+              variant="flat"
+              isLoading={submitting}
+              onPress={postComment}
+              isDisabled={!newComment.trim()}
+              className="shrink-0 self-end"
+            >
+              <Send size={14} strokeWidth={1.5} />
+            </Button>
           </div>
         </div>
       </div>

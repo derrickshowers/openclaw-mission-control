@@ -72,3 +72,8 @@ input, textarea, select, button {
   background: #1A1A1A;
   border-radius: 4px;
 }
+
+/* Safe area utilities for mobile */
+.pb-safe {
+  padding-bottom: env(safe-area-inset-bottom, 0px);
+}

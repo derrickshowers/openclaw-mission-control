@@ -108,7 +108,7 @@ export function DocsBrowser() {
     });
   };
 
-  function renderTree(nodes: DocNode[], depth: number = 0) {
+  function renderTree(nodes: DocNode[], depth: number = 0, isMobile: boolean = false) {
     return nodes.map((node) => {
       const isExpanded = expandedDirs.has(node.path);
       const isSelected = selectedFile === node.path;
@@ -130,7 +130,7 @@ export function DocsBrowser() {
               <span className="truncate">{node.name}</span>
             </button>
             {isExpanded && node.children && (
-              <div>{renderTree(node.children, depth + 1)}</div>
+              <div>{renderTree(node.children, depth + 1, isMobile)}</div>
             )}
           </div>
         );
@@ -139,7 +139,11 @@ export function DocsBrowser() {
       return (
         <button
           key={node.path}
-          onClick={() => loadFile(node.path)}
+          data-file
+          onClick={() => {
+            loadFile(node.path);
+            if (isMobile) setShowMobileTree(false);
+          }}
           className={`flex w-full items-center gap-1.5 rounded px-2 py-1.5 text-left text-xs transition-colors hover:bg-[#1A1A1A] ${
             isSelected ? "bg-[#1A1A1A] text-white" : "text-[#CCCCCC]"
           }`}
@@ -152,10 +156,13 @@ export function DocsBrowser() {
     });
   }
 
+  const [showMobileTree, setShowMobileTree] = useState(false);
+
   return (
     <div className="mx-auto flex h-full max-w-[1400px] gap-4">
-      {/* Left: File Tree */}
-      <div className="w-64 flex-shrink-0 overflow-y-auto rounded border border-[#222222] bg-[#0A0A0A]">
+      {/* Left: File Tree — hidden on mobile, shown as overlay */}
+      {/* Desktop tree */}
+      <div className="hidden md:block w-64 flex-shrink-0 overflow-y-auto rounded border border-[#222222] bg-[#0A0A0A]">
         {/* Search */}
         <div className="border-b border-[#222222] p-2">
           <Input
@@ -196,8 +203,77 @@ export function DocsBrowser() {
         </div>
       </div>
 
+      {/* Mobile tree overlay */}
+      {showMobileTree && (
+        <>
+          <div
+            className="fixed inset-0 z-40 bg-black/50 md:hidden"
+            onClick={() => setShowMobileTree(false)}
+          />
+          <div className="fixed inset-y-0 left-0 z-50 w-72 overflow-y-auto border-r border-[#222222] bg-[#0A0A0A] md:hidden">
+            <div className="flex items-center justify-between border-b border-[#222222] p-3">
+              <span className="text-xs font-medium text-[#888888] uppercase tracking-wider">Browse Docs</span>
+              <button onClick={() => setShowMobileTree(false)} className="text-[#888888] hover:text-white">
+                <X size={16} strokeWidth={1.5} />
+              </button>
+            </div>
+            <div className="border-b border-[#222222] p-2">
+              <Input
+                size="sm"
+                placeholder="Search docs..."
+                value={searchQuery}
+                onValueChange={setSearchQuery}
+                onKeyDown={(e) => e.key === "Enter" && doSearch()}
+                variant="bordered"
+                classNames={{ inputWrapper: "border-[#222222] bg-[#080808] h-7 min-h-7" }}
+                startContent={<Search size={12} strokeWidth={1.5} className="text-[#888888]" />}
+                endContent={
+                  searchQuery ? (
+                    <button onClick={clearSearch} className="text-[#888888] hover:text-white">
+                      <X size={12} strokeWidth={1.5} />
+                    </button>
+                  ) : null
+                }
+              />
+            </div>
+            <div
+              className="p-1"
+              onClick={(e) => {
+                // Close tree when a file is selected
+                if ((e.target as HTMLElement).closest("[data-file]")) {
+                  setShowMobileTree(false);
+                }
+              }}
+            >
+              {treeLoading ? (
+                <div className="space-y-1 px-2 py-2">
+                  <div className="skeleton h-4 w-24" />
+                  <div className="skeleton ml-3 h-4 w-32" />
+                  <div className="skeleton ml-3 h-4 w-28" />
+                </div>
+              ) : tree.length === 0 ? (
+                <p className="py-4 text-center text-xs text-[#555555]">No docs found</p>
+              ) : (
+                renderTree(tree, 0, true)
+              )}
+            </div>
+          </div>
+        </>
+      )}
+
       {/* Right: Content Pane */}
-      <div className="flex-1 overflow-y-auto rounded border border-[#222222] bg-[#0A0A0A] p-6">
+      <div className="flex-1 overflow-y-auto rounded border border-[#222222] bg-[#0A0A0A] p-4 md:p-6">
+        {/* Mobile browse button */}
+        <div className="md:hidden mb-3">
+          <button
+            onClick={() => setShowMobileTree(true)}
+            className="flex items-center gap-2 rounded-lg border border-[#222222] bg-[#121212] px-3 py-2 text-xs text-[#CCCCCC] hover:bg-[#1A1A1A] transition-colors"
+          >
+            <Folder size={14} strokeWidth={1.5} className="text-[#888888]" />
+            Browse Docs
+          </button>
+        </div>
+
         {loading ? (
           <div className="space-y-2">
             <div className="skeleton h-4 w-3/4" />
