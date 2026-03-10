@@ -108,9 +108,12 @@ export function KanbanBoard({ initialTasks }: KanbanBoardProps) {
   // Global keyboard shortcuts
   useEffect(() => {
     const handler = (e: KeyboardEvent) => {
-      // Don't trigger when typing in an input/textarea or when modal is open
-      const tag = (e.target as HTMLElement).tagName;
+      // Don't trigger when typing in any editable element
+      const el = e.target as HTMLElement;
+      const tag = el.tagName;
       if (tag === "INPUT" || tag === "TEXTAREA" || tag === "SELECT") return;
+      if (el.isContentEditable || el.closest("[contenteditable]")) return;
+      if (el.closest("[role='textbox']")) return;
       if (e.metaKey || e.ctrlKey || e.altKey) return;
 
       if (e.key === "c" || e.key === "n") {
