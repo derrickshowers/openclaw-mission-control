@@ -18,6 +18,12 @@ interface TaskCardProps {
   onStatusChange: (taskId: string, status: string) => void;
 }
 
+function avatarUrlFor(agentName?: string | null): string | null {
+  if (!agentName) return null;
+  if (!["frank", "tom", "michael", "joanna"].includes(agentName)) return null;
+  return `/api/mc/agents/${agentName}/avatar`;
+}
+
 export function TaskCard({ task, onClick }: TaskCardProps) {
   const priority = priorityConfig[task.priority] || priorityConfig[0];
 
@@ -29,7 +35,10 @@ export function TaskCard({ task, onClick }: TaskCardProps) {
       <p className="text-sm leading-snug">{task.title}</p>
       <div className="mt-2 flex items-center gap-2">
         {task.assignee && (
-          <span className="text-xs text-[#888888] capitalize">
+          <span className="text-xs text-[#888888] capitalize flex items-center gap-1.5">
+            {avatarUrlFor(task.assignee) ? (
+              <img src={avatarUrlFor(task.assignee)!} alt={task.assignee} className="h-4 w-4 rounded-full object-cover" />
+            ) : null}
             {task.assignee}
           </span>
         )}

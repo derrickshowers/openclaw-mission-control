@@ -46,6 +46,12 @@ const agentIcons: Record<string, LucideIcon> = {
   joanna: Palette,
 };
 
+function avatarUrlFor(agentName?: string): string | null {
+  if (!agentName) return null;
+  if (!["frank", "tom", "michael", "joanna"].includes(agentName)) return null;
+  return `/api/mc/agents/${agentName}/avatar`;
+}
+
 const eventTypeColors: Record<string, "default" | "primary" | "success" | "warning" | "danger"> = {
   "task.created": "primary",
   "task.updated": "default",
@@ -130,9 +136,17 @@ export function DashboardContent({ tasks, agents, status, recentActivity }: Dash
                 className="flex items-center justify-between rounded border border-[#222222] bg-[#080808] px-3 py-2"
               >
                 <div className="flex items-center gap-3">
-                  <div className="flex h-7 w-7 items-center justify-center rounded-full bg-[#1A1A1A] text-muted-foreground">
-                    {(() => { const Icon = agentIcons[agent.name] || Bot; return <Icon size={16} strokeWidth={1.5} />; })()}
-                  </div>
+                  {avatarUrlFor(agent.name) ? (
+                    <img
+                      src={avatarUrlFor(agent.name)!}
+                      alt={agent.name}
+                      className="h-7 w-7 rounded-full object-cover"
+                    />
+                  ) : (
+                    <div className="flex h-7 w-7 items-center justify-center rounded-full bg-[#1A1A1A] text-muted-foreground">
+                      {(() => { const Icon = agentIcons[agent.name] || Bot; return <Icon size={16} strokeWidth={1.5} />; })()}
+                    </div>
+                  )}
                   <div>
                     <p className="text-sm font-medium capitalize">{agent.name}</p>
                     <p className="text-xs text-[#888888]">
@@ -169,7 +183,10 @@ export function DashboardContent({ tasks, agents, status, recentActivity }: Dash
                 >
                   <div className="flex-1 min-w-0">
                     <p className="truncate text-sm">{task.title}</p>
-                    <p className="text-xs text-[#888888]">
+                    <p className="text-xs text-[#888888] flex items-center gap-1.5">
+                      {task.assignee && avatarUrlFor(task.assignee) ? (
+                        <img src={avatarUrlFor(task.assignee)!} alt={task.assignee} className="h-4 w-4 rounded-full object-cover" />
+                      ) : null}
                       {task.assignee ? `→ ${task.assignee}` : "Unassigned"}
                     </p>
                   </div>

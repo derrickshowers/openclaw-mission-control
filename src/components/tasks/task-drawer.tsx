@@ -26,6 +26,12 @@ const statusColors: Record<string, "default" | "primary" | "danger" | "success">
   done: "success",
 };
 
+function avatarUrlFor(agentName?: string | null): string | null {
+  if (!agentName) return null;
+  if (!["frank", "tom", "michael", "joanna"].includes(agentName)) return null;
+  return `/api/mc/agents/${agentName}/avatar`;
+}
+
 interface TaskDrawerProps {
   task: Task;
   isOpen: boolean;
@@ -450,7 +456,12 @@ export function TaskDrawer({ task, isOpen, onClose, onUpdate }: TaskDrawerProps)
                 <Card key={c.id} className="border border-[#1a1a1a] bg-[#111111]" shadow="none" radius="sm">
                   <CardBody className="px-4 py-3">
                     <div className="flex items-center justify-between mb-1.5">
-                      <span className="text-xs font-medium text-white capitalize">{c.author}</span>
+                      <span className="text-xs font-medium text-white capitalize flex items-center gap-1.5">
+                        {avatarUrlFor(c.author) ? (
+                          <img src={avatarUrlFor(c.author)!} alt={c.author} className="h-5 w-5 rounded-full object-cover" />
+                        ) : null}
+                        {c.author}
+                      </span>
                       <span className="text-[10px] text-[#555555]">
                         {formatLocal(c.created_at)}
                       </span>
