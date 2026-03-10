@@ -307,7 +307,7 @@ export function UsageDashboard() {
   ).sort();
 
   return (
-    <div className="mx-auto flex h-full max-w-[1200px] flex-col gap-4">
+    <div className="mx-auto flex h-full max-w-[1200px] flex-col gap-4 overflow-y-auto">
       {/* Header */}
       <div className="flex items-center justify-between">
         <div className="flex items-center gap-2">
