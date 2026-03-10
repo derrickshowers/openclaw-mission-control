@@ -6,7 +6,7 @@ import { Folder, FileText, Search, ArrowLeft, X, Pencil, Save } from "lucide-rea
 import ReactMarkdown from "react-markdown";
 import remarkGfm from "remark-gfm";
 
-const AGENTS = ["frank", "tom", "michael", "joanna"];
+const DEFAULT_SOURCES = ["frank", "tom", "michael", "joanna", "shared"];
 
 interface FileEntry {
   name: string;
@@ -15,7 +15,8 @@ interface FileEntry {
 }
 
 export function MemoryBrowser() {
-  const [selectedAgent, setSelectedAgent] = useState(AGENTS[0]);
+  const [sources, setSources] = useState<string[]>(DEFAULT_SOURCES);
+  const [selectedAgent, setSelectedAgent] = useState(DEFAULT_SOURCES[0]);
   const [files, setFiles] = useState<FileEntry[]>([]);
   const [currentDir, setCurrentDir] = useState("");
   const [fileContent, setFileContent] = useState<string | null>(null);
@@ -29,6 +30,7 @@ export function MemoryBrowser() {
   const [saving, setSaving] = useState(false);
   const [dirty, setDirty] = useState(false);
   const editorRef = useRef<HTMLTextAreaElement>(null);
+  const isReadOnlySource = selectedAgent === "shared";
 
   const loadFiles = useCallback(async (agent: string, dir: string = "") => {
     setLoading(true);
@@ -122,6 +124,24 @@ export function MemoryBrowser() {
   }, [selectedAgent, currentFile, editContent]);
 
   useEffect(() => {
+    const loadSources = async () => {
+      try {
+        const res = await fetch("/api/mc/memory");
+        const data = await res.json();
+        const nextSources = Object.keys(data || {});
+        if (nextSources.length > 0) {
+          setSources(nextSources);
+          setSelectedAgent((prev) => (nextSources.includes(prev) ? prev : nextSources[0]));
+        }
+      } catch {
+        setSources(DEFAULT_SOURCES);
+      }
+    };
+
+    loadSources();
+  }, []);
+
+  useEffect(() => {
     loadFiles(selectedAgent, currentDir);
   }, [selectedAgent, currentDir, loadFiles]);
 
@@ -140,7 +160,7 @@ export function MemoryBrowser() {
 
       if (mod && e.key === "e") {
         e.preventDefault();
-        if (!editing && fileContent !== null) enterEditMode();
+        if (!editing && fileContent !== null && !isReadOnlySource) enterEditMode();
       }
       if (mod && e.key === "s" && editing) {
         e.preventDefault();
@@ -154,34 +174,34 @@ export function MemoryBrowser() {
 
     window.addEventListener("keydown", handler);
     return () => window.removeEventListener("keydown", handler);
-  }, [editing, fileContent, enterEditMode, saveEdit, cancelEdit]);
+  }, [editing, fileContent, enterEditMode, saveEdit, cancelEdit, isReadOnlySource]);
 
   return (
     <div className="mx-auto flex h-full max-w-[1200px] gap-4">
       <div className="w-64 flex-shrink-0 overflow-y-auto rounded border border-[#222222] bg-[#0A0A0A]">
-        <div className="flex flex-wrap border-b border-[#222222]">
-          {AGENTS.map((agent) => (
-            <button
-              key={agent}
-              onClick={() => {
-                if (editing && dirty && !confirm("Discard unsaved changes?")) return;
-                setSelectedAgent(agent);
-                setCurrentDir("");
-                setFileContent(null);
-                setCurrentFile("");
-                setSearchResults(null);
-                setEditing(false);
-                setDirty(false);
-              }}
-              className={`flex-1 px-2 py-2 text-xs capitalize transition-colors ${
-                selectedAgent === agent
-                  ? "bg-[#1A1A1A] text-white"
-                  : "text-[#888888] hover:text-white"
-              }`}
-            >
-              {agent}
-            </button>
-          ))}
+        <div className="border-b border-[#222222] p-2">
+          <label className="mb-1 block text-[10px] uppercase tracking-wide text-[#777777]">Source</label>
+          <select
+            value={selectedAgent}
+            onChange={(e) => {
+              const source = e.target.value;
+              if (editing && dirty && !confirm("Discard unsaved changes?")) return;
+              setSelectedAgent(source);
+              setCurrentDir("");
+              setFileContent(null);
+              setCurrentFile("");
+              setSearchResults(null);
+              setEditing(false);
+              setDirty(false);
+            }}
+            className="h-8 w-full rounded border border-[#222222] bg-[#080808] px-2 text-xs text-[#CCCCCC] outline-none focus:border-[#333333]"
+          >
+            {sources.map((source) => (
+              <option key={source} value={source}>
+                {source}
+              </option>
+            ))}
+          </select>
         </div>
 
         <div className="border-b border-[#222222] p-2">
@@ -311,15 +331,17 @@ export function MemoryBrowser() {
                     </>
                   ) : (
                     <>
-                      <Button
-                        size="sm"
-                        variant="bordered"
-                        onPress={enterEditMode}
-                        startContent={<Pencil size={12} strokeWidth={1.5} />}
-                        className="h-7 text-xs border-[#222222] text-[#888888] hover:text-white"
-                      >
-                        Edit
-                      </Button>
+                      {!isReadOnlySource && (
+                        <Button
+                          size="sm"
+                          variant="bordered"
+                          onPress={enterEditMode}
+                          startContent={<Pencil size={12} strokeWidth={1.5} />}
+                          className="h-7 text-xs border-[#222222] text-[#888888] hover:text-white"
+                        >
+                          Edit
+                        </Button>
+                      )}
                       <Button
                         size="sm"
                         variant="flat"
@@ -351,7 +373,7 @@ export function MemoryBrowser() {
                   spellCheck={false}
                 />
               ) : (
-                <article className="markdown-prose prose prose-invert prose-sm max-w-none prose-p:text-[#D4D4D8] prose-p:leading-[1.6] prose-p:mb-4 prose-headings:text-white prose-h1:text-2xl prose-h1:font-semibold prose-h1:mt-8 prose-h1:mb-4 prose-h2:text-lg prose-h2:font-semibold prose-h2:mt-6 prose-h2:mb-3 prose-h3:text-sm prose-h3:font-bold prose-h3:mt-4 prose-h3:mb-2 prose-strong:text-white prose-a:text-[#8b5cf6] prose-a:no-underline hover:prose-a:underline prose-code:text-[#CCCCCC] prose-code:bg-[#1a1a1a] prose-code:border prose-code:border-[#333333] prose-code:px-1 prose-code:py-0.5 prose-code:rounded-sm prose-code:text-xs prose-code:font-mono prose-pre:bg-[#111111] prose-pre:border prose-pre:border-[#333333] prose-pre:rounded-md prose-pre:p-4 prose-pre:text-xs prose-pre:my-4 prose-ul:my-4 prose-ul:ml-0 prose-ul:pl-5 prose-ul:list-disc prose-ul:space-y-1.5 prose-ol:my-4 prose-ol:ml-0 prose-ol:pl-5 prose-ol:list-decimal prose-ol:space-y-1.5 prose-li:text-[#D4D4D8] prose-li:leading-[1.6] prose-li:my-1 prose-li:pl-1 prose-table:border-collapse prose-table:my-6 prose-table:w-full prose-th:border prose-th:border-[#333333] prose-th:bg-[#111111] prose-th:px-3 prose-th:py-1.5 prose-th:text-left prose-th:text-xs prose-th:font-medium prose-td:border prose-td:border-[#333333] prose-td:px-3 prose-td:py-1.5 prose-td:text-xs prose-blockquote:my-4 prose-blockquote:pl-4 prose-blockquote:py-1 prose-blockquote:border-l-2 prose-blockquote:border-[#555555] prose-blockquote:text-[#888888] prose-blockquote:italic prose-hr:my-8 prose-hr:border-0 prose-hr:border-t prose-hr:border-[#222222]">
+                <article className="markdown-prose prose prose-invert prose-sm max-w-none prose-p:text-[#D4D4D8] prose-p:text-[13px] prose-p:leading-[1.6] prose-p:mb-4 prose-headings:text-white prose-h1:text-xl prose-h1:font-semibold prose-h1:mt-8 prose-h1:mb-4 prose-h2:text-base prose-h2:font-semibold prose-h2:mt-6 prose-h2:mb-3 prose-h3:text-xs prose-h3:font-bold prose-h3:mt-4 prose-h3:mb-2 prose-strong:text-white prose-a:text-[#8b5cf6] prose-a:no-underline hover:prose-a:underline prose-code:text-[#CCCCCC] prose-code:bg-[#1a1a1a] prose-code:border prose-code:border-[#333333] prose-code:px-1 prose-code:py-0.5 prose-code:rounded-sm prose-code:text-xs prose-code:font-mono prose-pre:bg-[#111111] prose-pre:border prose-pre:border-[#333333] prose-pre:rounded-md prose-pre:p-4 prose-pre:text-xs prose-pre:my-4 prose-ul:my-4 prose-ul:ml-0 prose-ul:pl-5 prose-ul:list-disc prose-ul:space-y-1.5 prose-ol:my-4 prose-ol:ml-0 prose-ol:pl-5 prose-ol:list-decimal prose-ol:space-y-1.5 prose-li:text-[#D4D4D8] prose-li:leading-[1.6] prose-li:my-1 prose-li:pl-1 prose-table:border-collapse prose-table:my-6 prose-table:w-full prose-th:border prose-th:border-[#333333] prose-th:bg-[#111111] prose-th:px-3 prose-th:py-1.5 prose-th:text-left prose-th:text-xs prose-th:font-medium prose-td:border prose-td:border-[#333333] prose-td:px-3 prose-td:py-1.5 prose-td:text-xs prose-blockquote:my-4 prose-blockquote:pl-4 prose-blockquote:py-1 prose-blockquote:border-l-2 prose-blockquote:border-[#555555] prose-blockquote:text-[#888888] prose-blockquote:italic prose-hr:my-8 prose-hr:border-0 prose-hr:border-t prose-hr:border-[#222222]">
                   <ReactMarkdown remarkPlugins={[remarkGfm]}>{fileContent}</ReactMarkdown>
                 </article>
               )}
