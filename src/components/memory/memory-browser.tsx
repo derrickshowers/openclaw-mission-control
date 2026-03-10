@@ -1,7 +1,7 @@
 "use client";
 
 import { useState, useEffect, useCallback, useRef } from "react";
-import { Button, Input } from "@heroui/react";
+import { Button, Input, Select, SelectItem } from "@heroui/react";
 import { Folder, FileText, Search, ArrowLeft, X, Pencil, Save } from "lucide-react";
 import ReactMarkdown from "react-markdown";
 import remarkGfm from "remark-gfm";
@@ -181,10 +181,12 @@ export function MemoryBrowser() {
       <div className="w-64 flex-shrink-0 overflow-y-auto rounded border border-[#222222] bg-[#0A0A0A]">
         <div className="border-b border-[#222222] p-2">
           <label className="mb-1 block text-[10px] uppercase tracking-wide text-[#777777]">Source</label>
-          <select
-            value={selectedAgent}
+          <Select
+            size="sm"
+            selectedKeys={[selectedAgent]}
             onChange={(e) => {
               const source = e.target.value;
+              if (!source) return;
               if (editing && dirty && !confirm("Discard unsaved changes?")) return;
               setSelectedAgent(source);
               setCurrentDir("");
@@ -194,14 +196,19 @@ export function MemoryBrowser() {
               setEditing(false);
               setDirty(false);
             }}
-            className="h-8 w-full rounded border border-[#222222] bg-[#080808] px-2 text-xs text-[#CCCCCC] outline-none focus:border-[#333333]"
+            variant="bordered"
+            classNames={{
+              trigger: "border-[#222222] bg-[#080808] min-h-8 h-8",
+              value: "text-xs text-[#CCCCCC]",
+            }}
+            aria-label="Select source"
           >
             {sources.map((source) => (
-              <option key={source} value={source}>
+              <SelectItem key={source} textValue={source} className="text-xs">
                 {source}
-              </option>
+              </SelectItem>
             ))}
-          </select>
+          </Select>
         </div>
 
         <div className="border-b border-[#222222] p-2">
