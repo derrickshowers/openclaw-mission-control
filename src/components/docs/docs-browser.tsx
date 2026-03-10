@@ -1,8 +1,20 @@
 "use client";
 
-import { useState, useEffect, useCallback } from "react";
-import { Input } from "@heroui/react";
-import { Folder, FileText, Search, ChevronRight, ChevronDown, X } from "lucide-react";
+import { useState, useEffect, useCallback, useRef } from "react";
+import { Button, Input } from "@heroui/react";
+import {
+  Folder,
+  FileText,
+  Search,
+  ChevronRight,
+  ChevronDown,
+  X,
+  Pencil,
+  Save,
+  Plus,
+  FolderPlus,
+  FilePlus,
+} from "lucide-react";
 import ReactMarkdown from "react-markdown";
 import remarkGfm from "remark-gfm";
 
@@ -29,39 +41,55 @@ export function DocsBrowser() {
   const [expandedDirs, setExpandedDirs] = useState<Set<string>>(new Set());
   const [loading, setLoading] = useState(false);
   const [treeLoading, setTreeLoading] = useState(true);
+  const [showMobileTree, setShowMobileTree] = useState(false);
 
-  // Load tree on mount
-  useEffect(() => {
-    async function loadTree() {
-      try {
-        const res = await fetch("/api/mc/docs/tree");
-        const data = await res.json();
-        if (Array.isArray(data)) {
-          setTree(data);
-          // Expand all directories by default
-          const dirs = new Set<string>();
-          function collectDirs(nodes: DocNode[]) {
-            for (const node of nodes) {
-              if (node.type === "directory") {
-                dirs.add(node.path);
-                if (node.children) collectDirs(node.children);
-              }
+  // Edit mode state
+  const [editing, setEditing] = useState(false);
+  const [editContent, setEditContent] = useState("");
+  const [saving, setSaving] = useState(false);
+  const [dirty, setDirty] = useState(false);
+  const editorRef = useRef<HTMLTextAreaElement>(null);
+
+  // Creation state
+  const [creatingFolder, setCreatingFolder] = useState(false);
+  const [newFolderName, setNewFolderName] = useState("");
+  const [creatingPage, setCreatingPage] = useState(false);
+  const folderInputRef = useRef<HTMLInputElement>(null);
+
+  // Load tree
+  const loadTree = useCallback(async () => {
+    try {
+      const res = await fetch("/api/mc/docs/tree");
+      const data = await res.json();
+      if (Array.isArray(data)) {
+        setTree(data);
+        const dirs = new Set<string>();
+        function collectDirs(nodes: DocNode[]) {
+          for (const node of nodes) {
+            if (node.type === "directory") {
+              dirs.add(node.path);
+              if (node.children) collectDirs(node.children);
             }
           }
-          collectDirs(data);
-          setExpandedDirs(dirs);
         }
-      } catch {
-        setTree([]);
-      } finally {
-        setTreeLoading(false);
+        collectDirs(data);
+        setExpandedDirs(dirs);
       }
+    } catch {
+      setTree([]);
+    } finally {
+      setTreeLoading(false);
     }
-    loadTree();
   }, []);
+
+  useEffect(() => {
+    loadTree();
+  }, [loadTree]);
 
   const loadFile = useCallback(async (filePath: string) => {
     setLoading(true);
+    setEditing(false);
+    setDirty(false);
     try {
       const res = await fetch(`/api/mc/docs/read?path=${encodeURIComponent(filePath)}`);
       const data = await res.json();
@@ -99,14 +127,171 @@ export function DocsBrowser() {
   const toggleDir = (dirPath: string) => {
     setExpandedDirs((prev) => {
       const next = new Set(prev);
-      if (next.has(dirPath)) {
-        next.delete(dirPath);
-      } else {
-        next.add(dirPath);
-      }
+      if (next.has(dirPath)) next.delete(dirPath);
+      else next.add(dirPath);
       return next;
     });
   };
+
+  // Edit mode handlers
+  const enterEditMode = useCallback(() => {
+    if (fileContent === null) return;
+    setEditContent(fileContent);
+    setEditing(true);
+    setDirty(false);
+    setTimeout(() => editorRef.current?.focus(), 50);
+  }, [fileContent]);
+
+  const cancelEdit = useCallback(() => {
+    if (dirty) {
+      if (!confirm("Discard unsaved changes?")) return;
+    }
+    setEditing(false);
+    setDirty(false);
+  }, [dirty]);
+
+  const saveEdit = useCallback(async () => {
+    if (!selectedFile) return;
+    setSaving(true);
+    try {
+      const res = await fetch(`/api/mc/docs/write?path=${encodeURIComponent(selectedFile)}`, {
+        method: "PUT",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ content: editContent }),
+      });
+      if (!res.ok) throw new Error("Save failed");
+      setFileContent(editContent);
+      setEditing(false);
+      setDirty(false);
+    } catch (err) {
+      console.error("Save failed:", err);
+      alert("Failed to save. Please try again.");
+    } finally {
+      setSaving(false);
+    }
+  }, [selectedFile, editContent]);
+
+  // Creation handlers
+  const getActiveFolder = useCallback((): string => {
+    if (!selectedFile) return "";
+    // If the selected file is in a directory, use that directory
+    const parts = selectedFile.split("/");
+    if (parts.length > 1) return parts.slice(0, -1).join("/");
+    return "";
+  }, [selectedFile]);
+
+  const createPage = useCallback(async () => {
+    const folder = getActiveFolder();
+    const pagePath = folder ? `${folder}/Untitled.md` : "Untitled.md";
+
+    // Find a unique name
+    let finalPath = pagePath;
+    let counter = 1;
+    while (true) {
+      try {
+        const res = await fetch("/api/mc/docs/create", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ path: finalPath, type: "file" }),
+        });
+        if (res.ok) break;
+        if (res.status === 409) {
+          const base = folder ? `${folder}/Untitled ${counter}` : `Untitled ${counter}`;
+          finalPath = `${base}.md`;
+          counter++;
+          continue;
+        }
+        throw new Error("Create failed");
+      } catch {
+        alert("Failed to create page.");
+        return;
+      }
+    }
+
+    await loadTree();
+    // Navigate to the new page and enter edit mode
+    setLoading(true);
+    try {
+      const res = await fetch(`/api/mc/docs/read?path=${encodeURIComponent(finalPath)}`);
+      const data = await res.json();
+      setFileContent(data.content || "");
+      setSelectedFile(finalPath);
+      setSearchResults(null);
+      setEditContent(data.content || "");
+      setEditing(true);
+      setDirty(false);
+      setTimeout(() => editorRef.current?.focus(), 50);
+    } finally {
+      setLoading(false);
+    }
+  }, [getActiveFolder, loadTree]);
+
+  const createFolder = useCallback(async (name: string) => {
+    if (!name.trim()) {
+      setCreatingFolder(false);
+      return;
+    }
+    const folder = getActiveFolder();
+    const folderPath = folder ? `${folder}/${name.trim()}` : name.trim();
+
+    try {
+      const res = await fetch("/api/mc/docs/create", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ path: folderPath, type: "folder" }),
+      });
+      if (!res.ok) {
+        const data = await res.json();
+        alert(data.error || "Failed to create folder.");
+        return;
+      }
+      await loadTree();
+    } catch {
+      alert("Failed to create folder.");
+    } finally {
+      setCreatingFolder(false);
+      setNewFolderName("");
+    }
+  }, [getActiveFolder, loadTree]);
+
+  // Keyboard shortcuts
+  useEffect(() => {
+    const handler = (e: KeyboardEvent) => {
+      const mod = e.metaKey || e.ctrlKey;
+
+      // Don't intercept if in an input/textarea that isn't our editor
+      const target = e.target as HTMLElement;
+      if (
+        target.tagName === "INPUT" ||
+        target.tagName === "SELECT" ||
+        (target.tagName === "TEXTAREA" && target !== editorRef.current)
+      ) {
+        return;
+      }
+
+      if (mod && e.key === "e") {
+        e.preventDefault();
+        if (!editing && fileContent !== null) enterEditMode();
+      }
+      if (mod && e.key === "s" && editing) {
+        e.preventDefault();
+        saveEdit();
+      }
+      if (e.key === "Escape" && editing) {
+        e.preventDefault();
+        cancelEdit();
+      }
+    };
+    window.addEventListener("keydown", handler);
+    return () => window.removeEventListener("keydown", handler);
+  }, [editing, fileContent, enterEditMode, saveEdit, cancelEdit]);
+
+  // Focus folder input when creating
+  useEffect(() => {
+    if (creatingFolder) {
+      setTimeout(() => folderInputRef.current?.focus(), 50);
+    }
+  }, [creatingFolder]);
 
   function renderTree(nodes: DocNode[], depth: number = 0, isMobile: boolean = false) {
     return nodes.map((node) => {
@@ -141,6 +326,9 @@ export function DocsBrowser() {
           key={node.path}
           data-file
           onClick={() => {
+            if (editing && dirty) {
+              if (!confirm("Discard unsaved changes?")) return;
+            }
             loadFile(node.path);
             if (isMobile) setShowMobileTree(false);
           }}
@@ -156,13 +344,54 @@ export function DocsBrowser() {
     });
   }
 
-  const [showMobileTree, setShowMobileTree] = useState(false);
+  const sidebarHeader = (
+    <div className="flex items-center justify-between border-b border-[#222222] px-3 py-2">
+      <span className="text-xs font-medium text-[#888888] uppercase tracking-wider">Docs</span>
+      <div className="flex items-center gap-1">
+        <button
+          onClick={createPage}
+          className="rounded p-1 text-[#888888] transition-colors hover:bg-[#1A1A1A] hover:text-white"
+          title="New page"
+        >
+          <FilePlus size={14} strokeWidth={1.5} />
+        </button>
+        <button
+          onClick={() => { setCreatingFolder(true); setNewFolderName(""); }}
+          className="rounded p-1 text-[#888888] transition-colors hover:bg-[#1A1A1A] hover:text-white"
+          title="New folder"
+        >
+          <FolderPlus size={14} strokeWidth={1.5} />
+        </button>
+      </div>
+    </div>
+  );
+
+  const folderCreationInput = creatingFolder ? (
+    <div className="border-b border-[#222222] px-3 py-2">
+      <div className="flex items-center gap-1.5">
+        <Folder size={14} strokeWidth={1.5} className="flex-shrink-0 text-[#888888]" />
+        <input
+          ref={folderInputRef}
+          type="text"
+          value={newFolderName}
+          onChange={(e) => setNewFolderName(e.target.value)}
+          onKeyDown={(e) => {
+            if (e.key === "Enter") createFolder(newFolderName);
+            if (e.key === "Escape") { setCreatingFolder(false); setNewFolderName(""); }
+          }}
+          onBlur={() => createFolder(newFolderName)}
+          placeholder="Folder name..."
+          className="flex-1 bg-transparent text-xs text-[#CCCCCC] outline-none placeholder:text-[#555555]"
+        />
+      </div>
+    </div>
+  ) : null;
 
   return (
     <div className="mx-auto flex h-full max-w-[1400px] gap-4">
-      {/* Left: File Tree — hidden on mobile, shown as overlay */}
-      {/* Desktop tree */}
-      <div className="hidden md:block w-64 flex-shrink-0 overflow-y-auto rounded border border-[#222222] bg-[#0A0A0A]">
+      {/* Desktop sidebar */}
+      <div className="hidden md:flex md:flex-col w-64 flex-shrink-0 overflow-hidden rounded border border-[#222222] bg-[#0A0A0A]">
+        {sidebarHeader}
         {/* Search */}
         <div className="border-b border-[#222222] p-2">
           <Input
@@ -183,9 +412,9 @@ export function DocsBrowser() {
             }
           />
         </div>
-
+        {folderCreationInput}
         {/* Tree */}
-        <div className="p-1">
+        <div className="flex-1 overflow-y-auto p-1">
           {treeLoading ? (
             <div className="space-y-1 px-2 py-2">
               <div className="skeleton h-4 w-24" />
@@ -210,12 +439,28 @@ export function DocsBrowser() {
             className="fixed inset-0 z-40 bg-black/50 md:hidden"
             onClick={() => setShowMobileTree(false)}
           />
-          <div className="fixed inset-y-0 left-0 z-50 w-72 overflow-y-auto border-r border-[#222222] bg-[#0A0A0A] md:hidden">
+          <div className="fixed inset-y-0 left-0 z-50 w-72 flex flex-col overflow-hidden border-r border-[#222222] bg-[#0A0A0A] md:hidden">
             <div className="flex items-center justify-between border-b border-[#222222] p-3">
               <span className="text-xs font-medium text-[#888888] uppercase tracking-wider">Browse Docs</span>
-              <button onClick={() => setShowMobileTree(false)} className="text-[#888888] hover:text-white">
-                <X size={16} strokeWidth={1.5} />
-              </button>
+              <div className="flex items-center gap-1">
+                <button
+                  onClick={createPage}
+                  className="rounded p-1 text-[#888888] transition-colors hover:bg-[#1A1A1A] hover:text-white"
+                  title="New page"
+                >
+                  <FilePlus size={14} strokeWidth={1.5} />
+                </button>
+                <button
+                  onClick={() => { setCreatingFolder(true); setNewFolderName(""); }}
+                  className="rounded p-1 text-[#888888] transition-colors hover:bg-[#1A1A1A] hover:text-white"
+                  title="New folder"
+                >
+                  <FolderPlus size={14} strokeWidth={1.5} />
+                </button>
+                <button onClick={() => setShowMobileTree(false)} className="rounded p-1 text-[#888888] hover:text-white">
+                  <X size={16} strokeWidth={1.5} />
+                </button>
+              </div>
             </div>
             <div className="border-b border-[#222222] p-2">
               <Input
@@ -236,10 +481,10 @@ export function DocsBrowser() {
                 }
               />
             </div>
+            {folderCreationInput}
             <div
-              className="p-1"
+              className="flex-1 overflow-y-auto p-1"
               onClick={(e) => {
-                // Close tree when a file is selected
                 if ((e.target as HTMLElement).closest("[data-file]")) {
                   setShowMobileTree(false);
                 }
@@ -261,7 +506,7 @@ export function DocsBrowser() {
         </>
       )}
 
-      {/* Right: Content Pane */}
+      {/* Content pane */}
       <div className="flex-1 overflow-y-auto rounded border border-[#222222] bg-[#0A0A0A] p-4 md:p-6">
         {/* Mobile browse button */}
         <div className="md:hidden mb-3">
@@ -286,10 +531,7 @@ export function DocsBrowser() {
               <p className="text-xs text-[#888888]">
                 {searchResults.length} result{searchResults.length !== 1 ? "s" : ""} for &quot;{searchQuery}&quot;
               </p>
-              <button
-                onClick={clearSearch}
-                className="text-xs text-[#888888] hover:text-white"
-              >
+              <button onClick={clearSearch} className="text-xs text-[#888888] hover:text-white">
                 Clear search
               </button>
             </div>
@@ -313,14 +555,64 @@ export function DocsBrowser() {
             ))}
           </div>
         ) : fileContent !== null ? (
-          <div className="px-8 py-12">
-            <div className="mx-auto max-w-3xl">
+          <div className="px-4 py-8 md:px-8 md:py-12">
+            <div className="mx-auto max-w-[720px]">
+              {/* Document header */}
               <div className="mb-6 flex items-center justify-between border-b border-[#222222] pb-3">
                 <span className="text-xs font-mono text-[#888888]">{selectedFile}</span>
+                <div className="flex items-center gap-2">
+                  {editing ? (
+                    <>
+                      <Button
+                        size="sm"
+                        variant="light"
+                        onPress={cancelEdit}
+                        className="h-7 text-xs text-[#888888] hover:text-white"
+                      >
+                        Cancel
+                      </Button>
+                      <Button
+                        size="sm"
+                        color="primary"
+                        onPress={saveEdit}
+                        isLoading={saving}
+                        startContent={!saving && <Save size={12} strokeWidth={1.5} />}
+                        className="h-7 text-xs"
+                      >
+                        Save
+                      </Button>
+                    </>
+                  ) : (
+                    <Button
+                      size="sm"
+                      variant="bordered"
+                      onPress={enterEditMode}
+                      startContent={<Pencil size={12} strokeWidth={1.5} />}
+                      className="h-7 text-xs border-[#222222] text-[#888888] hover:text-white"
+                    >
+                      Edit
+                    </Button>
+                  )}
+                </div>
               </div>
-              <article className="prose prose-invert prose-sm max-w-none leading-relaxed prose-p:text-[#D4D4D8] prose-p:mb-4 prose-headings:text-white prose-h1:text-2xl prose-h1:font-semibold prose-h1:mb-4 prose-h2:text-lg prose-h2:font-semibold prose-h2:mb-3 prose-h3:text-sm prose-h3:font-bold prose-h3:mb-2 prose-strong:text-white prose-a:text-[#8b5cf6] prose-a:no-underline hover:prose-a:underline prose-code:text-[#CCCCCC] prose-code:bg-[#1a1a1a] prose-code:border prose-code:border-[#333333] prose-code:px-1 prose-code:py-0.5 prose-code:rounded-sm prose-code:text-xs prose-code:font-mono prose-pre:bg-[#111111] prose-pre:border prose-pre:border-[#333333] prose-pre:rounded-md prose-pre:p-4 prose-pre:text-xs prose-table:border-collapse prose-th:border prose-th:border-[#333333] prose-th:bg-[#111111] prose-th:px-3 prose-th:py-1.5 prose-th:text-left prose-th:text-xs prose-th:font-medium prose-td:border prose-td:border-[#333333] prose-td:px-3 prose-td:py-1.5 prose-td:text-xs prose-blockquote:border-l-2 prose-blockquote:border-[#555555] prose-blockquote:text-[#888888] prose-blockquote:italic prose-li:text-[#D4D4D8]">
-                <ReactMarkdown remarkPlugins={[remarkGfm]}>{fileContent}</ReactMarkdown>
-              </article>
+
+              {/* Content: View or Edit */}
+              {editing ? (
+                <textarea
+                  ref={editorRef}
+                  value={editContent}
+                  onChange={(e) => {
+                    setEditContent(e.target.value);
+                    setDirty(true);
+                  }}
+                  className="w-full min-h-[60vh] resize-y rounded-md border border-[#222222] bg-[#080808] p-4 font-mono text-sm text-[#CCCCCC] leading-relaxed outline-none focus:border-[#333333] transition-colors"
+                  spellCheck={false}
+                />
+              ) : (
+                <article className="prose prose-invert prose-sm max-w-none prose-p:text-[#D4D4D8] prose-p:leading-[1.6] prose-p:mb-6 prose-headings:text-white prose-h1:text-2xl prose-h1:font-semibold prose-h1:mb-4 prose-h2:text-lg prose-h2:font-semibold prose-h2:mb-3 prose-h3:text-sm prose-h3:font-bold prose-h3:mb-2 prose-strong:text-white prose-a:text-[#8b5cf6] prose-a:no-underline hover:prose-a:underline prose-code:text-[#CCCCCC] prose-code:bg-[#1a1a1a] prose-code:border prose-code:border-[#333333] prose-code:px-1 prose-code:py-0.5 prose-code:rounded-sm prose-code:text-xs prose-code:font-mono prose-pre:bg-[#111111] prose-pre:border prose-pre:border-[#333333] prose-pre:rounded-md prose-pre:p-4 prose-pre:text-xs prose-table:border-collapse prose-th:border prose-th:border-[#333333] prose-th:bg-[#111111] prose-th:px-3 prose-th:py-1.5 prose-th:text-left prose-th:text-xs prose-th:font-medium prose-td:border prose-td:border-[#333333] prose-td:px-3 prose-td:py-1.5 prose-td:text-xs prose-blockquote:border-l-2 prose-blockquote:border-[#555555] prose-blockquote:text-[#888888] prose-blockquote:italic prose-li:text-[#D4D4D8] prose-li:leading-[1.6]">
+                  <ReactMarkdown remarkPlugins={[remarkGfm]}>{fileContent}</ReactMarkdown>
+                </article>
+              )}
             </div>
           </div>
         ) : (
