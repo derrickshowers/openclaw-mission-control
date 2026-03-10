@@ -160,4 +160,10 @@ export const api = {
   // System
   getHealth: () => apiFetch<any>("/health"),
   getStatus: () => apiFetch<any>("/system/status"),
+  restartOpenClaw: () => apiFetch<any>("/system/restart", { method: "POST" }),
+  runDoctor: (fix = false) =>
+    apiFetch<any>("/system/doctor", {
+      method: "POST",
+      body: JSON.stringify({ fix }),
+    }),
 };

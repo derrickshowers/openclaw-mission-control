@@ -1,7 +1,9 @@
 "use client";
 
-import { Card, CardBody, CardHeader, Chip } from "@heroui/react";
-import { Crosshair, Landmark, Zap, Palette, Bot, Users, ListChecks, ArrowRight } from "lucide-react";
+import { useState } from "react";
+import { Button, Card, CardBody, CardHeader, Chip } from "@heroui/react";
+import { Crosshair, Landmark, Zap, Palette, Bot, Users, ListChecks, ArrowRight, ShieldAlert } from "lucide-react";
+import { api } from "@/lib/api";
 import type { LucideIcon } from "lucide-react";
 import type { Task } from "@/lib/api";
 import { timeAgo as timeAgoUtil } from "@/lib/dates";
@@ -70,6 +72,37 @@ export function DashboardContent({ tasks, agents, status, recentActivity }: Dash
   const blocked = tasks.filter((t) => t.status === "blocked");
   const done = tasks.filter((t) => t.status === "done");
   const backlog = tasks.filter((t) => t.status === "backlog");
+
+  const [isRestarting, setIsRestarting] = useState(false);
+  const [doctorRunning, setDoctorRunning] = useState(false);
+  const [doctorOutput, setDoctorOutput] = useState<string>("");
+  const [doctorCommand, setDoctorCommand] = useState<string>("");
+
+  async function handleRestart() {
+    setIsRestarting(true);
+    try {
+      await api.restartOpenClaw();
+    } catch {
+      // keep silent in UI for now; doctor panel is the detailed diagnostics surface
+    } finally {
+      setIsRestarting(false);
+    }
+  }
+
+  async function handleDoctor(fix = false) {
+    setDoctorRunning(true);
+    try {
+      const res = await api.runDoctor(fix);
+      setDoctorCommand(res.command || `openclaw doctor${fix ? " --fix" : ""}`);
+      const output = [res.stdout, res.stderr].filter(Boolean).join("\n");
+      setDoctorOutput(output || "(no output)");
+    } catch (error: any) {
+      setDoctorCommand(`openclaw doctor${fix ? " --fix" : ""}`);
+      setDoctorOutput(error?.message || "Failed to run doctor");
+    } finally {
+      setDoctorRunning(false);
+    }
+  }
 
   return (
     <div className="mx-auto max-w-[1200px] space-y-6">
@@ -166,6 +199,37 @@ export function DashboardContent({ tasks, agents, status, recentActivity }: Dash
           </CardBody>
         </Card>
       </div>
+
+      <Card className="border border-[#222222] bg-[#121212]">
+        <CardHeader className="border-b border-[#222222] px-4 py-3">
+          <span className="flex items-center gap-2 text-sm font-medium">
+            <ShieldAlert size={16} strokeWidth={1.5} className="text-muted-foreground" />
+            OpenClaw Controls
+          </span>
+        </CardHeader>
+        <CardBody className="gap-3 p-3">
+          <div className="flex flex-wrap gap-2">
+            <Button size="sm" color="warning" onPress={handleRestart} isLoading={isRestarting}>
+              Restart OpenClaw
+            </Button>
+            <Button size="sm" variant="flat" onPress={() => handleDoctor(false)} isLoading={doctorRunning}>
+              Run Doctor
+            </Button>
+            <Button size="sm" variant="flat" color="danger" onPress={() => handleDoctor(true)} isLoading={doctorRunning}>
+              Run Doctor --fix
+            </Button>
+          </div>
+
+          <div className="rounded border border-[#222222] bg-[#080808] p-3">
+            <p className="text-xs text-[#888888] font-mono mb-2">
+              {doctorCommand || "Run doctor to see diagnostics output"}
+            </p>
+            <pre className="max-h-80 overflow-auto whitespace-pre-wrap font-mono text-xs text-[#CCCCCC]">
+              {doctorOutput || "(no output yet)"}
+            </pre>
+          </div>
+        </CardBody>
+      </Card>
 
       {/* Recent Activity */}
       <Card className="border border-[#222222] bg-[#121212]">
