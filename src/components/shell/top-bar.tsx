@@ -26,7 +26,7 @@ export function TopBar() {
     "Dashboard";
 
   return (
-    <header className="flex h-14 items-center justify-between border-b border-[#222222] px-4 lg:px-6">
+    <header className="mx-2 mt-2 flex h-14 items-center justify-between rounded-xl border border-white/10 bg-black/35 px-4 backdrop-blur-xl lg:mx-3 lg:px-5">
       <div className="flex items-center gap-3">
         <Umbrella size={16} strokeWidth={1.5} className="lg:hidden text-muted-foreground" />
         <h1 className="text-sm font-medium">{title}</h1>

@@ -57,7 +57,7 @@ export function TeamView({ agents }: TeamViewProps) {
   }, [lastEvent]);
 
   const baseList = agents.length > 0
-    ? agents
+    ? agents.filter((a: any) => Object.hasOwn(agentMeta, a.name))
     : Object.keys(agentMeta).map((name) => ({ name }));
 
   // Merge live status into agent data

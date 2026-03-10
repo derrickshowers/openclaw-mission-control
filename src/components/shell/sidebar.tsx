@@ -25,9 +25,9 @@ export function Sidebar() {
   const userImage = session?.user?.image || undefined;
 
   return (
-    <aside className="flex h-screen w-sidebar flex-col border-r border-[#222222] bg-[#080808]">
+    <aside className="m-3 flex h-[calc(100vh-1.5rem)] w-sidebar flex-col rounded-2xl border border-white/10 bg-black/35 backdrop-blur-xl shadow-[0_12px_40px_rgba(0,0,0,0.45)]">
       {/* Logo */}
-      <div className="flex h-14 items-center border-b border-[#222222] px-4">
+      <div className="flex h-14 items-center border-b border-white/10 px-4">
         <span className="flex items-center gap-2">
           <Umbrella size={16} strokeWidth={1.5} />
           <span className="flex flex-col leading-tight">
@@ -66,7 +66,7 @@ export function Sidebar() {
       </nav>
 
       {/* Footer - Dynamic User */}
-      <div className="border-t border-[#222222] px-4 py-3">
+      <div className="border-t border-white/10 px-4 py-3">
         {status === "loading" ? (
           <div className="flex items-center gap-2">
             <Skeleton className="h-6 w-6 rounded-full" />

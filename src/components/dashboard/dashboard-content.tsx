@@ -111,7 +111,7 @@ export function DashboardContent({ tasks, agents, status, recentActivity }: Dash
   }
 
   return (
-    <div className="mx-auto max-w-[1200px] space-y-6">
+    <div className="mx-auto max-w-[1280px] space-y-4">
       {/* Stats Row */}
       <div className="grid grid-cols-2 gap-3 lg:grid-cols-4">
         <StatCard label="Backlog" value={backlog.length} />
@@ -122,18 +122,18 @@ export function DashboardContent({ tasks, agents, status, recentActivity }: Dash
 
       <div className="grid gap-6 lg:grid-cols-2">
         {/* Active Agents */}
-        <Card className="border border-[#222222] bg-[#121212]">
-          <CardHeader className="border-b border-[#222222] px-4 py-2.5">
+        <Card className="border border-white/10 bg-white/5 backdrop-blur-xl shadow-[0_8px_30px_rgba(0,0,0,0.35)]">
+          <CardHeader className="border-b border-white/10 px-4 py-2.5">
             <span className="flex items-center gap-2 text-xs font-medium uppercase tracking-wider text-[#888888]">
               <Users size={16} strokeWidth={1.5} className="text-muted-foreground" />
               Team
             </span>
           </CardHeader>
           <CardBody className="gap-2 p-3">
-            {(agents.length > 0 ? agents : Object.keys(agentRoles).map(name => ({ name }))).map((agent: any) => (
+            {(agents.length > 0 ? agents.filter((a: any) => Object.hasOwn(agentRoles, a.name)) : Object.keys(agentRoles).map(name => ({ name }))).map((agent: any) => (
               <div
                 key={agent.name}
-                className="flex items-center justify-between rounded border border-[#222222] bg-[#080808] px-3 py-2"
+                className="flex items-center justify-between rounded-lg border border-white/10 bg-black/35 px-3 py-2 backdrop-blur"
               >
                 <div className="flex items-center gap-3">
                   {avatarUrlFor(agent.name) ? (
@@ -163,8 +163,8 @@ export function DashboardContent({ tasks, agents, status, recentActivity }: Dash
         </Card>
 
         {/* Urgent / In-Progress Tasks */}
-        <Card className="border border-[#222222] bg-[#121212]">
-          <CardHeader className="border-b border-[#222222] px-4 py-2.5">
+        <Card className="border border-white/10 bg-white/5 backdrop-blur-xl shadow-[0_8px_30px_rgba(0,0,0,0.35)]">
+          <CardHeader className="border-b border-white/10 px-4 py-2.5">
             <span className="flex items-center gap-2 text-xs font-medium uppercase tracking-wider text-[#888888]">
               <ListChecks size={16} strokeWidth={1.5} className="text-muted-foreground" />
               Active Tasks
@@ -179,7 +179,7 @@ export function DashboardContent({ tasks, agents, status, recentActivity }: Dash
               [...blocked, ...inProgress].slice(0, 5).map((task) => (
                 <div
                   key={task.id}
-                  className="flex items-center justify-between rounded border border-[#222222] bg-[#080808] px-3 py-2"
+                  className="flex items-center justify-between rounded-lg border border-white/10 bg-black/35 px-3 py-2 backdrop-blur"
                 >
                   <div className="flex-1 min-w-0">
                     <p className="truncate text-sm">{task.title}</p>
@@ -217,8 +217,8 @@ export function DashboardContent({ tasks, agents, status, recentActivity }: Dash
         </Card>
       </div>
 
-      <Card className="border border-[#222222] bg-[#121212]">
-        <CardHeader className="border-b border-[#222222] px-4 py-2.5">
+      <Card className="border border-white/10 bg-white/5 backdrop-blur-xl shadow-[0_8px_30px_rgba(0,0,0,0.35)]">
+        <CardHeader className="border-b border-white/10 px-4 py-2.5">
           <span className="flex items-center gap-2 text-xs font-medium uppercase tracking-wider text-[#888888]">
             <ShieldAlert size={16} strokeWidth={1.5} className="text-muted-foreground" />
             OpenClaw Controls
@@ -237,7 +237,7 @@ export function DashboardContent({ tasks, agents, status, recentActivity }: Dash
             </Button>
           </div>
 
-          <div className="rounded border border-[#222222] bg-[#080808] p-3">
+          <div className="rounded-lg border border-white/10 bg-black/35 p-3 backdrop-blur">
             <p className="text-xs text-[#888888] font-mono mb-2">
               {doctorCommand || "Run doctor to see diagnostics output"}
             </p>
@@ -249,8 +249,8 @@ export function DashboardContent({ tasks, agents, status, recentActivity }: Dash
       </Card>
 
       {/* Recent Activity */}
-      <Card className="border border-[#222222] bg-[#121212]">
-        <CardHeader className="border-b border-[#222222] px-4 py-2.5">
+      <Card className="border border-white/10 bg-white/5 backdrop-blur-xl shadow-[0_8px_30px_rgba(0,0,0,0.35)]">
+        <CardHeader className="border-b border-white/10 px-4 py-2.5">
           <div className="flex w-full items-center justify-between">
             <h2 className="text-[11px] font-medium uppercase tracking-wider text-[#888888]">Recent Activity</h2>
             <a href="/activity" className="flex items-center gap-1 text-xs text-[#888888] hover:text-white transition-colors">
@@ -264,11 +264,11 @@ export function DashboardContent({ tasks, agents, status, recentActivity }: Dash
               No recent activity
             </p>
           ) : (
-            <div className="divide-y divide-[#1A1A1A]">
+            <div className="divide-y divide-white/10">
               {recentActivity.slice(0, 5).map((entry, i) => (
                 <div
                   key={entry.id || i}
-                  className="flex items-center gap-3 px-4 py-2.5 hover:bg-[#0A0A0A] transition-colors"
+                  className="flex items-center gap-3 px-4 py-2.5 transition-colors hover:bg-white/5"
                 >
                   <Chip
                     size="sm"
@@ -301,7 +301,7 @@ export function DashboardContent({ tasks, agents, status, recentActivity }: Dash
 
 function StatCard({ label, value }: { label: string; value: number }) {
   return (
-    <div className="rounded border border-[#222222] bg-[#121212] px-3 py-2">
+    <div className="rounded-xl border border-white/10 bg-white/5 px-3 py-2 backdrop-blur shadow-[0_6px_18px_rgba(0,0,0,0.25)]">
       <p className="text-[10px] uppercase tracking-wider text-[#888888]">{label}</p>
       <p className="mt-1 text-2xl font-semibold">{value}</p>
     </div>

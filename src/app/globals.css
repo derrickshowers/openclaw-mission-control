@@ -1,13 +1,16 @@
-@import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500&display=swap');
+@import url('https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;500&display=swap');
 
 @tailwind base;
 @tailwind components;
 @tailwind utilities;
 
 body {
-  background: #080808;
+  background:
+    radial-gradient(1200px 500px at 10% -10%, rgba(111, 76, 255, 0.16), transparent 55%),
+    radial-gradient(900px 420px at 90% 0%, rgba(72, 170, 255, 0.12), transparent 50%),
+    #07070b;
   color: #ffffff;
-  font-family: "Inter", system-ui, sans-serif;
+  font-family: var(--font-plus-jakarta), system-ui, sans-serif;
   -webkit-font-smoothing: antialiased;
   -moz-osx-font-smoothing: grayscale;
 }
@@ -94,7 +97,24 @@ button:not(.rounded-full) {
   min-height: 18px !important;
 }
 
-/* Force consistent markdown spacing for docs/memory surfaces */
+/* Force consistent markdown typography + spacing for docs/memory surfaces */
+.markdown-prose {
+  font-size: 12px;
+  line-height: 1.55;
+}
+
+.markdown-prose :where(h1) {
+  font-size: 1.25rem;
+}
+
+.markdown-prose :where(h2) {
+  font-size: 1rem;
+}
+
+.markdown-prose :where(h3) {
+  font-size: 0.875rem;
+}
+
 .markdown-prose :where(ul, ol) {
   margin-top: 1rem;
   margin-bottom: 1rem;
