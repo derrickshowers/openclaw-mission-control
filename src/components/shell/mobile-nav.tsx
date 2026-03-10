@@ -47,7 +47,7 @@ export function MobileNav() {
             className="fixed inset-0 z-40 bg-black/50"
             onClick={() => setMenuOpen(false)}
           />
-          <div className="fixed inset-x-0 bottom-0 z-50 rounded-t-2xl border-t border-[#333333] bg-[#121212] pb-safe">
+          <div className="fixed inset-x-0 bottom-0 z-50 rounded-t-lg border-t border-[#333333] bg-[#121212] pb-safe">
             {/* Handle */}
             <div className="flex justify-center py-2">
               <div className="h-1 w-8 rounded-full bg-[#333333]" />

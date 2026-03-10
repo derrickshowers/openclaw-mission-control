@@ -33,7 +33,7 @@ export function TaskCard({ task, onClick }: TaskCardProps) {
       className="w-full rounded border border-[#222222] bg-[#121212] p-3 text-left transition-colors hover:bg-[#1A1A1A]"
     >
       <p className="text-sm leading-snug">{task.title}</p>
-      <div className="mt-2 flex items-center gap-2">
+      <div className="mt-1.5 flex items-center gap-1.5">
         {task.assignee && (
           <span className="text-xs text-[#888888] capitalize flex items-center gap-1.5">
             {avatarUrlFor(task.assignee) ? (

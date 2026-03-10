@@ -220,7 +220,7 @@ export function KanbanBoard({ initialTasks }: KanbanBoardProps) {
               className="flex w-72 flex-shrink-0 flex-col rounded border border-[#222222] bg-[#0A0A0A]"
             >
               {/* Column Header */}
-              <div className="flex items-center gap-2 border-b border-[#222222] px-3 py-2.5">
+              <div className="flex items-center gap-2 border-b border-[#222222] px-3 py-2">
                 <div
                   className="h-2 w-2 rounded-full"
                   style={{ backgroundColor: column.color }}

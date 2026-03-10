@@ -73,6 +73,26 @@ input, textarea, select, button {
   border-radius: 4px;
 }
 
+/* Linear-style radius/density refinements */
+.rounded-lg,
+[data-slot="base"],
+[data-slot="trigger"],
+[data-slot="input-wrapper"],
+button:not(.rounded-full) {
+  border-radius: 6px !important;
+}
+
+.rounded,
+[data-slot="badge"] {
+  border-radius: 4px !important;
+}
+
+/* Subtle smaller chip/badge feel */
+[data-slot="badge"] {
+  font-size: 10px !important;
+  min-height: 18px !important;
+}
+
 /* Safe area utilities for mobile */
 .pb-safe {
   padding-bottom: max(1rem, env(safe-area-inset-bottom, 1rem));

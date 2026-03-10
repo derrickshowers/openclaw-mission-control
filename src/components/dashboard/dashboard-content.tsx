@@ -123,7 +123,7 @@ export function DashboardContent({ tasks, agents, status, recentActivity }: Dash
       <div className="grid gap-6 lg:grid-cols-2">
         {/* Active Agents */}
         <Card className="border border-[#222222] bg-[#121212]">
-          <CardHeader className="border-b border-[#222222] px-4 py-3">
+          <CardHeader className="border-b border-[#222222] px-4 py-2.5">
             <span className="flex items-center gap-2 text-sm font-medium">
               <Users size={16} strokeWidth={1.5} className="text-muted-foreground" />
               Team
@@ -164,7 +164,7 @@ export function DashboardContent({ tasks, agents, status, recentActivity }: Dash
 
         {/* Urgent / In-Progress Tasks */}
         <Card className="border border-[#222222] bg-[#121212]">
-          <CardHeader className="border-b border-[#222222] px-4 py-3">
+          <CardHeader className="border-b border-[#222222] px-4 py-2.5">
             <span className="flex items-center gap-2 text-sm font-medium">
               <ListChecks size={16} strokeWidth={1.5} className="text-muted-foreground" />
               Active Tasks
@@ -218,7 +218,7 @@ export function DashboardContent({ tasks, agents, status, recentActivity }: Dash
       </div>
 
       <Card className="border border-[#222222] bg-[#121212]">
-        <CardHeader className="border-b border-[#222222] px-4 py-3">
+        <CardHeader className="border-b border-[#222222] px-4 py-2.5">
           <span className="flex items-center gap-2 text-sm font-medium">
             <ShieldAlert size={16} strokeWidth={1.5} className="text-muted-foreground" />
             OpenClaw Controls
@@ -250,7 +250,7 @@ export function DashboardContent({ tasks, agents, status, recentActivity }: Dash
 
       {/* Recent Activity */}
       <Card className="border border-[#222222] bg-[#121212]">
-        <CardHeader className="border-b border-[#222222] px-4 py-3">
+        <CardHeader className="border-b border-[#222222] px-4 py-2.5">
           <div className="flex w-full items-center justify-between">
             <h2 className="text-sm font-medium">Recent Activity</h2>
             <a href="/activity" className="flex items-center gap-1 text-xs text-[#888888] hover:text-white transition-colors">
@@ -301,7 +301,7 @@ export function DashboardContent({ tasks, agents, status, recentActivity }: Dash
 
 function StatCard({ label, value }: { label: string; value: number }) {
   return (
-    <div className="rounded border border-[#222222] bg-[#121212] px-4 py-3">
+    <div className="rounded border border-[#222222] bg-[#121212] px-3 py-2">
       <p className="text-xs text-[#888888]">{label}</p>
       <p className="mt-1 text-2xl font-semibold">{value}</p>
     </div>

@@ -212,7 +212,7 @@ function AgentCard({
       <CardBody className="p-4">
         <div className="flex items-start gap-3">
           {avatarUrl ? (
-            <div className="h-10 w-10 flex-shrink-0 overflow-hidden rounded-lg">
+            <div className="h-10 w-10 flex-shrink-0 overflow-hidden rounded">
               <img
                 src={avatarUrl}
                 alt={agent.name}
@@ -220,7 +220,7 @@ function AgentCard({
               />
             </div>
           ) : (
-            <div className="flex h-10 w-10 flex-shrink-0 items-center justify-center rounded-lg bg-[#1A1A1A] text-muted-foreground">
+            <div className="flex h-10 w-10 flex-shrink-0 items-center justify-center rounded bg-[#1A1A1A] text-muted-foreground">
               <IconComponent size={20} strokeWidth={1.5} />
             </div>
           )}
