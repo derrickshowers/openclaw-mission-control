@@ -319,6 +319,14 @@ export function UsageDashboard() {
         <div className="flex items-center gap-2">
           <TrendingUp size={16} strokeWidth={1.5} className="text-[#888888]" />
           <span className="text-[11px] font-medium uppercase tracking-wider text-[#888888]">Model Usage</span>
+          {summary?.unpriced_requests ? (
+            <span className="text-[10px] text-amber-300">
+              {summary.unpriced_requests} unpriced
+            </span>
+          ) : null}
+          {lastUpdatedAt ? (
+            <span className="text-[10px] text-[#555555]">Updated {lastUpdatedAt.toLocaleTimeString()}</span>
+          ) : null}
         </div>
         <Select
           selectedKeys={[days]}
@@ -337,15 +345,6 @@ export function UsageDashboard() {
         </Select>
       </div>
 
-      <div className="rounded border border-[#222222] bg-[#0A0A0A] px-3 py-2 text-[11px] text-[#777777]">
-        OpenClaw telemetry → usage-tracker hook → Mission Control usage_logs. Costs are estimated from model pricing.
-        {summary?.unpriced_requests ? (
-          <span className="ml-2 text-amber-300">
-            {summary.unpriced_requests} unpriced row{summary.unpriced_requests === 1 ? "" : "s"} ({formatTokens(summary.unpriced_tokens || 0)} tokens)
-          </span>
-        ) : null}
-        {lastUpdatedAt && <span className="ml-2 text-[#555555]">Last updated {lastUpdatedAt.toLocaleTimeString()}</span>}
-      </div>
 
       {/* Hero Cards */}
       {loading && !summary ? (
@@ -519,7 +518,6 @@ export function UsageDashboard() {
                   <th className="px-4 py-1.5 font-medium">Time</th>
                   <th className="px-4 py-1.5 font-medium">Agent</th>
                   <th className="px-4 py-1.5 font-medium">Session</th>
-                  <th className="px-4 py-1.5 font-medium">Type</th>
                   <th className="px-4 py-1.5 font-medium">Source</th>
                   <th className="px-4 py-1.5 font-medium">Status</th>
                   <th className="px-4 py-1.5 font-medium">Model</th>
@@ -532,14 +530,23 @@ export function UsageDashboard() {
               <tbody className="divide-y divide-[#161616]">
                 {recentLogs.map((row) => {
                   const sessionLabel = row.display_name || row.label || row.session_key || row.session_id || "-";
-                  const statusLabel = (row.status || "unknown").replace(/-/g, " ");
-                  const statusTone = row.status?.startsWith("active")
-                    ? "bg-green-500/15 text-green-300"
-                    : row.status === "deleted" || row.status === "reset"
-                      ? "bg-amber-500/15 text-amber-300"
-                      : row.status === "expired"
-                        ? "bg-[#333333] text-[#999999]"
-                        : "bg-[#2b2b2b] text-[#aaaaaa]";
+                  const rawStatus = String(row.status || "unknown").toLowerCase();
+                  const statusLabel = rawStatus.startsWith("active")
+                    ? "Active"
+                    : rawStatus.includes("inactive")
+                      ? "Inactive"
+                      : rawStatus === "deleted" || rawStatus === "reset"
+                        ? "Reset"
+                        : rawStatus === "expired"
+                          ? "Expired"
+                          : rawStatus.replace(/[_-]+/g, " ");
+                  const statusTone = rawStatus.startsWith("active")
+                    ? "border border-green-500/25 bg-green-500/10 text-green-300"
+                    : rawStatus === "deleted" || rawStatus === "reset"
+                      ? "border border-amber-500/25 bg-amber-500/10 text-amber-300"
+                      : rawStatus === "expired"
+                        ? "border border-[#3a3a3a] bg-[#222222] text-[#999999]"
+                        : "border border-[#3a3a3a] bg-[#1f1f1f] text-[#b0b0b0]";
 
                   return (
                     <tr key={row.id} className="hover:bg-[#0D0D0D] transition-colors">
@@ -558,10 +565,9 @@ export function UsageDashboard() {
                       <td className="max-w-[280px] px-4 py-1 text-xs font-mono text-[#777777]" title={sessionLabel}>
                         <span className="block truncate">{sessionLabel}</span>
                       </td>
-                      <td className="px-4 py-1 text-xs text-[#BBBBBB]">{row.session_type || "-"}</td>
-                      <td className="px-4 py-1 text-xs text-[#BBBBBB]">{row.source || "-"}</td>
+                      <td className="px-4 py-1 text-xs text-[#BBBBBB]">{row.source || row.session_type || "-"}</td>
                       <td className="px-4 py-1 text-xs">
-                        <span className={`rounded px-1.5 py-0.5 capitalize ${statusTone}`}>
+                        <span className={`inline-flex items-center whitespace-nowrap rounded-md px-1.5 py-0.5 text-[10px] font-medium ${statusTone}`}>
                           {statusLabel}
                         </span>
                       </td>
