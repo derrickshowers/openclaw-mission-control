@@ -187,7 +187,7 @@ export function DocsBrowser() {
     // Find a unique name
     let finalPath = pagePath;
     let counter = 1;
-    while (true) {
+    while (counter < 100) {
       try {
         const res = await fetch("/api/mc/docs/create", {
           method: "POST",
