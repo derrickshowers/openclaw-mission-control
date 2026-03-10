@@ -30,7 +30,7 @@ export function MemoryBrowser() {
   const [saving, setSaving] = useState(false);
   const [dirty, setDirty] = useState(false);
   const editorRef = useRef<HTMLTextAreaElement>(null);
-  const isReadOnlySource = selectedAgent === "shared";
+  const isReadOnlySource = false;
 
   const loadFiles = useCallback(async (agent: string, dir: string = "") => {
     setLoading(true);
