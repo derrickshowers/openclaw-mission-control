@@ -48,7 +48,10 @@ interface MainSessionRow {
   model: string;
   totalTokens: number;
   maxContext: number;
+  contextTokens?: number;
+  contextWindow?: number;
   fullness: number;
+  recentMedianOutputTokens?: number;
   estimatedNextTaskCostUsd: number;
   source: string;
   lastActiveAt?: string;
@@ -82,7 +85,7 @@ export function TeamView({ agents }: TeamViewProps) {
       const res = await fetch("/api/mc/agents/live-sessions");
       const data = await res.json();
       const rows = (Array.isArray(data) ? data : [])
-        .filter((r: any) => r.sessionKey?.endsWith(":main"))
+        .filter((r: any) => /^agent:[^:]+:main$/.test(String(r.sessionKey || "")))
         .sort((a: any, b: any) => a.agent.localeCompare(b.agent));
       setMainSessions(rows);
     } catch {
@@ -194,21 +197,23 @@ export function TeamView({ agents }: TeamViewProps) {
                 <tr className="border-b border-[#1A1A1A] text-[#777777] uppercase tracking-wider">
                   <th className="px-4 py-2 text-left">Agent</th>
                   <th className="px-4 py-2 text-left">Model</th>
-                  <th className="px-4 py-2 text-left">Context</th>
+                  <th className="px-4 py-2 text-left">Session Fullness</th>
                   <th className="px-4 py-2 text-left">Last Activity</th>
-                  <th className="px-4 py-2 text-right">Next Turn</th>
+                  <th className="px-4 py-2 text-right">Projected Next Turn</th>
                   <th className="px-4 py-2 text-left">Actions</th>
                 </tr>
               </thead>
               <tbody className="divide-y divide-[#161616]">
                 {mainSessions.map((s) => {
-                  const pct = Math.min((s.totalTokens / Math.max(s.maxContext, 1)) * 100, 100);
+                  const contextTokens = Math.max(0, Number(s.contextTokens ?? s.totalTokens ?? 0));
+                  const contextWindow = Math.max(1, Number(s.contextWindow ?? s.maxContext ?? 1));
+                  const pct = Math.min((contextTokens / contextWindow) * 100, 100);
                   const bar = pct > 80 ? "#ef4444" : pct > 55 ? "#f59e0b" : "#22c55e";
                   return (
                     <tr key={s.sessionKey}>
                       <td className="px-4 py-2 capitalize text-white">{s.agent}</td>
                       <td className="px-4 py-2 font-mono text-[#BBBBBB]">{s.model}</td>
-                      <td className="px-4 py-2">
+                      <td className="px-4 py-2" title={`${contextTokens.toLocaleString()} / ${contextWindow.toLocaleString()} tokens`}>
                         <div className="flex items-center gap-2">
                           <div className="h-2 w-32 overflow-hidden rounded-full bg-[#222222]">
                             <div className="h-full" style={{ width: `${pct}%`, backgroundColor: bar }} />
