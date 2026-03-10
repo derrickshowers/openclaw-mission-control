@@ -52,6 +52,17 @@ interface LogRow {
   created_at: string;
 }
 
+interface LiveSessionRow {
+  agent: string;
+  sessionKey: string;
+  model: string;
+  totalTokens: number;
+  maxContext: number;
+  fullness: number;
+  estimatedNextTaskCostUsd: number;
+  source: string;
+}
+
 // Muted dark-mode colors for each agent
 const AGENT_COLORS: Record<string, string> = {
   frank: "#6366f1",   // indigo
@@ -231,25 +242,6 @@ function CustomTooltip({ active, payload, label, interval }: CustomTooltipProps)
   );
 }
 
-/** Mini progress bar for context size */
-function ContextBar({ avg, max }: { avg: number; max: number }) {
-  const pct = Math.min((avg / max) * 100, 100);
-  const color = pct > 75 ? "#ef4444" : pct > 50 ? "#f59e0b" : "#8b5cf6";
-  return (
-    <div className="flex items-center gap-2">
-      <span className="text-[#CCCCCC] font-mono text-xs whitespace-nowrap">
-        {formatTokens(avg)} avg
-      </span>
-      <div className="w-16 h-1.5 rounded-full bg-[#222222] overflow-hidden">
-        <div
-          className="h-full rounded-full transition-all"
-          style={{ width: `${pct}%`, backgroundColor: color }}
-        />
-      </div>
-    </div>
-  );
-}
-
 /** Interval label for the chart subtitle */
 const INTERVAL_LABELS: Record<string, string> = {
   hour: "Hourly",
@@ -263,6 +255,8 @@ export function UsageDashboard() {
   const [chartData, setChartData] = useState<any[]>([]);
   const [breakdown, setBreakdown] = useState<BreakdownRow[]>([]);
   const [recentLogs, setRecentLogs] = useState<LogRow[]>([]);
+  const [liveSessions, setLiveSessions] = useState<LiveSessionRow[]>([]);
+  const [actionLoading, setActionLoading] = useState<Record<string, string>>({});
   const [loading, setLoading] = useState(true);
 
   // Auto-derived interval based on period
@@ -272,21 +266,24 @@ export function UsageDashboard() {
     setLoading(true);
     try {
       const tzOffset = getTzOffset();
-      const [summaryRes, chartRes, breakdownRes, logRes] = await Promise.all([
+      const [summaryRes, chartRes, breakdownRes, logRes, liveSessionsRes] = await Promise.all([
         fetch(`/api/mc/usage/summary?days=${days}`),
         fetch(`/api/mc/usage/chart?days=${days}&interval=${interval}&tzOffset=${tzOffset}`),
         fetch(`/api/mc/usage/breakdown?days=${days}`),
         fetch(`/api/mc/usage/log?limit=25`),
+        fetch(`/api/mc/agents/live-sessions`),
       ]);
 
       const summaryData = await summaryRes.json();
       const chartRows: ChartRow[] = await chartRes.json();
       const breakdownData = await breakdownRes.json();
       const logData = await logRes.json();
+      const liveData = await liveSessionsRes.json();
 
       setSummary(summaryData);
       setBreakdown(Array.isArray(breakdownData) ? breakdownData : []);
       setRecentLogs(Array.isArray(logData) ? logData : []);
+      setLiveSessions(Array.isArray(liveData) ? liveData : []);
 
       // Transform chart data: pivot agent rows into { date, frank: N, tom: N, ... }
       const dateMap = new Map<string, Record<string, number>>();
@@ -329,6 +326,25 @@ export function UsageDashboard() {
   const agents = Array.from(
     new Set(breakdown.map((r) => r.agent))
   ).sort();
+
+  const runSessionAction = async (sessionKey: string, action: "compact" | "reset") => {
+    const key = `${action}:${sessionKey}`;
+    setActionLoading((prev) => ({ ...prev, [key]: "loading" }));
+    try {
+      await fetch(`/api/mc/agents/sessions/${action}`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ sessionKey }),
+      });
+      await fetchData();
+    } finally {
+      setActionLoading((prev) => {
+        const next = { ...prev };
+        delete next[key];
+        return next;
+      });
+    }
+  };
 
   return (
     <div className="mx-auto flex h-full max-w-[1200px] flex-col gap-4 overflow-y-auto">
@@ -393,6 +409,83 @@ export function UsageDashboard() {
           />
         </div>
       ) : null}
+
+      {/* Live Sessions */}
+      <div className="rounded border border-[#222222] bg-[#0A0A0A]">
+        <div className="border-b border-[#222222] px-4 py-2.5">
+          <p className="text-xs text-[#888888] uppercase tracking-wider">Live Sessions</p>
+        </div>
+        {liveSessions.length === 0 ? (
+          <div className="flex h-20 items-center justify-center">
+            <p className="text-xs text-[#555555]">No active sessions</p>
+          </div>
+        ) : (
+          <div className="overflow-x-auto">
+            <table className="w-full text-sm">
+              <thead>
+                <tr className="border-b border-[#222222] text-left text-xs text-[#888888]">
+                  <th className="px-4 py-2 font-medium">Agent</th>
+                  <th className="px-4 py-2 font-medium">Model</th>
+                  <th className="px-4 py-2 font-medium">Context Window</th>
+                  <th className="px-4 py-2 font-medium text-right">Next Task Est.</th>
+                  <th className="px-4 py-2 font-medium">Actions</th>
+                </tr>
+              </thead>
+              <tbody className="divide-y divide-[#1A1A1A]">
+                {liveSessions.map((session) => {
+                  const pct = Math.min((session.totalTokens / Math.max(session.maxContext, 1)) * 100, 100);
+                  const barColor = pct > 80 ? "#ef4444" : pct > 50 ? "#f59e0b" : "#22c55e";
+                  const compactKey = `compact:${session.sessionKey}`;
+                  const resetKey = `reset:${session.sessionKey}`;
+
+                  return (
+                    <tr key={session.sessionKey} className="hover:bg-[#111111] transition-colors">
+                      <td className="px-4 py-2">
+                        <div className="flex items-center gap-2">
+                          <div className="h-2 w-2 rounded-full" style={{ backgroundColor: AGENT_COLORS[session.agent] || "#888888" }} />
+                          <span className="capitalize text-white">{session.agent}</span>
+                        </div>
+                      </td>
+                      <td className="px-4 py-2 font-mono text-xs text-[#CCCCCC]">{session.model}</td>
+                      <td className="px-4 py-2">
+                        <div className="flex items-center gap-2">
+                          <div className="w-36 h-2 rounded-full bg-[#222222] overflow-hidden">
+                            <div className="h-full rounded-full" style={{ width: `${pct}%`, backgroundColor: barColor }} />
+                          </div>
+                          <span className="text-xs font-mono text-[#CCCCCC]">
+                            {formatTokens(session.totalTokens)} / {formatTokens(session.maxContext)}
+                          </span>
+                        </div>
+                      </td>
+                      <td className="px-4 py-2 text-right font-mono text-xs text-white">
+                        {formatCost(session.estimatedNextTaskCostUsd || 0)}
+                      </td>
+                      <td className="px-4 py-2">
+                        <div className="flex items-center gap-2">
+                          <button
+                            className="rounded border border-[#333333] bg-[#111111] px-2 py-1 text-[11px] text-[#CCCCCC] hover:bg-[#1A1A1A]"
+                            onClick={() => runSessionAction(session.sessionKey, "compact")}
+                            disabled={!!actionLoading[compactKey]}
+                          >
+                            {actionLoading[compactKey] ? "Compacting..." : "Compact"}
+                          </button>
+                          <button
+                            className="rounded border border-[#4b1f1f] bg-[#1b0f0f] px-2 py-1 text-[11px] text-[#fca5a5] hover:bg-[#2a1414]"
+                            onClick={() => runSessionAction(session.sessionKey, "reset")}
+                            disabled={!!actionLoading[resetKey]}
+                          >
+                            {actionLoading[resetKey] ? "Resetting..." : "Reset"}
+                          </button>
+                        </div>
+                      </td>
+                    </tr>
+                  );
+                })}
+              </tbody>
+            </table>
+          </div>
+        )}
+      </div>
 
       {/* Chart */}
       <div className="rounded border border-[#222222] bg-[#0A0A0A] p-4">
@@ -466,14 +559,11 @@ export function UsageDashboard() {
                   <th className="px-4 py-2 font-medium text-right">Input</th>
                   <th className="px-4 py-2 font-medium text-right">Output</th>
                   <th className="px-4 py-2 font-medium text-right">Requests</th>
-                  <th className="px-4 py-2 font-medium">Avg Context</th>
                   <th className="px-4 py-2 font-medium text-right">Est. Cost</th>
                 </tr>
               </thead>
               <tbody className="divide-y divide-[#1A1A1A]">
                 {breakdown.map((row) => {
-                  const avgContext = row.requests > 0 ? Math.round(row.input_tokens / row.requests) : 0;
-                  const maxCtx = getMaxContext(row.model);
                   return (
                     <tr key={`${row.agent}-${row.model}`} className="hover:bg-[#111111] transition-colors">
                       <td className="px-4 py-2">
@@ -494,9 +584,6 @@ export function UsageDashboard() {
                       </td>
                       <td className="px-4 py-2 text-right font-mono text-xs text-[#CCCCCC]">
                         {row.requests}
-                      </td>
-                      <td className="px-4 py-2">
-                        <ContextBar avg={avgContext} max={maxCtx} />
                       </td>
                       <td className="px-4 py-2 text-right font-mono text-xs text-white">
                         {formatCost(row.cost_usd)}
