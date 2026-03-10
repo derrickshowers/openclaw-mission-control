@@ -48,15 +48,6 @@ export function TaskCard({ task, onClick }: TaskCardProps) {
             {priority.label}
           </Chip>
         )}
-        {task.tags && (
-          <>
-            {JSON.parse(task.tags).map((tag: string) => (
-              <Chip key={tag} size="sm" variant="flat" className="text-[10px] h-5">
-                {tag}
-              </Chip>
-            ))}
-          </>
-        )}
         <span className="ml-auto text-[10px] text-[#555555]">
           {timeAgo(task.updated_at || task.created_at)}
         </span>
