@@ -116,6 +116,14 @@ function formatCost(n: number): string {
   return `$${n.toFixed(2)}`;
 }
 
+function formatHourKey(date: Date): string {
+  const y = date.getFullYear();
+  const m = String(date.getMonth() + 1).padStart(2, "0");
+  const d = String(date.getDate()).padStart(2, "0");
+  const h = String(date.getHours()).padStart(2, "0");
+  return `${y}-${m}-${d} ${h}:00`;
+}
+
 /** Parse a date string from the backend (already adjusted to local tz) into a display string */
 function formatChartDate(v: string, interval: string): string {
   if (interval === "hour") {
@@ -282,6 +290,21 @@ export function UsageDashboard() {
 
       // Transform chart data: pivot agent rows into { date, frank: N, tom: N, ... }
       const dateMap = new Map<string, Record<string, number>>();
+
+      // For hourly view, pre-seed a continuous local-hour series so Recharts
+      // always gets contiguous X-axis points (even when an hour has zero usage).
+      if (interval === "hour") {
+        const hours = Math.max(parseInt(days, 10) * 24, 24);
+        const cursor = new Date();
+        cursor.setMinutes(0, 0, 0);
+        cursor.setHours(cursor.getHours() - (hours - 1));
+
+        for (let i = 0; i < hours; i += 1) {
+          dateMap.set(formatHourKey(cursor), { date: formatHourKey(cursor) } as any);
+          cursor.setHours(cursor.getHours() + 1);
+        }
+      }
+
       for (const row of chartRows) {
         if (!dateMap.has(row.date)) {
           dateMap.set(row.date, { date: row.date } as any);
@@ -289,6 +312,7 @@ export function UsageDashboard() {
         const entry = dateMap.get(row.date)!;
         entry[row.agent] = (entry[row.agent] || 0) + row.input_tokens + row.output_tokens;
       }
+
       setChartData(Array.from(dateMap.values()));
     } catch (err) {
       console.error("Failed to fetch usage data:", err);
