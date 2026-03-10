@@ -187,6 +187,9 @@ export function TeamView({ agents }: TeamViewProps) {
       <div className="mb-6 rounded border border-[#222222] bg-[#0A0A0A]">
         <div className="border-b border-[#222222] px-4 py-2.5">
           <p className="text-xs uppercase tracking-wider text-[#888888]">Main Session Health</p>
+          <p className="mt-1 text-[11px] text-[#666666]">
+            Forward-looking cost estimates based on current session occupancy and recent median output. For historical spend, see the Activity tab.
+          </p>
         </div>
         {mainSessions.length === 0 ? (
           <p className="px-4 py-5 text-xs text-[#666666]">No active main sessions.</p>
@@ -197,9 +200,14 @@ export function TeamView({ agents }: TeamViewProps) {
                 <tr className="border-b border-[#1A1A1A] text-[#777777] uppercase tracking-wider">
                   <th className="px-4 py-2 text-left">Agent</th>
                   <th className="px-4 py-2 text-left">Model</th>
-                  <th className="px-4 py-2 text-left">Session Fullness</th>
+                  <th
+                    className="px-4 py-2 text-left"
+                    title="Current session context occupancy relative to the model context window."
+                  >
+                    Session Fullness
+                  </th>
                   <th className="px-4 py-2 text-left">Last Activity</th>
-                  <th className="px-4 py-2 text-right">Projected Next Turn</th>
+                  <th className="px-4 py-2 text-right">Est. Next Turn Cost</th>
                   <th className="px-4 py-2 text-left">Actions</th>
                 </tr>
               </thead>
