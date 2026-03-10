@@ -13,6 +13,7 @@ import {
   Legend,
 } from "recharts";
 import { Zap, DollarSign, Users, TrendingUp } from "lucide-react";
+import { formatLocalTime as formatLocalTimeShared } from "@/lib/dates";
 
 interface Summary {
   total_input_tokens: number;
@@ -175,19 +176,7 @@ function formatTooltipLabel(v: string, interval: string): string {
 }
 
 /** Format a UTC timestamp to local time string */
-function formatLocalTime(utcStr: string): string {
-  try {
-    // Backend stores UTC. Append Z if missing to ensure UTC parsing.
-    const d = new Date(utcStr.endsWith("Z") ? utcStr : utcStr + "Z");
-    return d.toLocaleTimeString("en-US", {
-      hour: "numeric",
-      minute: "2-digit",
-      second: "2-digit",
-    });
-  } catch {
-    return utcStr;
-  }
-}
+const formatLocalTime = formatLocalTimeShared;
 
 interface MetricCardProps {
   label: string;

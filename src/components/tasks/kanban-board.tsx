@@ -5,6 +5,7 @@ import { useSSE } from "@/hooks/use-sse";
 import { Button, Input, Textarea, Select, SelectItem, Modal, ModalContent, ModalHeader, ModalBody, ModalFooter, useDisclosure } from "@heroui/react";
 import { Plus, Paperclip, ImagePlus, X } from "lucide-react";
 import { api, type Task } from "@/lib/api";
+import { parseUTC } from "@/lib/dates";
 import { TaskCard } from "./task-card";
 import { TaskDrawer } from "./task-drawer";
 
@@ -208,8 +209,8 @@ export function KanbanBoard({ initialTasks }: KanbanBoardProps) {
             .filter((t) => t.status === column.id)
             .sort((a, b) => {
               // Most recently updated first
-              const aTime = new Date(a.updated_at || a.created_at).getTime();
-              const bTime = new Date(b.updated_at || b.created_at).getTime();
+              const aTime = parseUTC(a.updated_at || a.created_at).getTime();
+              const bTime = parseUTC(b.updated_at || b.created_at).getTime();
               return bTime - aTime;
             });
 

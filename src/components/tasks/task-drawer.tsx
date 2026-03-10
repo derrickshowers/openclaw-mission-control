@@ -8,6 +8,7 @@ import { MentionTextarea } from "@/components/shared/mention-textarea";
 import { X, Trash2, Send, Paperclip, ImagePlus, XCircle } from "lucide-react";
 import { api } from "@/lib/api";
 import type { Task, TaskComment, TaskAttachment } from "@/lib/api";
+import { formatLocal } from "@/lib/dates";
 
 const COLUMNS = [
   { id: "backlog", label: "Backlog" },
@@ -431,8 +432,8 @@ export function TaskDrawer({ task, isOpen, onClose, onUpdate }: TaskDrawerProps)
 
           {/* Metadata */}
           <div className="space-y-2 border-t border-[#222222] pt-4 text-xs text-[#555555]">
-            <p>Created: {new Date(task.created_at).toLocaleString()}</p>
-            <p>Updated: {new Date(task.updated_at).toLocaleString()}</p>
+            <p>Created: {formatLocal(task.created_at)}</p>
+            <p>Updated: {formatLocal(task.updated_at)}</p>
             <p>Created by: {task.created_by}</p>
           </div>
 
@@ -451,7 +452,7 @@ export function TaskDrawer({ task, isOpen, onClose, onUpdate }: TaskDrawerProps)
                     <div className="flex items-center justify-between mb-1.5">
                       <span className="text-xs font-medium text-white capitalize">{c.author}</span>
                       <span className="text-[10px] text-[#555555]">
-                        {new Date(c.created_at).toLocaleString()}
+                        {formatLocal(c.created_at)}
                       </span>
                     </div>
                     <p className="text-sm text-[#aaaaaa] whitespace-pre-wrap leading-relaxed">

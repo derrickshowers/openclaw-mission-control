@@ -4,6 +4,7 @@ import { Card, CardBody, CardHeader, Chip } from "@heroui/react";
 import { Crosshair, Landmark, Zap, Palette, Bot, Users, ListChecks, ArrowRight } from "lucide-react";
 import type { LucideIcon } from "lucide-react";
 import type { Task } from "@/lib/api";
+import { timeAgo as timeAgoUtil } from "@/lib/dates";
 
 interface ActivityEntry {
   id: number;
@@ -62,15 +63,7 @@ function formatEventPayload(payload: Record<string, any>): string {
   return JSON.stringify(payload).slice(0, 80);
 }
 
-function timeAgo(dateStr: string): string {
-  const diff = Date.now() - new Date(dateStr).getTime();
-  const mins = Math.floor(diff / 60000);
-  if (mins < 1) return "just now";
-  if (mins < 60) return `${mins}m ago`;
-  const hours = Math.floor(mins / 60);
-  if (hours < 24) return `${hours}h ago`;
-  return `${Math.floor(hours / 24)}d ago`;
-}
+const timeAgo = timeAgoUtil;
 
 export function DashboardContent({ tasks, agents, status, recentActivity }: DashboardContentProps) {
   const inProgress = tasks.filter((t) => t.status === "in_progress");

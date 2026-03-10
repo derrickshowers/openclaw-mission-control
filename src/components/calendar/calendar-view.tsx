@@ -19,6 +19,7 @@ import {
   startOfWeek as getWeekStart,
   endOfWeek as getWeekEnd,
 } from "date-fns";
+import { parseISO } from "date-fns";
 import { ChevronLeft, ChevronRight, Clock, Repeat, X } from "lucide-react";
 
 interface CalendarEvent {
@@ -278,8 +279,8 @@ function EventDrawer({
             <div className="flex items-center gap-2 text-sm">
               <Clock size={14} strokeWidth={1.5} className="text-[#888888]" />
               <span className="text-[#CCCCCC]">
-                {format(new Date(event.start_date), "EEEE, MMMM d, yyyy")}
-                {event.end_date && ` – ${format(new Date(event.end_date), "MMM d, yyyy")}`}
+                {format(parseISO(event.start_date), "EEEE, MMMM d, yyyy")}
+                {event.end_date && ` – ${format(parseISO(event.end_date), "MMM d, yyyy")}`}
               </span>
             </div>
 

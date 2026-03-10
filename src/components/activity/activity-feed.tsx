@@ -2,6 +2,7 @@
 
 import { useState, useEffect, useRef, useCallback } from "react";
 import { Chip, Button } from "@heroui/react";
+import { formatLocalTime as formatLocalTimeUtil } from "@/lib/dates";
 
 interface ActivityEntry {
   id: number;
@@ -142,7 +143,7 @@ export function ActivityFeed() {
                 className="flex items-start gap-3 px-3 py-2 hover:bg-[#121212]"
               >
                 <span className="flex-shrink-0 text-[#555555] w-[140px]">
-                  {new Date(entry.created_at.endsWith("Z") ? entry.created_at : entry.created_at.replace(" ", "T") + "Z").toLocaleTimeString()}
+                  {formatLocalTimeUtil(entry.created_at)}
                 </span>
                 <Chip
                   size="sm"
