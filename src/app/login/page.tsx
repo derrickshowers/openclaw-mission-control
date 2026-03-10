@@ -3,6 +3,8 @@
 import { Button } from "@heroui/react";
 import { signIn } from "next-auth/react";
 
+const authBypass = process.env.NEXT_PUBLIC_AUTH_BYPASS === "true";
+
 export default function LoginPage() {
   return (
     <div className="flex min-h-screen items-center justify-center bg-[#080808]">
@@ -13,16 +15,27 @@ export default function LoginPage() {
             Raincheck Dashboard
           </p>
         </div>
-        <Button
-          fullWidth
-          variant="flat"
-          className="border border-[#222222] bg-[#080808]"
-          onPress={() => signIn("google", { callbackUrl: "/" })}
-        >
-          Sign in with Google
-        </Button>
+        {authBypass ? (
+          <Button
+            fullWidth
+            variant="flat"
+            className="border border-[#333333] bg-[#1a1a2e]"
+            onPress={() => signIn("dev-bypass", { callbackUrl: "/" })}
+          >
+            Sign in as Dev User
+          </Button>
+        ) : (
+          <Button
+            fullWidth
+            variant="flat"
+            className="border border-[#222222] bg-[#080808]"
+            onPress={() => signIn("google", { callbackUrl: "/" })}
+          >
+            Sign in with Google
+          </Button>
+        )}
         <p className="text-center text-xs text-[#555555]">
-          Authorized users only
+          {authBypass ? "Dev mode — auth bypass enabled" : "Authorized users only"}
         </p>
       </div>
     </div>
