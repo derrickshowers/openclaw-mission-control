@@ -352,7 +352,7 @@ export function UsageDashboard() {
       <div className="flex items-center justify-between">
         <div className="flex items-center gap-2">
           <TrendingUp size={16} strokeWidth={1.5} className="text-[#888888]" />
-          <span className="text-sm font-medium">Model Usage</span>
+          <span className="text-[11px] font-medium uppercase tracking-wider text-[#888888]">Model Usage</span>
         </div>
         <Select
           selectedKeys={[days]}

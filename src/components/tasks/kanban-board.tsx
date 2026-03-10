@@ -225,7 +225,7 @@ export function KanbanBoard({ initialTasks }: KanbanBoardProps) {
                   className="h-2 w-2 rounded-full"
                   style={{ backgroundColor: column.color }}
                 />
-                <span className="text-xs font-medium">{column.label}</span>
+                <span className="text-[10px] font-medium uppercase tracking-wider text-[#888888]">{column.label}</span>
                 <span className="ml-auto text-xs text-[#888888]">
                   {columnTasks.length}
                 </span>
