@@ -22,6 +22,8 @@ interface Summary {
   total_cost_usd: number;
   active_agents: number;
   period_days: number;
+  unpriced_requests?: number;
+  unpriced_tokens?: number;
 }
 
 interface ChartRow {
@@ -38,30 +40,30 @@ interface BreakdownRow {
   input_tokens: number;
   output_tokens: number;
   cost_usd: number;
+  cost_source?: "exact" | "partial" | "unpriced";
   requests: number;
 }
 
 interface LogRow {
-  id: number;
+  id: string | number;
   agent: string;
-  model: string;
+  model: string | null;
   input_tokens: number;
   output_tokens: number;
   cost_usd: number;
+  cost_source?: "exact" | "partial" | "unpriced" | "none";
   session_key: string | null;
+  session_id?: string | null;
+  session_type?: string | null;
   source: string;
-  created_at: string;
-}
-
-interface LiveSessionRow {
-  agent: string;
-  sessionKey: string;
-  model: string;
-  totalTokens: number;
-  maxContext: number;
-  fullness: number;
-  estimatedNextTaskCostUsd: number;
-  source: string;
+  status: string;
+  display_name?: string | null;
+  label?: string | null;
+  context_tokens?: number | null;
+  total_tokens?: number | null;
+  fullness_pct?: number | null;
+  created_at: string | null;
+  updated_at?: string | null;
 }
 
 // Muted dark-mode colors for each agent
@@ -73,28 +75,6 @@ const AGENT_COLORS: Record<string, string> = {
   derrick: "#64748b", // slate
 };
 
-// Max context window sizes per model (tokens)
-const MODEL_MAX_CONTEXT: Record<string, number> = {
-  "claude-sonnet-4-5":      200_000,
-  "claude-opus-4-6":        200_000,
-  "claude-haiku-4-5":       200_000,
-  "gemini-2.5-flash":       1_048_576,
-  "gemini-2.5-flash-lite":  1_048_576,
-  "gemini-2.5-pro":         1_048_576,
-  "gemini-3-flash-preview": 1_048_576,
-  "gemini-3-pro-preview":   1_048_576,
-  "gpt-4o":                 128_000,
-  "gpt-4o-mini":            128_000,
-  "o3":                     200_000,
-  "o4-mini":                200_000,
-};
-
-function getMaxContext(model: string): number {
-  const direct = MODEL_MAX_CONTEXT[model];
-  if (direct) return direct;
-  const key = Object.keys(MODEL_MAX_CONTEXT).find((k) => model.includes(k));
-  return key ? MODEL_MAX_CONTEXT[key] : 200_000;
-}
 
 const PERIOD_OPTIONS = [
   { value: "1", label: "Today" },
@@ -256,7 +236,6 @@ export function UsageDashboard() {
   const [chartData, setChartData] = useState<any[]>([]);
   const [breakdown, setBreakdown] = useState<BreakdownRow[]>([]);
   const [recentLogs, setRecentLogs] = useState<LogRow[]>([]);
-  const [liveSessions, setLiveSessions] = useState<LiveSessionRow[]>([]);
   const [loading, setLoading] = useState(true);
   const [lastUpdatedAt, setLastUpdatedAt] = useState<Date | null>(null);
 
@@ -267,24 +246,21 @@ export function UsageDashboard() {
     setLoading(true);
     try {
       const tzOffset = getTzOffset();
-      const [summaryRes, chartRes, breakdownRes, logRes, liveSessionsRes] = await Promise.all([
+      const [summaryRes, chartRes, breakdownRes, logRes] = await Promise.all([
         fetch(`/api/mc/usage/summary?days=${days}`),
         fetch(`/api/mc/usage/chart?days=${days}&interval=${interval}&tzOffset=${tzOffset}`),
         fetch(`/api/mc/usage/breakdown?days=${days}`),
-        fetch(`/api/mc/usage/log?limit=25`),
-        fetch(`/api/mc/agents/live-sessions`),
+        fetch(`/api/mc/usage/log?limit=40`),
       ]);
 
       const summaryData = await summaryRes.json();
       const chartRows: ChartRow[] = await chartRes.json();
       const breakdownData = await breakdownRes.json();
       const logData = await logRes.json();
-      const liveData = await liveSessionsRes.json();
 
       setSummary(summaryData);
       setBreakdown(Array.isArray(breakdownData) ? breakdownData : []);
       setRecentLogs(Array.isArray(logData) ? logData : []);
-      setLiveSessions(Array.isArray(liveData) ? liveData : []);
 
       // Transform chart data: pivot agent rows into { date, frank: N, tom: N, ... }
       const dateMap = new Map<string, Record<string, number>>();
@@ -336,11 +312,6 @@ export function UsageDashboard() {
     new Set(breakdown.map((r) => r.agent))
   ).sort();
 
-  const activeSessionKeys = useMemo(
-    () => new Set(liveSessions.map((s) => s.sessionKey)),
-    [liveSessions]
-  );
-
   return (
     <div className="mx-auto flex h-full max-w-[1200px] flex-col gap-4 overflow-y-auto">
       {/* Header */}
@@ -367,7 +338,12 @@ export function UsageDashboard() {
       </div>
 
       <div className="rounded border border-[#222222] bg-[#0A0A0A] px-3 py-2 text-[11px] text-[#777777]">
-        OpenClaw telemetry → usage-tracker hook → Mission Control usage_logs. Costs are estimated from pricing tables.
+        OpenClaw telemetry → usage-tracker hook → Mission Control usage_logs. Costs are estimated from model pricing.
+        {summary?.unpriced_requests ? (
+          <span className="ml-2 text-amber-300">
+            {summary.unpriced_requests} unpriced row{summary.unpriced_requests === 1 ? "" : "s"} ({formatTokens(summary.unpriced_tokens || 0)} tokens)
+          </span>
+        ) : null}
         {lastUpdatedAt && <span className="ml-2 text-[#555555]">Last updated {lastUpdatedAt.toLocaleTimeString()}</span>}
       </div>
 
@@ -511,7 +487,11 @@ export function UsageDashboard() {
                         {row.requests}
                       </td>
                       <td className="px-4 py-2 text-right font-mono text-xs text-white">
-                        {formatCost(row.cost_usd)}
+                        {row.cost_source === "unpriced" ? (
+                          <span className="text-amber-300">unpriced</span>
+                        ) : (
+                          formatCost(row.cost_usd)
+                        )}
                       </td>
                     </tr>
                   );
@@ -522,14 +502,14 @@ export function UsageDashboard() {
         )}
       </div>
 
-      {/* Recent Usage Events Table */}
+      {/* Recent Sessions Table */}
       <div className="rounded border border-[#222222] bg-[#0A0A0A]">
         <div className="border-b border-[#222222] px-4 py-2.5">
-          <p className="text-xs text-[#888888] uppercase tracking-wider">Recent Usage Events</p>
+          <p className="text-xs text-[#888888] uppercase tracking-wider">Recent Sessions</p>
         </div>
         {recentLogs.length === 0 ? (
           <div className="flex h-16 items-center justify-center">
-            <p className="text-xs text-[#555555]">No recent requests</p>
+            <p className="text-xs text-[#555555]">No recent sessions</p>
           </div>
         ) : (
           <div className="overflow-x-auto">
@@ -539,9 +519,11 @@ export function UsageDashboard() {
                   <th className="px-4 py-1.5 font-medium">Time</th>
                   <th className="px-4 py-1.5 font-medium">Agent</th>
                   <th className="px-4 py-1.5 font-medium">Session</th>
+                  <th className="px-4 py-1.5 font-medium">Type</th>
                   <th className="px-4 py-1.5 font-medium">Source</th>
                   <th className="px-4 py-1.5 font-medium">Status</th>
                   <th className="px-4 py-1.5 font-medium">Model</th>
+                  <th className="px-4 py-1.5 font-medium text-right">Context</th>
                   <th className="px-4 py-1.5 font-medium text-right">Input</th>
                   <th className="px-4 py-1.5 font-medium text-right">Output</th>
                   <th className="px-4 py-1.5 font-medium text-right">Cost</th>
@@ -549,13 +531,20 @@ export function UsageDashboard() {
               </thead>
               <tbody className="divide-y divide-[#161616]">
                 {recentLogs.map((row) => {
-                  const maxCtx = getMaxContext(row.model);
-                  const pct = Math.min((row.input_tokens / maxCtx) * 100, 100);
-                  const barColor = pct > 75 ? "#ef4444" : pct > 50 ? "#f59e0b" : "#8b5cf6";
+                  const sessionLabel = row.display_name || row.label || row.session_key || row.session_id || "-";
+                  const statusLabel = (row.status || "unknown").replace(/-/g, " ");
+                  const statusTone = row.status?.startsWith("active")
+                    ? "bg-green-500/15 text-green-300"
+                    : row.status === "deleted" || row.status === "reset"
+                      ? "bg-amber-500/15 text-amber-300"
+                      : row.status === "expired"
+                        ? "bg-[#333333] text-[#999999]"
+                        : "bg-[#2b2b2b] text-[#aaaaaa]";
+
                   return (
                     <tr key={row.id} className="hover:bg-[#0D0D0D] transition-colors">
                       <td className="px-4 py-1 text-xs font-mono text-[#666666]">
-                        {formatLocalTime(row.created_at)}
+                        {row.created_at ? formatLocalTime(row.created_at) : "-"}
                       </td>
                       <td className="px-4 py-1">
                         <div className="flex items-center gap-1.5">
@@ -563,37 +552,52 @@ export function UsageDashboard() {
                             className="h-1.5 w-1.5 rounded-full"
                             style={{ backgroundColor: AGENT_COLORS[row.agent] || "#888888" }}
                           />
-                          <span className="text-xs text-[#CCCCCC] capitalize">{row.agent}</span>
+                          <span className="text-xs text-[#CCCCCC] capitalize">{row.agent || "-"}</span>
                         </div>
                       </td>
-                      <td className="px-4 py-1 text-xs font-mono text-[#777777]">
-                        {row.session_key ? row.session_key.split(":").slice(0, 3).join(":") : "-"}
+                      <td className="max-w-[280px] px-4 py-1 text-xs font-mono text-[#777777]" title={sessionLabel}>
+                        <span className="block truncate">{sessionLabel}</span>
                       </td>
-                      <td className="px-4 py-1 text-xs text-[#BBBBBB]">{row.source || "main"}</td>
+                      <td className="px-4 py-1 text-xs text-[#BBBBBB]">{row.session_type || "-"}</td>
+                      <td className="px-4 py-1 text-xs text-[#BBBBBB]">{row.source || "-"}</td>
                       <td className="px-4 py-1 text-xs">
-                        <span className={`rounded px-1.5 py-0.5 ${row.session_key && activeSessionKeys.has(row.session_key) ? "bg-green-500/15 text-green-300" : "bg-[#333333] text-[#999999]"}`}>
-                          {row.session_key && activeSessionKeys.has(row.session_key) ? "active" : "expired"}
+                        <span className={`rounded px-1.5 py-0.5 capitalize ${statusTone}`}>
+                          {statusLabel}
                         </span>
                       </td>
-                      <td className="px-4 py-1 text-xs font-mono text-[#888888]">{row.model}</td>
-                      <td className="px-4 py-1 text-right">
-                        <div className="flex items-center justify-end gap-2">
-                          <div className="w-12 h-1 rounded-full bg-[#222222] overflow-hidden">
-                            <div
-                              className="h-full rounded-full"
-                              style={{ width: `${pct}%`, backgroundColor: barColor }}
-                            />
+                      <td className="px-4 py-1 text-xs font-mono text-[#888888]">{row.model || "-"}</td>
+                      <td className="px-4 py-1 text-right text-xs">
+                        {row.fullness_pct != null && row.total_tokens != null && row.context_tokens ? (
+                          <div className="inline-flex items-center justify-end gap-2" title={`${formatTokens(row.total_tokens)} / ${formatTokens(row.context_tokens)} (${row.fullness_pct.toFixed(1)}%)`}>
+                            <div className="h-1 w-14 overflow-hidden rounded-full bg-[#222222]">
+                              <div
+                                className="h-full rounded-full"
+                                style={{
+                                  width: `${Math.min(Math.max(row.fullness_pct, 0), 100)}%`,
+                                  backgroundColor: row.fullness_pct > 85 ? "#ef4444" : row.fullness_pct > 60 ? "#f59e0b" : "#8b5cf6",
+                                }}
+                              />
+                            </div>
+                            <span className="w-10 text-right font-mono text-[#CCCCCC]">{Math.round(row.fullness_pct)}%</span>
                           </div>
-                          <span className="text-xs font-mono text-[#CCCCCC] w-12 text-right">
-                            {formatTokens(row.input_tokens)}
-                          </span>
-                        </div>
+                        ) : (
+                          <span className="font-mono text-[#555555]">—</span>
+                        )}
+                      </td>
+                      <td className="px-4 py-1 text-right text-xs font-mono text-[#CCCCCC]">
+                        {row.input_tokens ? formatTokens(row.input_tokens) : "-"}
                       </td>
                       <td className="px-4 py-1 text-right text-xs font-mono text-[#888888]">
-                        {formatTokens(row.output_tokens)}
+                        {row.output_tokens ? formatTokens(row.output_tokens) : "-"}
                       </td>
                       <td className="px-4 py-1 text-right text-xs font-mono text-[#888888]">
-                        {formatCost(row.cost_usd)}
+                        {row.cost_source === "none" ? (
+                          <span className="text-[#555555]">-</span>
+                        ) : row.cost_source === "unpriced" ? (
+                          <span className="text-amber-300">unpriced</span>
+                        ) : (
+                          formatCost(row.cost_usd || 0)
+                        )}
                       </td>
                     </tr>
                   );
