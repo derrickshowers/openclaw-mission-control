@@ -1,9 +1,9 @@
 "use client";
 
-import { useState, useEffect } from "react";
-import { formatLocalTime as formatLocalTimeShared } from "@/lib/dates";
-import { Card, CardBody, CardHeader, Chip, Button, Textarea } from "@heroui/react";
-import { Crown, Crosshair, Landmark, Zap, Palette, Bot, X, Send, BookOpen } from "lucide-react";
+import { useState, useEffect, useMemo } from "react";
+import { parseUTC } from "@/lib/dates";
+import { Card, CardBody, Chip } from "@heroui/react";
+import { Crown, Crosshair, Landmark, Zap, Palette, Bot } from "lucide-react";
 import { useSSE } from "@/hooks/use-sse";
 import type { LucideIcon } from "lucide-react";
 
@@ -42,6 +42,25 @@ function resolveAvatarUrl(url?: string, agentName?: string): string | undefined 
   return url;
 }
 
+function formatLastActiveRelative(dateValue: string | number | Date | null | undefined): string {
+  const d = parseUTC(dateValue);
+  if (Number.isNaN(d.getTime())) return "—";
+
+  const diffMs = Date.now() - d.getTime();
+  if (diffMs < 60_000) return "just now";
+
+  const mins = Math.floor(diffMs / 60_000);
+  if (mins < 60) return `${mins} minute${mins === 1 ? "" : "s"} ago`;
+
+  const hours = Math.floor(mins / 60);
+  if (hours < 24) return `${hours} hour${hours === 1 ? "" : "s"} ago`;
+
+  const days = Math.floor(hours / 24);
+  if (days < 7) return `${days} day${days === 1 ? "" : "s"} ago`;
+
+  return d.toLocaleDateString("en-US", { month: "short", day: "numeric" });
+}
+
 interface MainSessionRow {
   agent: string;
   sessionKey: string;
@@ -54,7 +73,7 @@ interface MainSessionRow {
   recentMedianOutputTokens?: number;
   estimatedNextTaskCostUsd: number;
   source: string;
-  lastActiveAt?: string;
+  lastActiveAt?: string | number | Date | null;
 }
 
 interface TeamViewProps {
@@ -62,12 +81,10 @@ interface TeamViewProps {
 }
 
 export function TeamView({ agents }: TeamViewProps) {
-  const [messageTarget, setMessageTarget] = useState<string | null>(null);
-  const [messageText, setMessageText] = useState("");
-  const [sending, setSending] = useState(false);
   const [liveStatuses, setLiveStatuses] = useState<Map<string, any>>(new Map());
   const [mainSessions, setMainSessions] = useState<MainSessionRow[]>([]);
   const [sessionLoading, setSessionLoading] = useState<Record<string, boolean>>({});
+  const [, setNowTick] = useState(Date.now());
 
   const { lastEvent } = useSSE("agent.status");
 
@@ -97,6 +114,11 @@ export function TeamView({ agents }: TeamViewProps) {
     loadMainSessions();
   }, []);
 
+  useEffect(() => {
+    const id = setInterval(() => setNowTick(Date.now()), 60_000);
+    return () => clearInterval(id);
+  }, []);
+
   const runSessionAction = async (sessionKey: string, action: "compact" | "reset") => {
     if (action === "reset" && !confirm("Reset this main session? This clears current context.")) return;
     setSessionLoading((prev) => ({ ...prev, [`${action}:${sessionKey}`]: true }));
@@ -116,35 +138,26 @@ export function TeamView({ agents }: TeamViewProps) {
   const mapByName = new Map((agents || []).map((a: any) => [a.name, a]));
   const baseList = knownNames.map((name) => mapByName.get(name) || { name });
 
+  const mainSessionByAgent = useMemo(() => {
+    const map = new Map<string, MainSessionRow>();
+    for (const s of mainSessions) {
+      map.set(s.agent, s);
+    }
+    return map;
+  }, [mainSessions]);
+
   // Merge live status into agent data
   const agentList = baseList.map((agent: any) => {
     const live = liveStatuses.get(agent.name);
-    if (!live) return agent;
+    const mainSession = mainSessionByAgent.get(agent.name);
+
     return {
       ...agent,
-      status: live.status || agent.status,
-      model: live.model || agent.model,
-      currentTask: live.currentTask || agent.currentTask,
+      status: live?.status || agent.status,
+      model: live?.model || agent.model,
+      lastActiveAt: mainSession?.lastActiveAt ?? null,
     };
   });
-
-  const sendMessage = async () => {
-    if (!messageTarget || !messageText.trim()) return;
-    setSending(true);
-    try {
-      await fetch(`/api/mc/agents/${messageTarget}/message`, {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ message: messageText }),
-      });
-      setMessageText("");
-      setMessageTarget(null);
-    } catch (err) {
-      console.error("Failed to send:", err);
-    } finally {
-      setSending(false);
-    }
-  };
 
   return (
     <div className="mx-auto max-w-[1200px]">
@@ -156,7 +169,6 @@ export function TeamView({ agents }: TeamViewProps) {
         <AgentCard
           agent={agentList.find((a: any) => a.name === "derrick") || { name: "derrick" }}
           meta={agentMeta.derrick}
-          onMessage={() => setMessageTarget("derrick")}
         />
       </div>
 
@@ -178,7 +190,6 @@ export function TeamView({ agents }: TeamViewProps) {
                 key={agent.name}
                 agent={agent}
                 meta={agentMeta[agent.name]}
-                onMessage={() => setMessageTarget(agent.name)}
               />
             ))}
         </div>
@@ -206,7 +217,7 @@ export function TeamView({ agents }: TeamViewProps) {
                   >
                     Session Fullness
                   </th>
-                  <th className="px-4 py-2 text-left">Last Activity</th>
+                  <th className="px-4 py-2 text-left">Last Active</th>
                   <th className="px-4 py-2 text-right">Est. Next Turn Cost</th>
                   <th className="px-4 py-2 text-left">Actions</th>
                 </tr>
@@ -229,7 +240,7 @@ export function TeamView({ agents }: TeamViewProps) {
                           <span className="font-mono text-[#BBBBBB]">{Math.round(pct)}%</span>
                         </div>
                       </td>
-                      <td className="px-4 py-2 text-[#999999]">{s.lastActiveAt ? formatLocalTimeShared(s.lastActiveAt) : "—"}</td>
+                      <td className="px-4 py-2 text-[#999999]">{formatLastActiveRelative(s.lastActiveAt)}</td>
                       <td className="px-4 py-2 text-right font-mono text-white">${(s.estimatedNextTaskCostUsd || 0).toFixed(4)}</td>
                       <td className="px-4 py-2">
                         <div className="flex items-center gap-2">
@@ -245,49 +256,6 @@ export function TeamView({ agents }: TeamViewProps) {
           </div>
         )}
       </div>
-
-      {/* Send Message Panel */}
-      {messageTarget && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50">
-          <Card className="w-full max-w-md border border-[#222222] bg-[#121212]">
-            <CardHeader className="border-b border-[#222222] px-4 py-3 flex items-center justify-between">
-              <h3 className="text-sm font-medium">
-                Send to {messageTarget}
-              </h3>
-              <button
-                onClick={() => setMessageTarget(null)}
-                className="text-[#888888] hover:text-white"
-              >
-                <X size={16} strokeWidth={1.5} />
-              </button>
-            </CardHeader>
-            <CardBody className="p-4 space-y-3">
-              <Textarea
-                placeholder="Type your message..."
-                value={messageText}
-                onValueChange={setMessageText}
-                variant="bordered"
-                minRows={3}
-                classNames={{ inputWrapper: "border-[#222222] bg-[#080808]" }}
-              />
-              <div className="flex justify-end gap-2">
-                <Button size="sm" variant="flat" onPress={() => setMessageTarget(null)}>
-                  Cancel
-                </Button>
-                <Button
-                  size="sm"
-                  color="primary"
-                  onPress={sendMessage}
-                  isLoading={sending}
-                  isDisabled={!messageText.trim()}
-                >
-                  Send
-                </Button>
-              </div>
-            </CardBody>
-          </Card>
-        </div>
-      )}
     </div>
   );
 }
@@ -315,11 +283,9 @@ function formatModel(model?: string): string {
 function AgentCard({
   agent,
   meta,
-  onMessage,
 }: {
   agent: any;
   meta: { role: string; description: string; Icon: LucideIcon };
-  onMessage: () => void;
 }) {
   const IconComponent = meta?.Icon || Bot;
   const { color, label, pulse } = statusConfig[agent.status] || statusConfig.idle;
@@ -365,34 +331,11 @@ function AgentCard({
             <p className="text-xs text-[#555555] mt-2 line-clamp-2">
               {meta?.description || ""}
             </p>
-            {agent.currentTask && (
-              <div className="mt-2 rounded bg-[#1A1A1A] px-2 py-1.5 border border-[#222222]">
-                <p className="text-[10px] text-[#888888] uppercase tracking-wider">Current task</p>
-                <p className="text-xs text-[#cccccc] mt-0.5 truncate">{agent.currentTask.title}</p>
-              </div>
-            )}
+            <div className="mt-2 border-t border-[#1c1c1c] pt-2">
+              <p className="text-[10px] uppercase tracking-wider text-[#777777]">Last active</p>
+              <p className="text-xs text-[#BBBBBB] mt-0.5">{formatLastActiveRelative(agent.lastActiveAt)}</p>
+            </div>
           </div>
-        </div>
-        <div className="mt-3 flex gap-2">
-          <Button
-            size="sm"
-            variant="flat"
-            className="text-xs border border-[#222222] bg-[#080808]"
-            onPress={onMessage}
-            startContent={<Send size={14} strokeWidth={1.5} />}
-          >
-            Message
-          </Button>
-          <Button
-            size="sm"
-            variant="flat"
-            className="text-xs border border-[#222222] bg-[#080808]"
-            as="a"
-            href={`/memory?agent=${agent.name}`}
-            startContent={<BookOpen size={14} strokeWidth={1.5} />}
-          >
-            Memory
-          </Button>
         </div>
       </CardBody>
     </Card>
