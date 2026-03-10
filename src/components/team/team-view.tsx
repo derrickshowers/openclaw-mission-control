@@ -1,12 +1,18 @@
 "use client";
 
 import { useState, useEffect } from "react";
+import { formatLocalTime as formatLocalTimeShared } from "@/lib/dates";
 import { Card, CardBody, CardHeader, Chip, Button, Textarea } from "@heroui/react";
-import { Crosshair, Landmark, Zap, Palette, Bot, X, Send, BookOpen } from "lucide-react";
+import { Crown, Crosshair, Landmark, Zap, Palette, Bot, X, Send, BookOpen } from "lucide-react";
 import { useSSE } from "@/hooks/use-sse";
 import type { LucideIcon } from "lucide-react";
 
 const agentMeta: Record<string, { role: string; description: string; Icon: LucideIcon }> = {
+  derrick: {
+    role: "Founder",
+    description: "The human behind the team. Founder and orchestrator of OpenClaw.",
+    Icon: Crown,
+  },
   frank: {
     role: "Orchestrator",
     description: "Routes tasks, manages the team, delivers results to Derrick. The glue.",
@@ -29,10 +35,23 @@ const agentMeta: Record<string, { role: string; description: string; Icon: Lucid
   },
 };
 
-function resolveAvatarUrl(url?: string): string | undefined {
+function resolveAvatarUrl(url?: string, agentName?: string): string | undefined {
+  if (agentName === "derrick") return "/images/team/derrick.jpg";
   if (!url) return undefined;
   if (url.startsWith('/api/agents/')) return url.replace('/api/agents/', '/api/mc/agents/');
   return url;
+}
+
+interface MainSessionRow {
+  agent: string;
+  sessionKey: string;
+  model: string;
+  totalTokens: number;
+  maxContext: number;
+  fullness: number;
+  estimatedNextTaskCostUsd: number;
+  source: string;
+  lastActiveAt?: string;
 }
 
 interface TeamViewProps {
@@ -44,6 +63,8 @@ export function TeamView({ agents }: TeamViewProps) {
   const [messageText, setMessageText] = useState("");
   const [sending, setSending] = useState(false);
   const [liveStatuses, setLiveStatuses] = useState<Map<string, any>>(new Map());
+  const [mainSessions, setMainSessions] = useState<MainSessionRow[]>([]);
+  const [sessionLoading, setSessionLoading] = useState<Record<string, boolean>>({});
 
   const { lastEvent } = useSSE("agent.status");
 
@@ -56,9 +77,41 @@ export function TeamView({ agents }: TeamViewProps) {
     });
   }, [lastEvent]);
 
-  const baseList = agents.length > 0
-    ? agents.filter((a: any) => Object.hasOwn(agentMeta, a.name))
-    : Object.keys(agentMeta).map((name) => ({ name }));
+  const loadMainSessions = async () => {
+    try {
+      const res = await fetch("/api/mc/agents/live-sessions");
+      const data = await res.json();
+      const rows = (Array.isArray(data) ? data : [])
+        .filter((r: any) => r.sessionKey?.endsWith(":main"))
+        .sort((a: any, b: any) => a.agent.localeCompare(b.agent));
+      setMainSessions(rows);
+    } catch {
+      setMainSessions([]);
+    }
+  };
+
+  useEffect(() => {
+    loadMainSessions();
+  }, []);
+
+  const runSessionAction = async (sessionKey: string, action: "compact" | "reset") => {
+    if (action === "reset" && !confirm("Reset this main session? This clears current context.")) return;
+    setSessionLoading((prev) => ({ ...prev, [`${action}:${sessionKey}`]: true }));
+    try {
+      await fetch(`/api/mc/agents/sessions/${action}`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ sessionKey }),
+      });
+      await loadMainSessions();
+    } finally {
+      setSessionLoading((prev) => ({ ...prev, [`${action}:${sessionKey}`]: false }));
+    }
+  };
+
+  const knownNames = Object.keys(agentMeta);
+  const mapByName = new Map((agents || []).map((a: any) => [a.name, a]));
+  const baseList = knownNames.map((name) => mapByName.get(name) || { name });
 
   // Merge live status into agent data
   const agentList = baseList.map((agent: any) => {
@@ -92,15 +145,15 @@ export function TeamView({ agents }: TeamViewProps) {
 
   return (
     <div className="mx-auto max-w-[1200px]">
-      {/* Hierarchy: Frank at top, team below */}
+      {/* Hierarchy: Derrick at top, team below */}
       <div className="mb-6">
         <p className="mb-4 text-xs text-[#888888] uppercase tracking-wider">
-          Orchestrator
+          Founder
         </p>
         <AgentCard
-          agent={agentList.find((a: any) => a.name === "frank") || { name: "frank" }}
-          meta={agentMeta.frank}
-          onMessage={() => setMessageTarget("frank")}
+          agent={agentList.find((a: any) => a.name === "derrick") || { name: "derrick" }}
+          meta={agentMeta.derrick}
+          onMessage={() => setMessageTarget("derrick")}
         />
       </div>
 
@@ -112,11 +165,11 @@ export function TeamView({ agents }: TeamViewProps) {
 
       <div className="mb-4">
         <p className="mb-4 text-xs text-[#888888] uppercase tracking-wider">
-          Specialists
+          Team
         </p>
         <div className="grid gap-4 md:grid-cols-3">
           {agentList
-            .filter((a: any) => a.name !== "frank")
+            .filter((a: any) => a.name !== "derrick")
             .map((agent: any) => (
               <AgentCard
                 key={agent.name}
@@ -126,6 +179,58 @@ export function TeamView({ agents }: TeamViewProps) {
               />
             ))}
         </div>
+      </div>
+
+      <div className="mb-6 rounded border border-[#222222] bg-[#0A0A0A]">
+        <div className="border-b border-[#222222] px-4 py-2.5">
+          <p className="text-xs uppercase tracking-wider text-[#888888]">Main Session Health</p>
+        </div>
+        {mainSessions.length === 0 ? (
+          <p className="px-4 py-5 text-xs text-[#666666]">No active main sessions.</p>
+        ) : (
+          <div className="overflow-x-auto">
+            <table className="w-full text-xs">
+              <thead>
+                <tr className="border-b border-[#1A1A1A] text-[#777777] uppercase tracking-wider">
+                  <th className="px-4 py-2 text-left">Agent</th>
+                  <th className="px-4 py-2 text-left">Model</th>
+                  <th className="px-4 py-2 text-left">Context</th>
+                  <th className="px-4 py-2 text-left">Last Activity</th>
+                  <th className="px-4 py-2 text-right">Next Turn</th>
+                  <th className="px-4 py-2 text-left">Actions</th>
+                </tr>
+              </thead>
+              <tbody className="divide-y divide-[#161616]">
+                {mainSessions.map((s) => {
+                  const pct = Math.min((s.totalTokens / Math.max(s.maxContext, 1)) * 100, 100);
+                  const bar = pct > 80 ? "#ef4444" : pct > 55 ? "#f59e0b" : "#22c55e";
+                  return (
+                    <tr key={s.sessionKey}>
+                      <td className="px-4 py-2 capitalize text-white">{s.agent}</td>
+                      <td className="px-4 py-2 font-mono text-[#BBBBBB]">{s.model}</td>
+                      <td className="px-4 py-2">
+                        <div className="flex items-center gap-2">
+                          <div className="h-2 w-32 overflow-hidden rounded-full bg-[#222222]">
+                            <div className="h-full" style={{ width: `${pct}%`, backgroundColor: bar }} />
+                          </div>
+                          <span className="font-mono text-[#BBBBBB]">{Math.round(pct)}%</span>
+                        </div>
+                      </td>
+                      <td className="px-4 py-2 text-[#999999]">{s.lastActiveAt ? formatLocalTimeShared(s.lastActiveAt) : "—"}</td>
+                      <td className="px-4 py-2 text-right font-mono text-white">${(s.estimatedNextTaskCostUsd || 0).toFixed(4)}</td>
+                      <td className="px-4 py-2">
+                        <div className="flex items-center gap-2">
+                          <button className="rounded border border-[#333333] bg-[#111111] px-2 py-1 text-[11px]" onClick={() => runSessionAction(s.sessionKey, "compact")} disabled={!!sessionLoading[`compact:${s.sessionKey}`]}>Compact</button>
+                          <button className="rounded border border-[#4b1f1f] bg-[#1b0f0f] px-2 py-1 text-[11px] text-[#fca5a5]" onClick={() => runSessionAction(s.sessionKey, "reset")} disabled={!!sessionLoading[`reset:${s.sessionKey}`]}>Reset</button>
+                        </div>
+                      </td>
+                    </tr>
+                  );
+                })}
+              </tbody>
+            </table>
+          </div>
+        )}
       </div>
 
       {/* Send Message Panel */}
@@ -205,7 +310,7 @@ function AgentCard({
 }) {
   const IconComponent = meta?.Icon || Bot;
   const { color, label, pulse } = statusConfig[agent.status] || statusConfig.idle;
-  const avatarUrl = resolveAvatarUrl(agent.avatarUrl);
+  const avatarUrl = resolveAvatarUrl(agent.avatarUrl, agent.name);
 
   return (
     <Card className="border border-[#222222] bg-[#121212]">

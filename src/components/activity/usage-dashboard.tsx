@@ -49,6 +49,7 @@ interface LogRow {
   output_tokens: number;
   cost_usd: number;
   session_key: string | null;
+  source: string;
   created_at: string;
 }
 
@@ -256,8 +257,8 @@ export function UsageDashboard() {
   const [breakdown, setBreakdown] = useState<BreakdownRow[]>([]);
   const [recentLogs, setRecentLogs] = useState<LogRow[]>([]);
   const [liveSessions, setLiveSessions] = useState<LiveSessionRow[]>([]);
-  const [actionLoading, setActionLoading] = useState<Record<string, string>>({});
   const [loading, setLoading] = useState(true);
+  const [lastUpdatedAt, setLastUpdatedAt] = useState<Date | null>(null);
 
   // Auto-derived interval based on period
   const interval = useMemo(() => intervalForDays(days), [days]);
@@ -310,10 +311,18 @@ export function UsageDashboard() {
         entry[row.agent] = (entry[row.agent] || 0) + row.input_tokens + row.output_tokens;
       }
 
+      const chartAgents = Array.from(new Set(chartRows.map((r) => r.agent)));
+      for (const entry of dateMap.values()) {
+        for (const agent of chartAgents) {
+          if (entry[agent] === undefined) entry[agent] = 0;
+        }
+      }
+
       setChartData(Array.from(dateMap.values()));
     } catch (err) {
       console.error("Failed to fetch usage data:", err);
     } finally {
+      setLastUpdatedAt(new Date());
       setLoading(false);
     }
   }, [days, interval]);
@@ -327,24 +336,10 @@ export function UsageDashboard() {
     new Set(breakdown.map((r) => r.agent))
   ).sort();
 
-  const runSessionAction = async (sessionKey: string, action: "compact" | "reset") => {
-    const key = `${action}:${sessionKey}`;
-    setActionLoading((prev) => ({ ...prev, [key]: "loading" }));
-    try {
-      await fetch(`/api/mc/agents/sessions/${action}`, {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ sessionKey }),
-      });
-      await fetchData();
-    } finally {
-      setActionLoading((prev) => {
-        const next = { ...prev };
-        delete next[key];
-        return next;
-      });
-    }
-  };
+  const activeSessionKeys = useMemo(
+    () => new Set(liveSessions.map((s) => s.sessionKey)),
+    [liveSessions]
+  );
 
   return (
     <div className="mx-auto flex h-full max-w-[1200px] flex-col gap-4 overflow-y-auto">
@@ -369,6 +364,11 @@ export function UsageDashboard() {
             <SelectItem key={p.value}>{p.label}</SelectItem>
           ))}
         </Select>
+      </div>
+
+      <div className="rounded border border-[#222222] bg-[#0A0A0A] px-3 py-2 text-[11px] text-[#777777]">
+        OpenClaw telemetry → usage-tracker hook → Mission Control usage_logs. Costs are estimated from pricing tables.
+        {lastUpdatedAt && <span className="ml-2 text-[#555555]">Last updated {lastUpdatedAt.toLocaleTimeString()}</span>}
       </div>
 
       {/* Hero Cards */}
@@ -402,90 +402,15 @@ export function UsageDashboard() {
             icon={<Users size={14} strokeWidth={1.5} />}
           />
           <MetricCard
-            label="Avg / Day"
-            value={summary.period_days > 0 ? formatTokens(Math.round(summary.total_tokens / summary.period_days)) : "0"}
-            sub="tokens"
+            label="Burn Rate"
+            value={days === "1"
+              ? formatTokens(Math.round(summary.total_tokens / Math.max(new Date().getHours() + 1, 1)))
+              : (summary.period_days > 0 ? formatTokens(Math.round(summary.total_tokens / summary.period_days)) : "0")}
+            sub={days === "1" ? "tokens/hour" : "tokens/day"}
             icon={<TrendingUp size={14} strokeWidth={1.5} />}
           />
         </div>
       ) : null}
-
-      {/* Live Sessions */}
-      <div className="rounded border border-[#222222] bg-[#0A0A0A]">
-        <div className="border-b border-[#222222] px-4 py-2.5">
-          <p className="text-xs text-[#888888] uppercase tracking-wider">Live Sessions</p>
-        </div>
-        {liveSessions.length === 0 ? (
-          <div className="flex h-20 items-center justify-center">
-            <p className="text-xs text-[#555555]">No active sessions</p>
-          </div>
-        ) : (
-          <div className="overflow-x-auto">
-            <table className="w-full text-sm">
-              <thead>
-                <tr className="border-b border-[#222222] text-left text-xs text-[#888888]">
-                  <th className="px-4 py-2 font-medium">Agent</th>
-                  <th className="px-4 py-2 font-medium">Model</th>
-                  <th className="px-4 py-2 font-medium">Context Window</th>
-                  <th className="px-4 py-2 font-medium text-right">Next Task Est.</th>
-                  <th className="px-4 py-2 font-medium">Actions</th>
-                </tr>
-              </thead>
-              <tbody className="divide-y divide-[#1A1A1A]">
-                {liveSessions.map((session) => {
-                  const pct = Math.min((session.totalTokens / Math.max(session.maxContext, 1)) * 100, 100);
-                  const barColor = pct > 80 ? "#ef4444" : pct > 50 ? "#f59e0b" : "#22c55e";
-                  const compactKey = `compact:${session.sessionKey}`;
-                  const resetKey = `reset:${session.sessionKey}`;
-
-                  return (
-                    <tr key={session.sessionKey} className="hover:bg-[#111111] transition-colors">
-                      <td className="px-4 py-2">
-                        <div className="flex items-center gap-2">
-                          <div className="h-2 w-2 rounded-full" style={{ backgroundColor: AGENT_COLORS[session.agent] || "#888888" }} />
-                          <span className="capitalize text-white">{session.agent}</span>
-                        </div>
-                      </td>
-                      <td className="px-4 py-2 font-mono text-xs text-[#CCCCCC]">{session.model}</td>
-                      <td className="px-4 py-2">
-                        <div className="flex items-center gap-2">
-                          <div className="w-36 h-2 rounded-full bg-[#222222] overflow-hidden">
-                            <div className="h-full rounded-full" style={{ width: `${pct}%`, backgroundColor: barColor }} />
-                          </div>
-                          <span className="text-xs font-mono text-[#CCCCCC]">
-                            {formatTokens(session.totalTokens)} / {formatTokens(session.maxContext)}
-                          </span>
-                        </div>
-                      </td>
-                      <td className="px-4 py-2 text-right font-mono text-xs text-white">
-                        {formatCost(session.estimatedNextTaskCostUsd || 0)}
-                      </td>
-                      <td className="px-4 py-2">
-                        <div className="flex items-center gap-2">
-                          <button
-                            className="rounded border border-[#333333] bg-[#111111] px-2 py-1 text-[11px] text-[#CCCCCC] hover:bg-[#1A1A1A]"
-                            onClick={() => runSessionAction(session.sessionKey, "compact")}
-                            disabled={!!actionLoading[compactKey]}
-                          >
-                            {actionLoading[compactKey] ? "Compacting..." : "Compact"}
-                          </button>
-                          <button
-                            className="rounded border border-[#4b1f1f] bg-[#1b0f0f] px-2 py-1 text-[11px] text-[#fca5a5] hover:bg-[#2a1414]"
-                            onClick={() => runSessionAction(session.sessionKey, "reset")}
-                            disabled={!!actionLoading[resetKey]}
-                          >
-                            {actionLoading[resetKey] ? "Resetting..." : "Reset"}
-                          </button>
-                        </div>
-                      </td>
-                    </tr>
-                  );
-                })}
-              </tbody>
-            </table>
-          </div>
-        )}
-      </div>
 
       {/* Chart */}
       <div className="rounded border border-[#222222] bg-[#0A0A0A] p-4">
@@ -597,10 +522,10 @@ export function UsageDashboard() {
         )}
       </div>
 
-      {/* Recent Contexts Table */}
+      {/* Recent Usage Events Table */}
       <div className="rounded border border-[#222222] bg-[#0A0A0A]">
         <div className="border-b border-[#222222] px-4 py-2.5">
-          <p className="text-xs text-[#888888] uppercase tracking-wider">Recent Contexts</p>
+          <p className="text-xs text-[#888888] uppercase tracking-wider">Recent Usage Events</p>
         </div>
         {recentLogs.length === 0 ? (
           <div className="flex h-16 items-center justify-center">
@@ -613,8 +538,11 @@ export function UsageDashboard() {
                 <tr className="border-b border-[#222222] text-left text-[10px] text-[#666666] uppercase tracking-wider">
                   <th className="px-4 py-1.5 font-medium">Time</th>
                   <th className="px-4 py-1.5 font-medium">Agent</th>
+                  <th className="px-4 py-1.5 font-medium">Session</th>
+                  <th className="px-4 py-1.5 font-medium">Source</th>
+                  <th className="px-4 py-1.5 font-medium">Status</th>
                   <th className="px-4 py-1.5 font-medium">Model</th>
-                  <th className="px-4 py-1.5 font-medium text-right">Context (Input)</th>
+                  <th className="px-4 py-1.5 font-medium text-right">Input</th>
                   <th className="px-4 py-1.5 font-medium text-right">Output</th>
                   <th className="px-4 py-1.5 font-medium text-right">Cost</th>
                 </tr>
@@ -637,6 +565,15 @@ export function UsageDashboard() {
                           />
                           <span className="text-xs text-[#CCCCCC] capitalize">{row.agent}</span>
                         </div>
+                      </td>
+                      <td className="px-4 py-1 text-xs font-mono text-[#777777]">
+                        {row.session_key ? row.session_key.split(":").slice(0, 3).join(":") : "-"}
+                      </td>
+                      <td className="px-4 py-1 text-xs text-[#BBBBBB]">{row.source || "main"}</td>
+                      <td className="px-4 py-1 text-xs">
+                        <span className={`rounded px-1.5 py-0.5 ${row.session_key && activeSessionKeys.has(row.session_key) ? "bg-green-500/15 text-green-300" : "bg-[#333333] text-[#999999]"}`}>
+                          {row.session_key && activeSessionKeys.has(row.session_key) ? "active" : "expired"}
+                        </span>
                       </td>
                       <td className="px-4 py-1 text-xs font-mono text-[#888888]">{row.model}</td>
                       <td className="px-4 py-1 text-right">
