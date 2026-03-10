@@ -2,7 +2,7 @@
 
 import { useState } from "react";
 import { Button, Card, CardBody, CardHeader, Chip } from "@heroui/react";
-import { Crosshair, Landmark, Zap, Palette, Bot, Users, ListChecks, ArrowRight, ShieldAlert } from "lucide-react";
+import { Crown, Crosshair, Landmark, Zap, Palette, Bot, Users, ListChecks, ArrowRight, ShieldAlert } from "lucide-react";
 import { api } from "@/lib/api";
 import type { LucideIcon } from "lucide-react";
 import type { Task } from "@/lib/api";
@@ -33,6 +33,7 @@ const priorityLabels: Record<number, { label: string; color: "default" | "warnin
 };
 
 const agentRoles: Record<string, string> = {
+  derrick: "Founder",
   frank: "Orchestrator",
   tom: "Lead Architect",
   michael: "Full Stack Engineer",
@@ -40,6 +41,7 @@ const agentRoles: Record<string, string> = {
 };
 
 const agentIcons: Record<string, LucideIcon> = {
+  derrick: Crown,
   frank: Crosshair,
   tom: Landmark,
   michael: Zap,
@@ -48,7 +50,8 @@ const agentIcons: Record<string, LucideIcon> = {
 
 function avatarUrlFor(agentName?: string): string | null {
   if (!agentName) return null;
-  if (!["frank", "tom", "michael", "joanna"].includes(agentName)) return null;
+  if (agentName === "derrick") return "/images/team/derrick.jpg";
+  if (!["derrick", "frank", "tom", "michael", "joanna"].includes(agentName)) return null;
   return `/api/mc/agents/${agentName}/avatar`;
 }
 
@@ -130,7 +133,9 @@ export function DashboardContent({ tasks, agents, status, recentActivity }: Dash
             </span>
           </CardHeader>
           <CardBody className="gap-2 p-3">
-            {(agents.length > 0 ? agents.filter((a: any) => Object.hasOwn(agentRoles, a.name)) : Object.keys(agentRoles).map(name => ({ name }))).map((agent: any) => (
+            {Object.keys(agentRoles).map((name) => {
+              const agent = agents.find((a: any) => a.name === name) || { name };
+              return (
               <div
                 key={agent.name}
                 className="flex items-center justify-between rounded-lg border border-white/10 bg-black/35 px-3 py-2 backdrop-blur"
@@ -158,7 +163,8 @@ export function DashboardContent({ tasks, agents, status, recentActivity }: Dash
                   idle
                 </Chip>
               </div>
-            ))}
+              );
+            })}
           </CardBody>
         </Card>
 

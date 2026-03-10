@@ -28,6 +28,7 @@ const statusColors: Record<string, "default" | "primary" | "danger" | "success">
 
 function avatarUrlFor(agentName?: string | null): string | null {
   if (!agentName) return null;
+  if (agentName === "derrick") return "/images/team/derrick.jpg";
   if (!["frank", "tom", "michael", "joanna"].includes(agentName)) return null;
   return `/api/mc/agents/${agentName}/avatar`;
 }
