@@ -1,8 +1,8 @@
 "use client";
 
-import { useState, useEffect, useCallback } from "react";
+import { useState, useEffect, useCallback, useRef } from "react";
 import { Button, Input } from "@heroui/react";
-import { Folder, FileText, Search, ArrowLeft, X } from "lucide-react";
+import { Folder, FileText, Search, ArrowLeft, X, Pencil, Save } from "lucide-react";
 import ReactMarkdown from "react-markdown";
 import remarkGfm from "remark-gfm";
 
@@ -24,6 +24,12 @@ export function MemoryBrowser() {
   const [searchResults, setSearchResults] = useState<any[] | null>(null);
   const [loading, setLoading] = useState(false);
 
+  const [editing, setEditing] = useState(false);
+  const [editContent, setEditContent] = useState("");
+  const [saving, setSaving] = useState(false);
+  const [dirty, setDirty] = useState(false);
+  const editorRef = useRef<HTMLTextAreaElement>(null);
+
   const loadFiles = useCallback(async (agent: string, dir: string = "") => {
     setLoading(true);
     try {
@@ -40,6 +46,8 @@ export function MemoryBrowser() {
 
   const loadFile = useCallback(async (agent: string, path: string) => {
     setLoading(true);
+    setEditing(false);
+    setDirty(false);
     try {
       const res = await fetch(`/api/mc/memory/${agent}/${path}`);
       const data = await res.json();
@@ -70,24 +78,100 @@ export function MemoryBrowser() {
     }
   }, [searchQuery, selectedAgent]);
 
+  const clearSearch = useCallback(() => {
+    setSearchQuery("");
+    setSearchResults(null);
+  }, []);
+
+  const enterEditMode = useCallback(() => {
+    if (fileContent === null) return;
+    setEditContent(fileContent);
+    setEditing(true);
+    setDirty(false);
+    setTimeout(() => editorRef.current?.focus(), 50);
+  }, [fileContent]);
+
+  const cancelEdit = useCallback(() => {
+    if (dirty && !confirm("Discard unsaved changes?")) return;
+    setEditing(false);
+    setDirty(false);
+  }, [dirty]);
+
+  const saveEdit = useCallback(async () => {
+    if (!currentFile) return;
+
+    setSaving(true);
+    try {
+      const res = await fetch(`/api/mc/memory/${selectedAgent}/${currentFile}`, {
+        method: "PUT",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ content: editContent }),
+      });
+
+      if (!res.ok) throw new Error("Save failed");
+
+      setFileContent(editContent);
+      setEditing(false);
+      setDirty(false);
+    } catch (err) {
+      console.error("Save failed:", err);
+      alert("Failed to save. Please try again.");
+    } finally {
+      setSaving(false);
+    }
+  }, [selectedAgent, currentFile, editContent]);
+
   useEffect(() => {
     loadFiles(selectedAgent, currentDir);
   }, [selectedAgent, currentDir, loadFiles]);
 
+  useEffect(() => {
+    const handler = (e: KeyboardEvent) => {
+      const mod = e.metaKey || e.ctrlKey;
+
+      const target = e.target as HTMLElement;
+      if (
+        target.tagName === "INPUT" ||
+        target.tagName === "SELECT" ||
+        (target.tagName === "TEXTAREA" && target !== editorRef.current)
+      ) {
+        return;
+      }
+
+      if (mod && e.key === "e") {
+        e.preventDefault();
+        if (!editing && fileContent !== null) enterEditMode();
+      }
+      if (mod && e.key === "s" && editing) {
+        e.preventDefault();
+        saveEdit();
+      }
+      if (e.key === "Escape" && editing) {
+        e.preventDefault();
+        cancelEdit();
+      }
+    };
+
+    window.addEventListener("keydown", handler);
+    return () => window.removeEventListener("keydown", handler);
+  }, [editing, fileContent, enterEditMode, saveEdit, cancelEdit]);
+
   return (
     <div className="mx-auto flex h-full max-w-[1200px] gap-4">
-      {/* Left: File Tree */}
       <div className="w-64 flex-shrink-0 overflow-y-auto rounded border border-[#222222] bg-[#0A0A0A]">
-        {/* Agent Tabs */}
         <div className="flex flex-wrap border-b border-[#222222]">
           {AGENTS.map((agent) => (
             <button
               key={agent}
               onClick={() => {
+                if (editing && dirty && !confirm("Discard unsaved changes?")) return;
                 setSelectedAgent(agent);
                 setCurrentDir("");
                 setFileContent(null);
+                setCurrentFile("");
                 setSearchResults(null);
+                setEditing(false);
+                setDirty(false);
               }}
               className={`flex-1 px-2 py-2 text-xs capitalize transition-colors ${
                 selectedAgent === agent
@@ -100,7 +184,6 @@ export function MemoryBrowser() {
           ))}
         </div>
 
-        {/* Search */}
         <div className="border-b border-[#222222] p-2">
           <Input
             size="sm"
@@ -110,10 +193,17 @@ export function MemoryBrowser() {
             onKeyDown={(e) => e.key === "Enter" && search()}
             variant="bordered"
             classNames={{ inputWrapper: "border-[#222222] bg-[#080808] h-7 min-h-7" }}
+            startContent={<Search size={12} strokeWidth={1.5} className="text-[#888888]" />}
+            endContent={
+              searchQuery ? (
+                <button onClick={clearSearch} className="text-[#888888] hover:text-white">
+                  <X size={12} strokeWidth={1.5} />
+                </button>
+              ) : null
+            }
           />
         </div>
 
-        {/* Breadcrumb */}
         {currentDir && (
           <div className="border-b border-[#222222] px-3 py-1.5">
             <button
@@ -128,12 +218,12 @@ export function MemoryBrowser() {
           </div>
         )}
 
-        {/* File List */}
         <div className="p-1">
           {files.map((file) => (
             <button
               key={file.path}
               onClick={() => {
+                if (editing && dirty && !confirm("Discard unsaved changes?")) return;
                 if (file.type === "directory") {
                   setCurrentDir(file.path);
                 } else {
@@ -156,7 +246,6 @@ export function MemoryBrowser() {
         </div>
       </div>
 
-      {/* Right: Content */}
       <div className="flex-1 overflow-y-auto rounded border border-[#222222] bg-[#0A0A0A] p-4">
         {loading ? (
           <div className="space-y-2">
@@ -166,13 +255,22 @@ export function MemoryBrowser() {
           </div>
         ) : searchResults ? (
           <div className="space-y-3">
-            <p className="text-xs text-[#888888]">
-              {searchResults.length} result{searchResults.length !== 1 ? "s" : ""} for &quot;{searchQuery}&quot;
-            </p>
+            <div className="flex items-center justify-between">
+              <p className="text-xs text-[#888888]">
+                {searchResults.length} result{searchResults.length !== 1 ? "s" : ""} for &quot;{searchQuery}&quot;
+              </p>
+              <button onClick={clearSearch} className="text-xs text-[#888888] hover:text-white">
+                Clear search
+              </button>
+            </div>
             {searchResults.map((result, i) => (
               <button
                 key={i}
-                onClick={() => loadFile(result.agent, result.path)}
+                onClick={() => {
+                  if (editing && dirty && !confirm("Discard unsaved changes?")) return;
+                  setSelectedAgent(result.agent);
+                  loadFile(result.agent, result.path);
+                }}
                 className="block w-full rounded border border-[#222222] bg-[#121212] p-3 text-left hover:bg-[#1A1A1A]"
               >
                 <p className="text-xs font-mono text-[#888888]">
@@ -188,19 +286,75 @@ export function MemoryBrowser() {
           <div className="px-8 py-12">
             <div className="mx-auto max-w-3xl">
               <div className="mb-6 flex items-center justify-between border-b border-[#222222] pb-3">
-                <span className="text-xs font-mono text-[#888888]">{currentFile}</span>
-                <Button
-                  size="sm"
-                  variant="flat"
-                  className="text-xs border border-[#222222] bg-[#080808]"
-                  onPress={() => { setFileContent(null); setCurrentFile(""); }}
-                >
-                  Close
-                </Button>
+                <span className="text-xs font-mono text-[#888888]">{selectedAgent}/{currentFile}</span>
+                <div className="flex items-center gap-2">
+                  {editing ? (
+                    <>
+                      <Button
+                        size="sm"
+                        variant="light"
+                        onPress={cancelEdit}
+                        className="h-7 text-xs text-[#888888] hover:text-white"
+                      >
+                        Cancel
+                      </Button>
+                      <Button
+                        size="sm"
+                        color="primary"
+                        onPress={saveEdit}
+                        isLoading={saving}
+                        startContent={!saving && <Save size={12} strokeWidth={1.5} />}
+                        className="h-7 text-xs"
+                      >
+                        Save
+                      </Button>
+                    </>
+                  ) : (
+                    <>
+                      <Button
+                        size="sm"
+                        variant="bordered"
+                        onPress={enterEditMode}
+                        startContent={<Pencil size={12} strokeWidth={1.5} />}
+                        className="h-7 text-xs border-[#222222] text-[#888888] hover:text-white"
+                      >
+                        Edit
+                      </Button>
+                      <Button
+                        size="sm"
+                        variant="flat"
+                        className="h-7 text-xs border border-[#222222] bg-[#080808]"
+                        onPress={() => {
+                          if (editing && dirty && !confirm("Discard unsaved changes?")) return;
+                          setFileContent(null);
+                          setCurrentFile("");
+                          setEditing(false);
+                          setDirty(false);
+                        }}
+                      >
+                        Close
+                      </Button>
+                    </>
+                  )}
+                </div>
               </div>
-              <article className="prose prose-invert prose-sm max-w-none leading-relaxed prose-p:text-[#D4D4D8] prose-p:mb-4 prose-headings:text-white prose-h1:text-2xl prose-h1:font-semibold prose-h1:mb-4 prose-h2:text-lg prose-h2:font-semibold prose-h2:mb-3 prose-h3:text-sm prose-h3:font-bold prose-h3:mb-2 prose-strong:text-white prose-a:text-[#8b5cf6] prose-a:no-underline hover:prose-a:underline prose-code:text-[#CCCCCC] prose-code:bg-[#1a1a1a] prose-code:border prose-code:border-[#333333] prose-code:px-1 prose-code:py-0.5 prose-code:rounded-sm prose-code:text-xs prose-code:font-mono prose-pre:bg-[#111111] prose-pre:border prose-pre:border-[#333333] prose-pre:rounded-md prose-pre:p-4 prose-pre:text-xs prose-table:border-collapse prose-th:border prose-th:border-[#333333] prose-th:bg-[#111111] prose-th:px-3 prose-th:py-1.5 prose-th:text-left prose-th:text-xs prose-th:font-medium prose-td:border prose-td:border-[#333333] prose-td:px-3 prose-td:py-1.5 prose-td:text-xs prose-blockquote:border-l-2 prose-blockquote:border-[#555555] prose-blockquote:text-[#888888] prose-blockquote:italic prose-li:text-[#D4D4D8]">
-                <ReactMarkdown remarkPlugins={[remarkGfm]}>{fileContent}</ReactMarkdown>
-              </article>
+
+              {editing ? (
+                <textarea
+                  ref={editorRef}
+                  value={editContent}
+                  onChange={(e) => {
+                    setEditContent(e.target.value);
+                    setDirty(true);
+                  }}
+                  className="w-full min-h-[60vh] resize-y rounded-md border border-[#222222] bg-[#080808] p-4 font-mono text-sm text-[#CCCCCC] leading-relaxed outline-none focus:border-[#333333] transition-colors"
+                  spellCheck={false}
+                />
+              ) : (
+                <article className="prose prose-invert prose-sm max-w-none leading-relaxed prose-p:text-[#D4D4D8] prose-p:mb-4 prose-headings:text-white prose-h1:text-2xl prose-h1:font-semibold prose-h1:mb-4 prose-h2:text-lg prose-h2:font-semibold prose-h2:mb-3 prose-h3:text-sm prose-h3:font-bold prose-h3:mb-2 prose-strong:text-white prose-a:text-[#8b5cf6] prose-a:no-underline hover:prose-a:underline prose-code:text-[#CCCCCC] prose-code:bg-[#1a1a1a] prose-code:border prose-code:border-[#333333] prose-code:px-1 prose-code:py-0.5 prose-code:rounded-sm prose-code:text-xs prose-code:font-mono prose-pre:bg-[#111111] prose-pre:border prose-pre:border-[#333333] prose-pre:rounded-md prose-pre:p-4 prose-pre:text-xs prose-table:border-collapse prose-th:border prose-th:border-[#333333] prose-th:bg-[#111111] prose-th:px-3 prose-th:py-1.5 prose-th:text-left prose-th:text-xs prose-th:font-medium prose-td:border prose-td:border-[#333333] prose-td:px-3 prose-td:py-1.5 prose-td:text-xs prose-blockquote:border-l-2 prose-blockquote:border-[#555555] prose-blockquote:text-[#888888] prose-blockquote:italic prose-li:text-[#D4D4D8]">
+                  <ReactMarkdown remarkPlugins={[remarkGfm]}>{fileContent}</ReactMarkdown>
+                </article>
+              )}
             </div>
           </div>
         ) : (

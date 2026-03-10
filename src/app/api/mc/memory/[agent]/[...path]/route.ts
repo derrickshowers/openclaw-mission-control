@@ -9,3 +9,12 @@ export async function GET(
   const filePath = path.join("/");
   return proxyRequest(request, `/memory/${agent}/${filePath}`);
 }
+
+export async function PUT(
+  request: NextRequest,
+  { params }: { params: Promise<{ agent: string; path: string[] }> }
+) {
+  const { agent, path } = await params;
+  const filePath = path.join("/");
+  return proxyRequest(request, `/memory/${agent}/${filePath}`);
+}
