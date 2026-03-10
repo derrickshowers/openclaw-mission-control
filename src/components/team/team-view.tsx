@@ -6,32 +6,34 @@ import { Crosshair, Landmark, Zap, Palette, Bot, X, Send, BookOpen } from "lucid
 import { useSSE } from "@/hooks/use-sse";
 import type { LucideIcon } from "lucide-react";
 
-const agentMeta: Record<string, { role: string; description: string; Icon: LucideIcon; avatar?: string }> = {
+const agentMeta: Record<string, { role: string; description: string; Icon: LucideIcon }> = {
   frank: {
     role: "Orchestrator",
     description: "Routes tasks, manages the team, delivers results to Derrick. The glue.",
     Icon: Crosshair,
-    avatar: "/avatars/frank.png",
   },
   tom: {
     role: "Lead Architect",
     description: "System design, technical specs, infrastructure decisions, code review.",
     Icon: Landmark,
-    avatar: "/avatars/tom.png",
   },
   michael: {
     role: "Full Stack Engineer",
     description: "Builds things. React, Next.js, TypeScript, APIs, the full stack.",
     Icon: Zap,
-    avatar: "/avatars/michael.png",
   },
   joanna: {
     role: "UX/Product Designer",
     description: "User experience, design direction, interaction patterns, accessibility.",
     Icon: Palette,
-    avatar: "/avatars/joanna.png",
   },
 };
+
+function resolveAvatarUrl(url?: string): string | undefined {
+  if (!url) return undefined;
+  if (url.startsWith('/api/agents/')) return url.replace('/api/agents/', '/api/mc/agents/');
+  return url;
+}
 
 interface TeamViewProps {
   agents: any[];
@@ -198,20 +200,21 @@ function AgentCard({
   onMessage,
 }: {
   agent: any;
-  meta: { role: string; description: string; Icon: LucideIcon; avatar?: string };
+  meta: { role: string; description: string; Icon: LucideIcon };
   onMessage: () => void;
 }) {
   const IconComponent = meta?.Icon || Bot;
   const { color, label, pulse } = statusConfig[agent.status] || statusConfig.idle;
+  const avatarUrl = resolveAvatarUrl(agent.avatarUrl);
 
   return (
     <Card className="border border-[#222222] bg-[#121212]">
       <CardBody className="p-4">
         <div className="flex items-start gap-3">
-          {meta?.avatar ? (
+          {avatarUrl ? (
             <div className="h-10 w-10 flex-shrink-0 overflow-hidden rounded-lg">
               <img
-                src={meta.avatar}
+                src={avatarUrl}
                 alt={agent.name}
                 className="h-full w-full object-cover"
               />

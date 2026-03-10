@@ -30,8 +30,28 @@ export async function proxyRequest(
       body,
     });
 
-    const data = await res.json();
-    return NextResponse.json(data, { status: res.status });
+    const responseHeaders = new Headers();
+    const contentTypeHeader = res.headers.get("content-type");
+    if (contentTypeHeader) responseHeaders.set("Content-Type", contentTypeHeader);
+    const cacheControl = res.headers.get("cache-control");
+    if (cacheControl) responseHeaders.set("Cache-Control", cacheControl);
+    const etag = res.headers.get("etag");
+    if (etag) responseHeaders.set("ETag", etag);
+    const lastModified = res.headers.get("last-modified");
+    if (lastModified) responseHeaders.set("Last-Modified", lastModified);
+
+    if (res.status === 304) {
+      return new NextResponse(null, { status: 304, headers: responseHeaders });
+    }
+
+    const contentType = contentTypeHeader?.toLowerCase() || "";
+    if (contentType.includes("application/json")) {
+      const data = await res.json();
+      return NextResponse.json(data, { status: res.status, headers: responseHeaders });
+    }
+
+    const buffer = await res.arrayBuffer();
+    return new NextResponse(buffer, { status: res.status, headers: responseHeaders });
   } catch (err: any) {
     return NextResponse.json(
       { error: "Proxy error", detail: err.message },
