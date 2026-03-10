@@ -3,7 +3,7 @@
 import { useState, useEffect, useMemo } from "react";
 import { parseUTC } from "@/lib/dates";
 import { Card, CardBody, Chip } from "@heroui/react";
-import { Crown, Crosshair, Landmark, Zap, Palette, Bot } from "lucide-react";
+import { Crown, Crosshair, Landmark, Zap, Palette, Bot, Check, Loader2 } from "lucide-react";
 import { useSSE } from "@/hooks/use-sse";
 import type { LucideIcon } from "lucide-react";
 
@@ -83,7 +83,7 @@ interface TeamViewProps {
 export function TeamView({ agents }: TeamViewProps) {
   const [liveStatuses, setLiveStatuses] = useState<Map<string, any>>(new Map());
   const [mainSessions, setMainSessions] = useState<MainSessionRow[]>([]);
-  const [sessionLoading, setSessionLoading] = useState<Record<string, boolean>>({});
+  const [sessionLoading, setSessionLoading] = useState<Record<string, boolean | string>>({});
   const [, setNowTick] = useState(Date.now());
 
   const { lastEvent } = useSSE("agent.status");
@@ -112,6 +112,8 @@ export function TeamView({ agents }: TeamViewProps) {
 
   useEffect(() => {
     loadMainSessions();
+    const id = setInterval(loadMainSessions, 60_000);
+    return () => clearInterval(id);
   }, []);
 
   useEffect(() => {
@@ -121,16 +123,37 @@ export function TeamView({ agents }: TeamViewProps) {
 
   const runSessionAction = async (sessionKey: string, action: "compact" | "reset") => {
     if (action === "reset" && !confirm("Reset this main session? This clears current context.")) return;
-    setSessionLoading((prev) => ({ ...prev, [`${action}:${sessionKey}`]: true }));
+    
+    const loadingKey = `${action}:${sessionKey}`;
+    setSessionLoading((prev) => ({ ...prev, [loadingKey]: true }));
+    
     try {
-      await fetch(`/api/mc/agents/sessions/${action}`, {
+      const res = await fetch(`/api/mc/agents/sessions/${action}`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ sessionKey }),
       });
+      
+      if (!res.ok) throw new Error("Failed");
+
+      // Success state for 1.5s
+      setSessionLoading((prev) => ({ ...prev, [loadingKey]: "success" }));
       await loadMainSessions();
-    } finally {
-      setSessionLoading((prev) => ({ ...prev, [`${action}:${sessionKey}`]: false }));
+      setTimeout(() => {
+        setSessionLoading((prev) => {
+          const next = { ...prev };
+          delete next[loadingKey];
+          return next;
+        });
+      }, 1500);
+    } catch {
+      // Error state: revert
+      setSessionLoading((prev) => {
+        const next = { ...prev };
+        delete next[loadingKey];
+        return next;
+      });
+      // In a real app we'd trigger a toast here
     }
   };
 
@@ -244,8 +267,16 @@ export function TeamView({ agents }: TeamViewProps) {
                       <td className="px-4 py-2 text-right font-mono text-white">${(s.estimatedNextTaskCostUsd || 0).toFixed(4)}</td>
                       <td className="px-4 py-2">
                         <div className="flex items-center gap-2">
-                          <button className="rounded border border-[#333333] bg-[#111111] px-2 py-1 text-[11px]" onClick={() => runSessionAction(s.sessionKey, "compact")} disabled={!!sessionLoading[`compact:${s.sessionKey}`]}>Compact</button>
-                          <button className="rounded border border-[#4b1f1f] bg-[#1b0f0f] px-2 py-1 text-[11px] text-[#fca5a5]" onClick={() => runSessionAction(s.sessionKey, "reset")} disabled={!!sessionLoading[`reset:${s.sessionKey}`]}>Reset</button>
+                          <SessionActionButton
+                            action="compact"
+                            loadingState={sessionLoading[`compact:${s.sessionKey}`]}
+                            onClick={() => runSessionAction(s.sessionKey, "compact")}
+                          />
+                          <SessionActionButton
+                            action="reset"
+                            loadingState={sessionLoading[`reset:${s.sessionKey}`]}
+                            onClick={() => runSessionAction(s.sessionKey, "reset")}
+                          />
                         </div>
                       </td>
                     </tr>
@@ -260,12 +291,58 @@ export function TeamView({ agents }: TeamViewProps) {
   );
 }
 
-const statusConfig: Record<string, { color: "success" | "warning" | "default" | "primary"; label: string; pulse?: boolean }> = {
-  thinking: { color: "success", label: "thinking", pulse: true },
-  active: { color: "success", label: "active" },
-  working: { color: "warning", label: "working" },
-  idle: { color: "default", label: "idle" },
-  sleeping: { color: "default", label: "sleeping" },
+function SessionActionButton({ 
+  action, 
+  loadingState, 
+  onClick 
+}: { 
+  action: "compact" | "reset";
+  loadingState: boolean | string | undefined;
+  onClick: () => void;
+}) {
+  const isLoading = loadingState === true;
+  const isSuccess = loadingState === "success";
+  
+  const baseStyles = "flex items-center justify-center gap-1.5 rounded px-2.5 py-1.5 text-[11px] font-medium transition-all duration-200 min-w-[80px]";
+  const variantStyles = action === "compact"
+    ? "border border-[#333333] bg-[#111111] hover:bg-[#1a1a1a] text-white"
+    : "border border-[#4b1f1f] bg-[#1b0f0f] hover:bg-[#2a1515] text-[#fca5a5]";
+  
+  const disabledStyles = "opacity-50 cursor-not-allowed pointer-events-none";
+
+  return (
+    <button
+      onClick={onClick}
+      disabled={!!loadingState}
+      className={`${baseStyles} ${variantStyles} ${loadingState ? disabledStyles : ""}`}
+    >
+      {isLoading ? (
+        <>
+          <Loader2 className="h-3 w-3 animate-spin" />
+          <span>{action === "compact" ? "Compacting..." : "Resetting..."}</span>
+        </>
+      ) : isSuccess ? (
+        <>
+          <Check className="h-3 w-3" />
+          <span>{action === "compact" ? "Compacted!" : "Reset!"}</span>
+        </>
+      ) : (
+        <span>{action === "compact" ? "Compact" : "Reset"}</span>
+      )}
+    </button>
+  );
+}
+
+const activityStateConfig: Record<string, { color: "success" | "warning" | "default" | "primary" | "secondary"; label: string; pulse?: boolean }> = {
+  active: { color: "success", label: "Active", pulse: true },
+  recently_active: { color: "primary", label: "Active" },
+  idle: { color: "default", label: "Idle" },
+  stale: { color: "default", label: "Stale" },
+  uninitialized: { color: "default", label: "No session" },
+};
+
+const attentionConfig: Record<string, { color: "danger"; label: string }> = {
+  aborted_last_run: { color: "danger", label: "Aborted last run" },
 };
 
 function formatModel(model?: string): string {
@@ -288,11 +365,12 @@ function AgentCard({
   meta: { role: string; description: string; Icon: LucideIcon };
 }) {
   const IconComponent = meta?.Icon || Bot;
-  const { color, label, pulse } = statusConfig[agent.status] || statusConfig.idle;
+  const activity = activityStateConfig[agent.activityState] || activityStateConfig.uninitialized;
+  const attention = agent.attention !== "none" ? attentionConfig[agent.attention] : null;
   const avatarUrl = resolveAvatarUrl(agent.avatarUrl, agent.name);
 
   return (
-    <Card className="border border-[#222222] bg-[#121212]">
+    <Card className="border border-[#222222] bg-content1">
       <CardBody className="p-4">
         <div className="flex items-start gap-3">
           {avatarUrl ? (
@@ -314,11 +392,21 @@ function AgentCard({
               <Chip
                 size="sm"
                 variant="flat"
-                color={color}
-                className={`text-[10px] h-5 ${pulse ? "animate-pulse" : ""}`}
+                color={activity.color as any}
+                className={`text-[10px] h-5 ${activity.pulse ? "animate-pulse" : ""}`}
               >
-                {label}
+                {activity.label}
               </Chip>
+              {attention && (
+                <Chip
+                  size="sm"
+                  variant="flat"
+                  color="danger"
+                  className="text-[10px] h-5"
+                >
+                  {attention.label}
+                </Chip>
+              )}
             </div>
             <p className="text-xs text-[#888888] mt-0.5">
               {meta?.role || "Agent"}
@@ -332,8 +420,12 @@ function AgentCard({
               {meta?.description || ""}
             </p>
             <div className="mt-2 border-t border-[#1c1c1c] pt-2">
-              <p className="text-[10px] uppercase tracking-wider text-[#777777]">Last active</p>
-              <p className="text-xs text-[#BBBBBB] mt-0.5">{formatLastActiveRelative(agent.lastActiveAt)}</p>
+              <p className="text-[10px] uppercase tracking-wider text-[#777777]">
+                {agent.activityState === "active" ? "Processing" : "Last active"}
+              </p>
+              <p className="text-xs text-[#BBBBBB] mt-0.5">
+                {agent.activityState === "active" ? "Working now" : formatLastActiveRelative(agent.lastActiveAt)}
+              </p>
             </div>
           </div>
         </div>

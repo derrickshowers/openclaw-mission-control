@@ -25,14 +25,14 @@ export function Sidebar() {
   const userImage = session?.user?.image || undefined;
 
   return (
-    <aside className="m-3 flex h-[calc(100vh-1.5rem)] w-sidebar flex-col rounded-2xl border border-white/10 bg-black/35 backdrop-blur-xl shadow-[0_12px_40px_rgba(0,0,0,0.45)]">
+    <aside className="m-3 flex h-[calc(100vh-1.5rem)] w-sidebar flex-col rounded-2xl border border-divider bg-content1/50 backdrop-blur-xl shadow-[0_12px_40px_rgba(0,0,0,0.15)] dark:shadow-[0_12px_40px_rgba(0,0,0,0.45)]">
       {/* Logo */}
-      <div className="flex h-14 items-center border-b border-white/10 px-4">
+      <div className="flex h-14 items-center border-b border-divider px-4">
         <span className="flex items-center gap-2">
           <Umbrella size={16} strokeWidth={1.5} />
           <span className="flex flex-col leading-tight">
             <span className="text-sm font-semibold tracking-wide">RAINCHECK</span>
-            <span className="text-[10px] text-[#888888] tracking-wider">MISSION CONTROL</span>
+            <span className="text-[10px] text-foreground-400 tracking-wider">MISSION CONTROL</span>
           </span>
         </span>
       </div>
@@ -52,8 +52,8 @@ export function Sidebar() {
                   href={href}
                   className={`flex items-center gap-3 rounded px-3 py-2 text-sm transition-colors ${
                     isActive
-                      ? "bg-[#1A1A1A] text-white"
-                      : "text-[#888888] hover:bg-[#121212] hover:text-white"
+                      ? "bg-default-100 text-foreground"
+                      : "text-foreground-400 hover:bg-default-50 hover:text-foreground"
                   }`}
                 >
                   <Icon size={20} strokeWidth={1.5} className="flex-shrink-0" />
@@ -66,7 +66,7 @@ export function Sidebar() {
       </nav>
 
       {/* Footer - Dynamic User */}
-      <div className="border-t border-white/10 px-4 py-3">
+      <div className="border-t border-divider px-4 py-3">
         {status === "loading" ? (
           <div className="flex items-center gap-2">
             <Skeleton className="h-6 w-6 rounded-full" />
@@ -80,7 +80,7 @@ export function Sidebar() {
               size="sm"
               className="h-6 w-6 text-[10px]"
             />
-            <span className="text-xs text-[#888888]">{userName}</span>
+            <span className="text-xs text-foreground-400">{userName}</span>
           </div>
         )}
       </div>

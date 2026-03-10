@@ -5,14 +5,29 @@
 @tailwind utilities;
 
 body {
-  background:
-    radial-gradient(1200px 500px at 10% -10%, rgba(111, 76, 255, 0.16), transparent 55%),
-    radial-gradient(900px 420px at 90% 0%, rgba(72, 170, 255, 0.12), transparent 50%),
-    #07070b;
-  color: #ffffff;
+  background-color: hsl(var(--heroui-background));
+  color: hsl(var(--heroui-foreground));
   font-family: var(--font-plus-jakarta), system-ui, sans-serif;
   -webkit-font-smoothing: antialiased;
   -moz-osx-font-smoothing: grayscale;
+  min-height: 100vh;
+  position: relative;
+}
+
+body::before {
+  content: "";
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  height: 60vh;
+  background: radial-gradient(circle at 50% -20%, rgba(139, 92, 246, 0.08) 0%, transparent 70%);
+  pointer-events: none;
+  z-index: 0;
+}
+
+[data-theme="light"] body::before {
+  background: radial-gradient(circle at 50% -20%, rgba(139, 92, 246, 0.04) 0%, transparent 70%);
 }
 
 /* HeroUI focus ring overrides — Linear aesthetic */
