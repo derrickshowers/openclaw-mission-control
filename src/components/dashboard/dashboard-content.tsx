@@ -209,13 +209,13 @@ export function DashboardContent({ tasks, agents, status, recentActivity }: Dash
         </CardHeader>
         <CardBody className="gap-3 p-3">
           <div className="flex flex-wrap gap-2">
-            <Button size="sm" color="warning" onPress={handleRestart} isLoading={isRestarting}>
+            <Button size="sm" color="danger" onPress={handleRestart} isLoading={isRestarting}>
               Restart OpenClaw
             </Button>
             <Button size="sm" variant="flat" onPress={() => handleDoctor(false)} isLoading={doctorRunning}>
               Run Doctor
             </Button>
-            <Button size="sm" variant="flat" color="danger" onPress={() => handleDoctor(true)} isLoading={doctorRunning}>
+            <Button size="sm" variant="flat" color="warning" onPress={() => handleDoctor(true)} isLoading={doctorRunning}>
               Run Doctor --fix
             </Button>
           </div>

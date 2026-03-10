@@ -32,12 +32,17 @@ async function apiFetch<T = any>(path: string, options: FetchOptions = {}): Prom
     }
   }
 
+  const headers = new Headers(fetchOptions.headers as HeadersInit);
+  const hasBody = fetchOptions.body !== undefined && fetchOptions.body !== null;
+  const isFormData = typeof FormData !== "undefined" && fetchOptions.body instanceof FormData;
+
+  if (hasBody && !isFormData && !headers.has("Content-Type")) {
+    headers.set("Content-Type", "application/json");
+  }
+
   const res = await fetch(url, {
     ...fetchOptions,
-    headers: {
-      "Content-Type": "application/json",
-      ...fetchOptions.headers,
-    },
+    headers,
   });
 
   if (!res.ok) {
