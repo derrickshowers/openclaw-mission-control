@@ -7,34 +7,58 @@
  */
 
 /**
- * Parse a date string from the backend as UTC.
- * Handles strings with or without "Z" suffix and space-separated date/time.
+ * Parse a backend timestamp as UTC.
+ * Accepts strings, numbers (epoch), or Date objects so UI callers don't crash on
+ * inconsistent payload types.
  */
-export function parseUTC(dateStr: string): Date {
-  if (!dateStr) return new Date(NaN);
-  if (dateStr.endsWith("Z") || dateStr.includes("+") || dateStr.includes("T")) {
-    // Already has timezone info or ISO format
-    return new Date(dateStr.endsWith("Z") ? dateStr : dateStr.replace(" ", "T") + "Z");
+export function parseUTC(dateValue: string | number | Date | null | undefined): Date {
+  if (dateValue == null) return new Date(NaN);
+
+  if (dateValue instanceof Date) {
+    return new Date(dateValue.getTime());
   }
-  // Bare "YYYY-MM-DD HH:MM:SS" from SQLite — treat as UTC
-  return new Date(dateStr.replace(" ", "T") + "Z");
+
+  if (typeof dateValue === "number") {
+    return new Date(dateValue);
+  }
+
+  if (typeof dateValue !== "string") return new Date(NaN);
+
+  const dateStr = dateValue.trim();
+  if (!dateStr) return new Date(NaN);
+
+  const normalized = dateStr.replace(" ", "T");
+  const hasTimezone = /(?:Z|[+-]\d{2}:?\d{2})$/i.test(normalized);
+
+  if (hasTimezone) {
+    return new Date(normalized);
+  }
+
+  // No timezone info (e.g. SQLite "YYYY-MM-DD HH:MM:SS" or bare ISO) — treat as UTC.
+  return new Date(`${normalized}Z`);
+}
+
+function fallbackDateLabel(dateValue: string | number | Date | null | undefined): string {
+  if (typeof dateValue === "string") return dateValue;
+  if (typeof dateValue === "number") return String(dateValue);
+  return "";
 }
 
 /**
  * Format a backend timestamp as a locale string in the user's local timezone.
  */
-export function formatLocal(dateStr: string): string {
-  const d = parseUTC(dateStr);
-  if (isNaN(d.getTime())) return dateStr;
+export function formatLocal(dateValue: string | number | Date | null | undefined): string {
+  const d = parseUTC(dateValue);
+  if (isNaN(d.getTime())) return fallbackDateLabel(dateValue);
   return d.toLocaleString();
 }
 
 /**
  * Format a backend timestamp as a locale time string (no date).
  */
-export function formatLocalTime(dateStr: string): string {
-  const d = parseUTC(dateStr);
-  if (isNaN(d.getTime())) return dateStr;
+export function formatLocalTime(dateValue: string | number | Date | null | undefined): string {
+  const d = parseUTC(dateValue);
+  if (isNaN(d.getTime())) return fallbackDateLabel(dateValue);
   return d.toLocaleTimeString("en-US", {
     hour: "numeric",
     minute: "2-digit",
@@ -45,9 +69,9 @@ export function formatLocalTime(dateStr: string): string {
 /**
  * Relative time string ("3m ago", "2h ago", "5d ago") from a backend UTC timestamp.
  */
-export function timeAgo(dateStr: string): string {
-  const d = parseUTC(dateStr);
-  if (isNaN(d.getTime())) return dateStr;
+export function timeAgo(dateValue: string | number | Date | null | undefined): string {
+  const d = parseUTC(dateValue);
+  if (isNaN(d.getTime())) return fallbackDateLabel(dateValue);
   const diffMs = Date.now() - d.getTime();
   const mins = Math.floor(diffMs / 60000);
   if (mins < 1) return "just now";
