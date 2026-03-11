@@ -351,21 +351,21 @@ export function UsageDashboard() {
       // For hourly view, pre-seed a continuous local-hour series so Recharts
       // always gets contiguous X-axis points (even when an hour has zero usage).
       if (interval === "hour") {
-        // Use a fixed start/end to avoid loop mutation bugs and ensure full day coverage
+        // Use fixed local-hour bounds to keep the X-axis contiguous.
         const start = new Date(range.start);
-        start.setHours(start.getHours(), 0, 0, 0);
+        start.setMinutes(0, 0, 0);
 
-        const end = new Date(range.end);
-        // If it's a past calendar day (like Yesterday), ensure we cover all 24 hours
-        if (period === "yesterday") {
-          end.setHours(23, 59, 59, 999);
-        }
-        end.setHours(end.getHours(), 0, 0, 0);
+        // For past full-day windows (Yesterday), range.end is exclusive (today 00:00),
+        // so use end-1ms to anchor to yesterday 23:xx before rounding to hour.
+        const endInclusive = period === "yesterday"
+          ? new Date(range.end.getTime() - 1)
+          : new Date(range.end);
+        endInclusive.setMinutes(0, 0, 0);
 
         const cursor = new Date(start);
         // Safety limit to prevent infinite loops (max 31 days of hours)
         let safety = 0;
-        while (cursor <= end && safety < 800) {
+        while (cursor <= endInclusive && safety < 800) {
           const key = formatHourKey(cursor);
           dateMap.set(key, { date: key });
           cursor.setHours(cursor.getHours() + 1);
