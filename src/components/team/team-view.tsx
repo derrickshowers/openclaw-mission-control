@@ -3,7 +3,7 @@
 import { useState, useEffect, useMemo } from "react";
 import { parseUTC } from "@/lib/dates";
 import { Card, CardBody, Chip } from "@heroui/react";
-import { Crown, Crosshair, Landmark, Zap, Palette, Bot, Check, Loader2 } from "lucide-react";
+import { Crown, Crosshair, Landmark, Zap, Palette, Bot, Check, Loader2, Minus } from "lucide-react";
 import { useSSE } from "@/hooks/use-sse";
 import type { LucideIcon } from "lucide-react";
 
@@ -83,7 +83,7 @@ interface TeamViewProps {
 export function TeamView({ agents }: TeamViewProps) {
   const [liveStatuses, setLiveStatuses] = useState<Map<string, any>>(new Map());
   const [mainSessions, setMainSessions] = useState<MainSessionRow[]>([]);
-  const [sessionLoading, setSessionLoading] = useState<Record<string, boolean | string>>({});
+  const [sessionLoading, setSessionLoading] = useState<Record<string, boolean | "success" | "skipped">>({});
   const [, setNowTick] = useState(Date.now());
 
   const { lastEvent } = useSSE("agent.status");
@@ -123,21 +123,22 @@ export function TeamView({ agents }: TeamViewProps) {
 
   const runSessionAction = async (sessionKey: string, action: "compact" | "reset") => {
     if (action === "reset" && !confirm("Reset this main session? This clears current context.")) return;
-    
+
     const loadingKey = `${action}:${sessionKey}`;
     setSessionLoading((prev) => ({ ...prev, [loadingKey]: true }));
-    
+
     try {
       const res = await fetch(`/api/mc/agents/sessions/${action}`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ sessionKey }),
       });
-      
-      if (!res.ok) throw new Error("Failed");
 
-      // Success state for 1.5s
-      setSessionLoading((prev) => ({ ...prev, [loadingKey]: "success" }));
+      const data = await res.json().catch(() => null);
+      if (!res.ok) throw new Error(data?.error || "Failed");
+
+      const nextState = action === "compact" && data?.result?.compacted === false ? "skipped" : "success";
+      setSessionLoading((prev) => ({ ...prev, [loadingKey]: nextState }));
       await loadMainSessions();
       setTimeout(() => {
         setSessionLoading((prev) => {
@@ -147,7 +148,6 @@ export function TeamView({ agents }: TeamViewProps) {
         });
       }, 1500);
     } catch {
-      // Error state: revert
       setSessionLoading((prev) => {
         const next = { ...prev };
         delete next[loadingKey];
@@ -297,17 +297,18 @@ function SessionActionButton({
   onClick 
 }: { 
   action: "compact" | "reset";
-  loadingState: boolean | string | undefined;
+  loadingState: boolean | "success" | "skipped" | undefined;
   onClick: () => void;
 }) {
   const isLoading = loadingState === true;
   const isSuccess = loadingState === "success";
-  
+  const isSkipped = loadingState === "skipped";
+
   const baseStyles = "flex items-center justify-center gap-1.5 rounded px-2.5 py-1.5 text-[11px] font-medium transition-all duration-200 min-w-[80px]";
   const variantStyles = action === "compact"
     ? "border border-[#333333] bg-[#111111] hover:bg-[#1a1a1a] text-white"
     : "border border-[#4b1f1f] bg-[#1b0f0f] hover:bg-[#2a1515] text-[#fca5a5]";
-  
+
   const disabledStyles = "opacity-50 cursor-not-allowed pointer-events-none";
 
   return (
@@ -325,6 +326,11 @@ function SessionActionButton({
         <>
           <Check className="h-3 w-3" />
           <span>{action === "compact" ? "Compacted!" : "Reset!"}</span>
+        </>
+      ) : isSkipped ? (
+        <>
+          <Minus className="h-3 w-3" />
+          <span>No change</span>
         </>
       ) : (
         <span>{action === "compact" ? "Compact" : "Reset"}</span>
