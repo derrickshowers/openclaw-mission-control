@@ -8,7 +8,7 @@ import { MentionTextarea } from "@/components/shared/mention-textarea";
 import { X, Trash2, Send, Paperclip, ImagePlus, XCircle, Folder } from "lucide-react";
 import { api } from "@/lib/api";
 import type { Task, TaskComment, TaskAttachment, Project } from "@/lib/api";
-import { formatLocal } from "@/lib/dates";
+import { formatLocal, parseUTC } from "@/lib/dates";
 import { KNOWN_AGENT_IDS, resolveAgentAvatarUrl } from "@/lib/agents";
 
 const COLUMNS = [
@@ -29,7 +29,7 @@ const statusColors: Record<string, "default" | "primary" | "danger" | "success">
 
 const sortCommentsDesc = (items: TaskComment[]) =>
   [...items].sort(
-    (a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime()
+    (a, b) => parseUTC(b.created_at).getTime() - parseUTC(a.created_at).getTime()
   );
 
 interface TaskDrawerProps {
