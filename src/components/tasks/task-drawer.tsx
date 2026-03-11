@@ -27,6 +27,11 @@ const statusColors: Record<string, "default" | "primary" | "danger" | "success">
   done: "success",
 };
 
+const sortCommentsDesc = (items: TaskComment[]) =>
+  [...items].sort(
+    (a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime()
+  );
+
 interface TaskDrawerProps {
   task: Task;
   isOpen: boolean;
@@ -53,7 +58,7 @@ export function TaskDrawer({ task, isOpen, onClose, onUpdate }: TaskDrawerProps)
 
   useEffect(() => {
     if (isOpen) {
-      api.getComments(task.id).then(setComments).catch(console.error);
+      api.getComments(task.id).then((rows) => setComments(sortCommentsDesc(rows))).catch(console.error);
       api.getAttachments(task.id).then(setAttachments).catch(console.error);
       api.getProjects().then(setProjects).catch(console.error);
     }
@@ -75,7 +80,7 @@ export function TaskDrawer({ task, isOpen, onClose, onUpdate }: TaskDrawerProps)
     if (event === "comment.created" && data.comment?.task_id === task.id) {
       setComments((prev) => {
         if (prev.some((c) => c.id === data.comment.id)) return prev;
-        return [data.comment, ...prev];
+        return sortCommentsDesc([data.comment, ...prev]);
       });
     }
 
@@ -97,7 +102,7 @@ export function TaskDrawer({ task, isOpen, onClose, onUpdate }: TaskDrawerProps)
     setSubmitting(true);
     try {
       const comment = await api.addComment(task.id, author, newComment.trim());
-      setComments((prev) => [comment, ...prev]);
+      setComments((prev) => sortCommentsDesc([comment, ...prev]));
       setNewComment("");
     } catch (err) {
       console.error("Failed to post comment:", err);
