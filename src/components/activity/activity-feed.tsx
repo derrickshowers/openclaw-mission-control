@@ -24,7 +24,7 @@ const eventTypeColors: Record<string, "default" | "primary" | "success" | "warni
   "agent.error": "danger",
 };
 
-const AGENTS = ["frank", "tom", "michael", "joanna"];
+const AGENTS = ["frank", "tom", "michael", "joanna", "elena"];
 
 export function ActivityFeed() {
   const [activities, setActivities] = useState<ActivityEntry[]>([]);

@@ -8,6 +8,7 @@ const MENTIONABLE_USERS = [
   { name: "Tom", role: "Lead Architect" },
   { name: "Michael", role: "Full Stack Engineer" },
   { name: "Joanna", role: "UX Designer" },
+  { name: "Elena", role: "OpenClaw Platform Specialist" },
 ];
 
 interface MentionTextareaProps {

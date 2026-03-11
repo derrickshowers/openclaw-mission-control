@@ -17,6 +17,7 @@ import { formatLocalTime as formatLocalTimeShared } from "@/lib/dates";
 
 interface Summary {
   total_input_tokens: number;
+  total_cached_input_tokens?: number;
   total_output_tokens: number;
   total_tokens: number;
   total_cost_usd: number;
@@ -32,6 +33,7 @@ interface ChartRow {
   date: string;
   agent: string;
   input_tokens: number;
+  cached_input_tokens?: number;
   output_tokens: number;
   cost_usd: number;
 }
@@ -40,6 +42,7 @@ interface BreakdownRow {
   agent: string;
   model: string;
   input_tokens: number;
+  cached_input_tokens?: number;
   output_tokens: number;
   cost_usd: number;
   cost_source?: "exact" | "partial" | "unpriced";
@@ -51,6 +54,7 @@ interface LogRow {
   agent: string;
   model: string | null;
   input_tokens: number;
+  cached_input_tokens?: number;
   output_tokens: number;
   cost_usd: number;
   cost_source?: "exact" | "partial" | "unpriced" | "none";
@@ -74,6 +78,7 @@ const AGENT_COLORS: Record<string, string> = {
   tom: "#8b5cf6",     // violet
   michael: "#06b6d4", // cyan
   joanna: "#a78bfa",  // light purple
+  elena: "#f472b6",   // pink
   derrick: "#64748b", // slate
 };
 
@@ -378,7 +383,8 @@ export function UsageDashboard() {
           dateMap.set(row.date, { date: row.date });
         }
         const entry = dateMap.get(row.date)!;
-        entry[row.agent] = (entry[row.agent] || 0) + row.input_tokens + row.output_tokens;
+        const cached = row.cached_input_tokens || 0;
+        entry[row.agent] = (entry[row.agent] || 0) + row.input_tokens + cached + row.output_tokens;
       }
 
       const chartAgents = Array.from(new Set(chartRows.map((r) => r.agent)));
@@ -443,7 +449,7 @@ export function UsageDashboard() {
       </div>
 
       <div className="rounded border border-[#222222] bg-[#0A0A0A] px-3 py-2 text-[11px] text-[#777777]">
-        OpenClaw telemetry → usage-tracker hook → Mission Control usage_logs. Costs are estimated from model pricing.
+        OpenClaw telemetry → usage-tracker hook → Mission Control usage_logs. Token totals include cached input; costs remain estimated from non-cached input/output pricing.
         {summary?.period_start_utc && (
           <span className="ml-2 text-[#555555]">
             Window: {new Date(summary.period_start_utc).toLocaleString()} – {new Date(summary.period_end_utc!).toLocaleString()}
@@ -472,7 +478,7 @@ export function UsageDashboard() {
           <MetricCard
             label="Total Tokens"
             value={formatTokens(summary.total_tokens)}
-            sub={`${formatTokens(summary.total_input_tokens)} in · ${formatTokens(summary.total_output_tokens)} out`}
+            sub={`${formatTokens(summary.total_input_tokens)} in · ${formatTokens(summary.total_cached_input_tokens || 0)} cached · ${formatTokens(summary.total_output_tokens)} out`}
             icon={<Zap size={14} strokeWidth={1.5} />}
           />
           <MetricCard
@@ -568,6 +574,7 @@ export function UsageDashboard() {
                   <th className="px-4 py-2 font-medium">Agent</th>
                   <th className="px-4 py-2 font-medium">Model</th>
                   <th className="px-4 py-2 font-medium text-right">Input</th>
+                  <th className="px-4 py-2 font-medium text-right">Cached</th>
                   <th className="px-4 py-2 font-medium text-right">Output</th>
                   <th className="px-4 py-2 font-medium text-right">Requests</th>
                   <th className="px-4 py-2 font-medium text-right">Est. Cost</th>
@@ -589,6 +596,9 @@ export function UsageDashboard() {
                       <td className="px-4 py-2 font-mono text-xs text-[#CCCCCC]">{row.model}</td>
                       <td className="px-4 py-2 text-right font-mono text-xs text-[#CCCCCC]">
                         {formatTokens(row.input_tokens)}
+                      </td>
+                      <td className="px-4 py-2 text-right font-mono text-xs text-[#888888]">
+                        {formatTokens(row.cached_input_tokens || 0)}
                       </td>
                       <td className="px-4 py-2 text-right font-mono text-xs text-[#CCCCCC]">
                         {formatTokens(row.output_tokens)}
@@ -634,6 +644,7 @@ export function UsageDashboard() {
                   <th className="px-4 py-1.5 font-medium">Model</th>
                   <th className="px-4 py-1.5 font-medium text-right">Context</th>
                   <th className="px-4 py-1.5 font-medium text-right">Input</th>
+                  <th className="px-4 py-1.5 font-medium text-right">Cached</th>
                   <th className="px-4 py-1.5 font-medium text-right">Output</th>
                   <th className="px-4 py-1.5 font-medium text-right">Cost</th>
                 </tr>
@@ -703,6 +714,9 @@ export function UsageDashboard() {
                       </td>
                       <td className="px-4 py-1 text-right text-xs font-mono text-[#CCCCCC]">
                         {row.input_tokens ? formatTokens(row.input_tokens) : "-"}
+                      </td>
+                      <td className="px-4 py-1 text-right text-xs font-mono text-[#777777]">
+                        {row.cached_input_tokens ? formatTokens(row.cached_input_tokens) : "-"}
                       </td>
                       <td className="px-4 py-1 text-right text-xs font-mono text-[#888888]">
                         {row.output_tokens ? formatTokens(row.output_tokens) : "-"}

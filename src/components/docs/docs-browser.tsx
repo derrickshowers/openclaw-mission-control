@@ -74,6 +74,19 @@ export function DocsBrowser() {
   const [deleteTarget, setDeleteTarget] = useState<{ path: string; name: string } | null>(null);
   const [deleting, setDeleting] = useState(false);
 
+  // Generic modals
+  const [confirmModal, setConfirmModal] = useState<{
+    title: string;
+    message: string;
+    onConfirm: () => void;
+  } | null>(null);
+  const [alertModal, setAlertModal] = useState<{
+    title: string;
+    message: string;
+  } | null>(null);
+
+  const isFirstLoad = useRef(true);
+
   // Load tree
   const loadTree = useCallback(async () => {
     try {
@@ -81,17 +94,22 @@ export function DocsBrowser() {
       const data = await res.json();
       if (Array.isArray(data)) {
         setTree(data);
-        const dirs = new Set<string>();
-        function collectDirs(nodes: DocNode[]) {
-          for (const node of nodes) {
-            if (node.type === "directory") {
-              dirs.add(node.path);
-              if (node.children) collectDirs(node.children);
+        
+        // Only auto-expand everything on the very first load
+        if (isFirstLoad.current) {
+          const dirs = new Set<string>();
+          function collectDirs(nodes: DocNode[]) {
+            for (const node of nodes) {
+              if (node.type === "directory") {
+                dirs.add(node.path);
+                if (node.children) collectDirs(node.children);
+              }
             }
           }
+          collectDirs(data);
+          setExpandedDirs(dirs);
+          isFirstLoad.current = false;
         }
-        collectDirs(data);
-        setExpandedDirs(dirs);
       }
     } catch {
       setTree([]);
@@ -162,7 +180,15 @@ export function DocsBrowser() {
 
   const cancelEdit = useCallback(() => {
     if (dirty) {
-      if (!confirm("Discard unsaved changes?")) return;
+      setConfirmModal({
+        title: "Discard changes?",
+        message: "You have unsaved changes. Are you sure you want to discard them?",
+        onConfirm: () => {
+          setEditing(false);
+          setDirty(false);
+        }
+      });
+      return;
     }
     setEditing(false);
     setDirty(false);
@@ -183,7 +209,7 @@ export function DocsBrowser() {
       setDirty(false);
     } catch (err) {
       console.error("Save failed:", err);
-      alert("Failed to save. Please try again.");
+      setAlertModal({ title: "Save failed", message: "Failed to save the document. Please try again." });
     } finally {
       setSaving(false);
     }
@@ -221,7 +247,7 @@ export function DocsBrowser() {
         }
         throw new Error("Create failed");
       } catch {
-        alert("Failed to create page.");
+        setAlertModal({ title: "Creation failed", message: "Failed to create the document." });
         return;
       }
     }
@@ -260,12 +286,12 @@ export function DocsBrowser() {
       });
       if (!res.ok) {
         const data = await res.json();
-        alert(data.error || "Failed to create folder.");
+        setAlertModal({ title: "Creation failed", message: data.error || "Failed to create folder." });
         return;
       }
       await loadTree();
     } catch {
-      alert("Failed to create folder.");
+      setAlertModal({ title: "Creation failed", message: "Failed to create folder." });
     } finally {
       setCreatingFolder(false);
       setNewFolderName("");
@@ -454,7 +480,12 @@ export function DocsBrowser() {
             <button
               onClick={() => {
                 if (editing && dirty) {
-                  if (!confirm("Discard unsaved changes?")) return;
+                  setConfirmModal({
+                    title: "Discard changes?",
+                    message: "You have unsaved changes. Are you sure you want to discard them and open another file?",
+                    onConfirm: () => loadFile(node.path)
+                  });
+                  return;
                 }
                 loadFile(node.path);
                 if (isMobile) setShowMobileTree(false);

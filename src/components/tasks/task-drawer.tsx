@@ -17,7 +17,7 @@ const COLUMNS = [
   { id: "done", label: "Done" },
 ];
 
-const AGENTS = ["derrick", "frank", "tom", "michael", "joanna"];
+const AGENTS = ["derrick", "frank", "tom", "michael", "joanna", "elena"];
 
 const statusColors: Record<string, "default" | "primary" | "danger" | "success"> = {
   backlog: "default",
@@ -29,7 +29,7 @@ const statusColors: Record<string, "default" | "primary" | "danger" | "success">
 function avatarUrlFor(agentName?: string | null): string | null {
   if (!agentName) return null;
   if (agentName === "derrick") return "/images/team/derrick.jpg";
-  if (!["frank", "tom", "michael", "joanna"].includes(agentName)) return null;
+  if (!["frank", "tom", "michael", "joanna", "elena"].includes(agentName)) return null;
   return `/api/mc/agents/${agentName}/avatar`;
 }
 

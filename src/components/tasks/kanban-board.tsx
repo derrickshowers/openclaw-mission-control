@@ -16,7 +16,7 @@ const COLUMNS = [
   { id: "done", label: "Done", color: "#22c55e" },
 ] as const;
 
-const AGENTS = ["derrick", "frank", "tom", "michael", "joanna"];
+const AGENTS = ["derrick", "frank", "tom", "michael", "joanna", "elena"];
 const PRIORITIES = [
   { value: "0", label: "None" },
   { value: "1", label: "Low" },

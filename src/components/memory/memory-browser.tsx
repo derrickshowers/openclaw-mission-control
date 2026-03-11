@@ -6,7 +6,7 @@ import { Folder, FileText, Search, ArrowLeft, X, Pencil, Save } from "lucide-rea
 import ReactMarkdown from "react-markdown";
 import remarkGfm from "remark-gfm";
 
-const DEFAULT_SOURCES = ["frank", "tom", "michael", "joanna", "shared"];
+const DEFAULT_SOURCES = ["frank", "tom", "michael", "joanna", "elena", "shared"];
 
 interface FileEntry {
   name: string;
