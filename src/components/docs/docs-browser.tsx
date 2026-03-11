@@ -85,8 +85,6 @@ export function DocsBrowser() {
     message: string;
   } | null>(null);
 
-  const isFirstLoad = useRef(true);
-
   // Load tree
   const loadTree = useCallback(async () => {
     try {
@@ -94,9 +92,24 @@ export function DocsBrowser() {
       const data = await res.json();
       if (Array.isArray(data)) {
         setTree(data);
-        
-        // Only auto-expand everything on the very first load
-        if (isFirstLoad.current) {
+      }
+    } catch {
+      setTree([]);
+    } finally {
+      setTreeLoading(false);
+    }
+  }, []);
+
+  // Initial load
+  useEffect(() => {
+    async function init() {
+      try {
+        const res = await fetch("/api/mc/docs/tree");
+        const data = await res.json();
+        if (Array.isArray(data)) {
+          setTree(data);
+
+          // Initial auto-expand everything
           const dirs = new Set<string>();
           function collectDirs(nodes: DocNode[]) {
             for (const node of nodes) {
@@ -108,19 +121,15 @@ export function DocsBrowser() {
           }
           collectDirs(data);
           setExpandedDirs(dirs);
-          isFirstLoad.current = false;
         }
+      } catch {
+        setTree([]);
+      } finally {
+        setTreeLoading(false);
       }
-    } catch {
-      setTree([]);
-    } finally {
-      setTreeLoading(false);
     }
+    init();
   }, []);
-
-  useEffect(() => {
-    loadTree();
-  }, [loadTree]);
 
   const loadFile = useCallback(async (filePath: string) => {
     setLoading(true);
@@ -138,6 +147,23 @@ export function DocsBrowser() {
       setLoading(false);
     }
   }, []);
+
+  const openFileWithUnsavedGuard = useCallback((filePath: string, afterOpen?: () => void) => {
+    if (editing && dirty) {
+      setConfirmModal({
+        title: "Discard changes?",
+        message: "You have unsaved changes. Are you sure you want to discard them and open another file?",
+        onConfirm: () => {
+          loadFile(filePath);
+          afterOpen?.();
+        },
+      });
+      return;
+    }
+
+    loadFile(filePath);
+    afterOpen?.();
+  }, [editing, dirty, loadFile]);
 
   const doSearch = useCallback(async () => {
     if (!searchQuery.trim()) return;
@@ -345,10 +371,29 @@ export function DocsBrowser() {
       if (selectedFile === oldPath) {
         setSelectedFile(newPath);
       }
+      
+      // Update expandedDirs if it was a folder (including all its subfolders)
+      setExpandedDirs((prev) => {
+        const next = new Set<string>();
+        let changed = false;
+        for (const path of prev) {
+          if (path === oldPath) {
+            next.add(newPath);
+            changed = true;
+          } else if (path.startsWith(`${oldPath}/`)) {
+            next.add(path.replace(`${oldPath}/`, `${newPath}/`));
+            changed = true;
+          } else {
+            next.add(path);
+          }
+        }
+        return changed ? next : prev;
+      });
+
       await loadTree();
       cancelRename();
     } catch (err: any) {
-      alert(err?.message || "Failed to rename document.");
+      setAlertModal({ title: "Rename failed", message: err?.message || "Failed to rename document." });
     }
   }, [renameValue, selectedFile, loadTree, cancelRename]);
 
@@ -376,10 +421,25 @@ export function DocsBrowser() {
         setEditing(false);
         setDirty(false);
       }
+      
+      // Remove deleted path (and subfolders) from expandedDirs
+      setExpandedDirs((prev) => {
+        const next = new Set<string>();
+        let changed = false;
+        for (const path of prev) {
+          if (path === deleteTarget.path || path.startsWith(`${deleteTarget.path}/`)) {
+            changed = true;
+          } else {
+            next.add(path);
+          }
+        }
+        return changed ? next : prev;
+      });
+
       setDeleteTarget(null);
       await loadTree();
     } catch (err: any) {
-      alert(err?.message || "Failed to delete document.");
+      setAlertModal({ title: "Delete failed", message: err?.message || "Failed to delete document." });
     } finally {
       setDeleting(false);
     }
@@ -479,16 +539,9 @@ export function DocsBrowser() {
           >
             <button
               onClick={() => {
-                if (editing && dirty) {
-                  setConfirmModal({
-                    title: "Discard changes?",
-                    message: "You have unsaved changes. Are you sure you want to discard them and open another file?",
-                    onConfirm: () => loadFile(node.path)
-                  });
-                  return;
-                }
-                loadFile(node.path);
-                if (isMobile) setShowMobileTree(false);
+                openFileWithUnsavedGuard(node.path, () => {
+                  if (isMobile) setShowMobileTree(false);
+                });
               }}
               onKeyDown={(e) => {
                 if (e.key === "F2") {
@@ -776,7 +829,7 @@ export function DocsBrowser() {
             {searchResults.map((result, i) => (
               <button
                 key={i}
-                onClick={() => loadFile(result.path)}
+                onClick={() => openFileWithUnsavedGuard(result.path)}
                 className="block w-full rounded border border-[#222222] bg-[#121212] p-3 text-left transition-colors hover:bg-[#1A1A1A]"
               >
                 <div className="flex items-center justify-between">
@@ -887,6 +940,58 @@ export function DocsBrowser() {
               isLoading={deleting}
             >
               Delete
+            </Button>
+          </ModalFooter>
+        </ModalContent>
+      </Modal>
+
+      {/* Generic confirmation modal */}
+      <Modal
+        isOpen={!!confirmModal}
+        onClose={() => setConfirmModal(null)}
+        className="dark bg-[#080808] text-white border border-neutral-800"
+      >
+        <ModalContent>
+          <ModalHeader className="border-b border-[#222222] text-sm">
+            {confirmModal?.title}
+          </ModalHeader>
+          <ModalBody className="py-4">
+            <p className="text-sm text-[#CCCCCC]">{confirmModal?.message}</p>
+          </ModalBody>
+          <ModalFooter className="border-t border-[#222222]">
+            <Button size="sm" variant="flat" onPress={() => setConfirmModal(null)}>
+              Cancel
+            </Button>
+            <Button
+              size="sm"
+              color="primary"
+              onPress={() => {
+                confirmModal?.onConfirm();
+                setConfirmModal(null);
+              }}
+            >
+              Confirm
+            </Button>
+          </ModalFooter>
+        </ModalContent>
+      </Modal>
+
+      {/* Generic alert modal */}
+      <Modal
+        isOpen={!!alertModal}
+        onClose={() => setAlertModal(null)}
+        className="dark bg-[#080808] text-white border border-neutral-800"
+      >
+        <ModalContent>
+          <ModalHeader className="border-b border-[#222222] text-sm">
+            {alertModal?.title}
+          </ModalHeader>
+          <ModalBody className="py-4">
+            <p className="text-sm text-[#CCCCCC]">{alertModal?.message}</p>
+          </ModalBody>
+          <ModalFooter className="border-t border-[#222222]">
+            <Button size="sm" color="primary" onPress={() => setAlertModal(null)}>
+              OK
             </Button>
           </ModalFooter>
         </ModalContent>
