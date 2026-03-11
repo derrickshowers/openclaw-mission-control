@@ -3,7 +3,7 @@
 import { useState, useEffect, useRef } from "react";
 import { useSession } from "next-auth/react";
 import { useSSE } from "@/hooks/use-sse";
-import { Button, Input, Textarea, Select, SelectItem, Chip, Card, CardBody } from "@heroui/react";
+import { Button, Input, Textarea, Select, SelectItem, Chip, Card, CardBody, Modal, ModalContent, ModalHeader, ModalBody, ModalFooter } from "@heroui/react";
 import { MentionTextarea } from "@/components/shared/mention-textarea";
 import { X, Trash2, Send, Paperclip, ImagePlus, XCircle } from "lucide-react";
 import { api } from "@/lib/api";
@@ -44,6 +44,7 @@ export function TaskDrawer({ task, isOpen, onClose, onUpdate }: TaskDrawerProps)
   const [submitting, setSubmitting] = useState(false);
   const [attachments, setAttachments] = useState<TaskAttachment[]>([]);
   const [uploading, setUploading] = useState(false);
+  const [uploadError, setUploadError] = useState<string | null>(null);
   const [lightboxUrl, setLightboxUrl] = useState<string | null>(null);
   const [dragOver, setDragOver] = useState(false);
   const [confirmDelete, setConfirmDelete] = useState(false);
@@ -148,11 +149,11 @@ export function TaskDrawer({ task, isOpen, onClose, onUpdate }: TaskDrawerProps)
     if (uploading) return;
     const allowed = ["image/png", "image/jpeg", "image/gif", "image/webp"];
     if (!allowed.includes(file.type)) {
-      alert("Only PNG, JPG, GIF, and WebP images are allowed.");
+      setUploadError("Only PNG, JPG, GIF, and WebP images are allowed.");
       return;
     }
     if (file.size > 5 * 1024 * 1024) {
-      alert("File too large (max 5MB).");
+      setUploadError("File too large (max 5MB).");
       return;
     }
     setUploading(true);
@@ -161,7 +162,7 @@ export function TaskDrawer({ task, isOpen, onClose, onUpdate }: TaskDrawerProps)
       setAttachments((prev) => [...prev, attachment]);
     } catch (err: any) {
       console.error("Upload failed:", err);
-      alert(err.message || "Upload failed");
+      setUploadError(err.message || "Upload failed");
     } finally {
       setUploading(false);
     }
@@ -533,6 +534,24 @@ export function TaskDrawer({ task, isOpen, onClose, onUpdate }: TaskDrawerProps)
           </div>
         </div>
       </div>
+
+      <Modal
+        isOpen={!!uploadError}
+        onClose={() => setUploadError(null)}
+        className="dark bg-[#121212] text-white"
+      >
+        <ModalContent>
+          <ModalHeader className="border-b border-[#222222] text-sm">Upload failed</ModalHeader>
+          <ModalBody className="py-4">
+            <p className="text-sm text-[#CCCCCC]">{uploadError}</p>
+          </ModalBody>
+          <ModalFooter className="border-t border-[#222222]">
+            <Button size="sm" color="primary" onPress={() => setUploadError(null)}>
+              OK
+            </Button>
+          </ModalFooter>
+        </ModalContent>
+      </Modal>
 
       {/* Lightbox */}
       {lightboxUrl && (

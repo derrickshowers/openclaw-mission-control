@@ -3,7 +3,7 @@
 import { useState, useEffect, useMemo } from "react";
 import { parseUTC } from "@/lib/dates";
 import { normalizeAgentId, resolveAgentAvatarUrl } from "@/lib/agents";
-import { Card, CardBody, Chip, Tooltip } from "@heroui/react";
+import { Button, Card, CardBody, Chip, Modal, ModalBody, ModalContent, ModalFooter, ModalHeader, Tooltip } from "@heroui/react";
 import { Crown, Crosshair, Landmark, Zap, Palette, Bot, Check, Loader2, Minus, CircleHelp } from "lucide-react";
 import { useSSE } from "@/hooks/use-sse";
 import type { LucideIcon } from "lucide-react";
@@ -84,6 +84,7 @@ export function TeamView({ agents }: TeamViewProps) {
   const [mainSessions, setMainSessions] = useState<MainSessionRow[]>([]);
   const [sessionLoading, setSessionLoading] = useState<Record<string, boolean | "success" | "skipped">>({});
   const [sessionNotes, setSessionNotes] = useState<Record<string, string | undefined>>({});
+  const [resetConfirmSessionKey, setResetConfirmSessionKey] = useState<string | null>(null);
   const [, setNowTick] = useState(Date.now());
 
   const { lastEvent } = useSSE("agent.status");
@@ -123,8 +124,6 @@ export function TeamView({ agents }: TeamViewProps) {
   }, []);
 
   const runSessionAction = async (sessionKey: string, action: "compact" | "reset") => {
-    if (action === "reset" && !confirm("Reset this main session? This clears current context.")) return;
-
     const loadingKey = `${action}:${sessionKey}`;
     setSessionLoading((prev) => ({ ...prev, [loadingKey]: true }));
     setSessionNotes((prev) => ({ ...prev, [sessionKey]: undefined }));
@@ -308,7 +307,7 @@ export function TeamView({ agents }: TeamViewProps) {
                             <SessionActionButton
                               action="reset"
                               loadingState={sessionLoading[`reset:${s.sessionKey}`]}
-                              onClick={() => runSessionAction(s.sessionKey, "reset")}
+                              onClick={() => setResetConfirmSessionKey(s.sessionKey)}
                             />
                           </div>
                           {sessionNotes[s.sessionKey] ? (
@@ -324,6 +323,35 @@ export function TeamView({ agents }: TeamViewProps) {
           </div>
         )}
       </div>
+
+      <Modal
+        isOpen={!!resetConfirmSessionKey}
+        onClose={() => setResetConfirmSessionKey(null)}
+        className="dark bg-[#121212] text-white"
+      >
+        <ModalContent>
+          <ModalHeader className="border-b border-[#222222] text-sm">Reset main session?</ModalHeader>
+          <ModalBody className="py-4">
+            <p className="text-sm text-[#CCCCCC]">This clears the current context for this agent&apos;s main session.</p>
+          </ModalBody>
+          <ModalFooter className="border-t border-[#222222]">
+            <Button size="sm" variant="flat" onPress={() => setResetConfirmSessionKey(null)}>
+              Cancel
+            </Button>
+            <Button
+              size="sm"
+              color="danger"
+              onPress={() => {
+                const sessionKey = resetConfirmSessionKey;
+                setResetConfirmSessionKey(null);
+                if (sessionKey) runSessionAction(sessionKey, "reset");
+              }}
+            >
+              Reset
+            </Button>
+          </ModalFooter>
+        </ModalContent>
+      </Modal>
     </div>
   );
 }

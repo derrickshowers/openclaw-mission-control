@@ -1,7 +1,7 @@
 "use client";
 
 import { useState, useEffect, useCallback, useRef } from "react";
-import { Button, Input, Select, SelectItem } from "@heroui/react";
+import { Button, Input, Modal, ModalBody, ModalContent, ModalFooter, ModalHeader, Select, SelectItem } from "@heroui/react";
 import { Folder, FileText, Search, ArrowLeft, X, Pencil, Save } from "lucide-react";
 import ReactMarkdown from "react-markdown";
 import remarkGfm from "remark-gfm";
@@ -30,6 +30,12 @@ export function MemoryBrowser() {
   const [editContent, setEditContent] = useState("");
   const [saving, setSaving] = useState(false);
   const [dirty, setDirty] = useState(false);
+  const [confirmModal, setConfirmModal] = useState<{
+    title: string;
+    message: string;
+    onConfirm: () => void;
+  } | null>(null);
+  const [alertModal, setAlertModal] = useState<{ title: string; message: string } | null>(null);
   const editorRef = useRef<HTMLTextAreaElement>(null);
   const isReadOnlySource = false;
 
@@ -86,6 +92,25 @@ export function MemoryBrowser() {
     setSearchResults(null);
   }, []);
 
+  const withDiscardGuard = useCallback(
+    (next: () => void) => {
+      if (editing && dirty) {
+        setConfirmModal({
+          title: "Discard unsaved changes?",
+          message: "You have unsaved edits. Discard them and continue?",
+          onConfirm: () => {
+            setEditing(false);
+            setDirty(false);
+            next();
+          },
+        });
+        return;
+      }
+      next();
+    },
+    [editing, dirty]
+  );
+
   const enterEditMode = useCallback(() => {
     if (fileContent === null) return;
     setEditContent(fileContent);
@@ -95,10 +120,11 @@ export function MemoryBrowser() {
   }, [fileContent]);
 
   const cancelEdit = useCallback(() => {
-    if (dirty && !confirm("Discard unsaved changes?")) return;
-    setEditing(false);
-    setDirty(false);
-  }, [dirty]);
+    withDiscardGuard(() => {
+      setEditing(false);
+      setDirty(false);
+    });
+  }, [withDiscardGuard]);
 
   const saveEdit = useCallback(async () => {
     if (!currentFile) return;
@@ -118,7 +144,7 @@ export function MemoryBrowser() {
       setDirty(false);
     } catch (err) {
       console.error("Save failed:", err);
-      alert("Failed to save. Please try again.");
+      setAlertModal({ title: "Save failed", message: "Failed to save. Please try again." });
     } finally {
       setSaving(false);
     }
@@ -178,7 +204,8 @@ export function MemoryBrowser() {
   }, [editing, fileContent, enterEditMode, saveEdit, cancelEdit, isReadOnlySource]);
 
   return (
-    <div className="mx-auto flex h-full max-w-[1200px] gap-4">
+    <>
+      <div className="mx-auto flex h-full max-w-[1200px] gap-4">
       <div className="w-64 flex-shrink-0 overflow-y-auto rounded border border-[#222222] bg-[#0A0A0A]">
         <div className="border-b border-[#222222] p-2">
           <label className="mb-1 block text-[10px] uppercase tracking-wide text-[#777777]">Source</label>
@@ -188,14 +215,15 @@ export function MemoryBrowser() {
             onChange={(e) => {
               const source = e.target.value;
               if (!source) return;
-              if (editing && dirty && !confirm("Discard unsaved changes?")) return;
-              setSelectedAgent(source);
-              setCurrentDir("");
-              setFileContent(null);
-              setCurrentFile("");
-              setSearchResults(null);
-              setEditing(false);
-              setDirty(false);
+              withDiscardGuard(() => {
+                setSelectedAgent(source);
+                setCurrentDir("");
+                setFileContent(null);
+                setCurrentFile("");
+                setSearchResults(null);
+                setEditing(false);
+                setDirty(false);
+              });
             }}
             variant="bordered"
             classNames={{
@@ -251,12 +279,13 @@ export function MemoryBrowser() {
             <button
               key={file.path}
               onClick={() => {
-                if (editing && dirty && !confirm("Discard unsaved changes?")) return;
-                if (file.type === "directory") {
-                  setCurrentDir(file.path);
-                } else {
-                  loadFile(selectedAgent, file.path);
-                }
+                withDiscardGuard(() => {
+                  if (file.type === "directory") {
+                    setCurrentDir(file.path);
+                  } else {
+                    loadFile(selectedAgent, file.path);
+                  }
+                });
               }}
               className={`flex w-full items-center gap-2 rounded px-2 py-1.5 text-left text-xs transition-colors hover:bg-[#1A1A1A] ${
                 currentFile === file.path ? "bg-[#1A1A1A] text-white" : "text-[#CCCCCC]"
@@ -295,9 +324,10 @@ export function MemoryBrowser() {
               <button
                 key={i}
                 onClick={() => {
-                  if (editing && dirty && !confirm("Discard unsaved changes?")) return;
-                  setSelectedAgent(result.agent);
-                  loadFile(result.agent, result.path);
+                  withDiscardGuard(() => {
+                    setSelectedAgent(result.agent);
+                    loadFile(result.agent, result.path);
+                  });
                 }}
                 className="block w-full rounded border border-[#222222] bg-[#121212] p-3 text-left hover:bg-[#1A1A1A]"
               >
@@ -355,11 +385,12 @@ export function MemoryBrowser() {
                         variant="flat"
                         className="h-7 text-xs border border-[#222222] bg-[#080808]"
                         onPress={() => {
-                          if (editing && dirty && !confirm("Discard unsaved changes?")) return;
-                          setFileContent(null);
-                          setCurrentFile("");
-                          setEditing(false);
-                          setDirty(false);
+                          withDiscardGuard(() => {
+                            setFileContent(null);
+                            setCurrentFile("");
+                            setEditing(false);
+                            setDirty(false);
+                          });
                         }}
                       >
                         Close
@@ -395,6 +426,53 @@ export function MemoryBrowser() {
           </div>
         )}
       </div>
-    </div>
+      </div>
+
+      <Modal
+        isOpen={!!confirmModal}
+        onClose={() => setConfirmModal(null)}
+        className="dark bg-[#121212] text-white"
+      >
+        <ModalContent>
+          <ModalHeader className="border-b border-[#222222] text-sm">{confirmModal?.title}</ModalHeader>
+          <ModalBody className="py-4">
+            <p className="text-sm text-[#CCCCCC]">{confirmModal?.message}</p>
+          </ModalBody>
+          <ModalFooter className="border-t border-[#222222]">
+            <Button size="sm" variant="flat" onPress={() => setConfirmModal(null)}>
+              Cancel
+            </Button>
+            <Button
+              size="sm"
+              color="danger"
+              onPress={() => {
+                confirmModal?.onConfirm();
+                setConfirmModal(null);
+              }}
+            >
+              Discard
+            </Button>
+          </ModalFooter>
+        </ModalContent>
+      </Modal>
+
+      <Modal
+        isOpen={!!alertModal}
+        onClose={() => setAlertModal(null)}
+        className="dark bg-[#121212] text-white"
+      >
+        <ModalContent>
+          <ModalHeader className="border-b border-[#222222] text-sm">{alertModal?.title}</ModalHeader>
+          <ModalBody className="py-4">
+            <p className="text-sm text-[#CCCCCC]">{alertModal?.message}</p>
+          </ModalBody>
+          <ModalFooter className="border-t border-[#222222]">
+            <Button size="sm" color="primary" onPress={() => setAlertModal(null)}>
+              OK
+            </Button>
+          </ModalFooter>
+        </ModalContent>
+      </Modal>
+    </>
   );
 }

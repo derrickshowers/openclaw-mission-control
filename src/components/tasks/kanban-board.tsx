@@ -43,25 +43,33 @@ export function KanbanBoard({ initialTasks }: KanbanBoardProps) {
   const [newPriority, setNewPriority] = useState("0");
   const [newStatus, setNewStatus] = useState("backlog");
   const [pendingAttachments, setPendingAttachments] = useState<File[]>([]);
+  const [attachmentError, setAttachmentError] = useState<string | null>(null);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
 
   const handleFileSelect = (e: React.ChangeEvent<HTMLInputElement>) => {
     const files = Array.from(e.target.files || []);
     const allowed = ["image/png", "image/jpeg", "image/gif", "image/webp"];
-    const validFiles = files.filter(file => {
+    const errors: string[] = [];
+
+    const validFiles = files.filter((file) => {
       if (!allowed.includes(file.type)) {
-        alert(`${file.name} is not a supported image type.`);
+        errors.push(`${file.name} is not a supported image type.`);
         return false;
       }
       if (file.size > 5 * 1024 * 1024) {
-        alert(`${file.name} is too large (max 5MB).`);
+        errors.push(`${file.name} is too large (max 5MB).`);
         return false;
       }
       return true;
     });
 
-    setPendingAttachments(prev => [...prev, ...validFiles].slice(0, 10));
+    setPendingAttachments((prev) => [...prev, ...validFiles].slice(0, 10));
+
+    if (errors.length > 0) {
+      setAttachmentError(errors.join("\n"));
+    }
+
     if (fileInputRef.current) fileInputRef.current.value = "";
   };
 
@@ -397,6 +405,24 @@ export function KanbanBoard({ initialTasks }: KanbanBoardProps) {
               isDisabled={!newTitle.trim()}
             >
               Create
+            </Button>
+          </ModalFooter>
+        </ModalContent>
+      </Modal>
+
+      <Modal
+        isOpen={!!attachmentError}
+        onClose={() => setAttachmentError(null)}
+        className="dark bg-[#121212] text-white"
+      >
+        <ModalContent>
+          <ModalHeader className="border-b border-[#222222] text-sm">Attachment validation</ModalHeader>
+          <ModalBody className="py-4">
+            <p className="whitespace-pre-line text-sm text-[#CCCCCC]">{attachmentError}</p>
+          </ModalBody>
+          <ModalFooter className="border-t border-[#222222]">
+            <Button size="sm" color="primary" onPress={() => setAttachmentError(null)}>
+              OK
             </Button>
           </ModalFooter>
         </ModalContent>
