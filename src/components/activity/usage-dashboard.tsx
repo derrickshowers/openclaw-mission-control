@@ -1,18 +1,18 @@
 "use client";
 
 import { useState, useEffect, useCallback, useMemo } from "react";
-import { Select, SelectItem } from "@heroui/react";
+import { Select, SelectItem, Tooltip } from "@heroui/react";
 import {
   AreaChart,
   Area,
   XAxis,
   YAxis,
   CartesianGrid,
-  Tooltip,
+  Tooltip as RechartsTooltip,
   ResponsiveContainer,
   Legend,
 } from "recharts";
-import { Zap, DollarSign, Users, TrendingUp } from "lucide-react";
+import { Zap, DollarSign, Users, TrendingUp, CircleHelp } from "lucide-react";
 import { formatLocalTime as formatLocalTimeShared } from "@/lib/dates";
 
 interface Summary {
@@ -94,6 +94,7 @@ const PERIOD_OPTIONS = [
 ] as const;
 
 type PeriodKey = typeof PERIOD_OPTIONS[number]["value"];
+const ACTIVE_WINDOW_MINUTES = 15;
 
 interface ResolvedRange {
   start: Date;
@@ -424,6 +425,23 @@ export function UsageDashboard() {
         <div className="flex items-center gap-2">
           <TrendingUp size={16} strokeWidth={1.5} className="text-[#888888]" />
           <span className="text-[11px] font-medium uppercase tracking-wider text-[#888888]">Model Usage</span>
+          <Tooltip
+            content={
+              <div className="max-w-xs text-xs leading-relaxed">
+                OpenClaw telemetry → usage-tracker hook → Mission Control usage_logs. Token totals include cached input; costs are estimated from non-cached input/output pricing.
+                {summary?.period_start_utc && summary?.period_end_utc ? (
+                  <div className="mt-1 text-[#bbbbbb]">
+                    Window: {new Date(summary.period_start_utc).toLocaleString()} – {new Date(summary.period_end_utc).toLocaleString()}
+                  </div>
+                ) : null}
+              </div>
+            }
+            placement="right"
+          >
+            <button className="text-[#666666] hover:text-[#bbbbbb]" aria-label="Model usage info">
+              <CircleHelp size={13} strokeWidth={1.75} />
+            </button>
+          </Tooltip>
           {summary?.unpriced_requests ? (
             <span className="text-[10px] text-amber-300">
               {summary.unpriced_requests} unpriced
@@ -448,20 +466,6 @@ export function UsageDashboard() {
             <SelectItem key={p.value}>{p.label}</SelectItem>
           ))}
         </Select>
-      </div>
-
-      <div className="rounded border border-[#222222] bg-[#0A0A0A] px-3 py-2 text-[11px] text-[#777777]">
-        OpenClaw telemetry → usage-tracker hook → Mission Control usage_logs. Token totals include cached input; costs remain estimated from non-cached input/output pricing.
-        {summary?.period_start_utc && (
-          <span className="ml-2 text-[#555555]">
-            Window: {new Date(summary.period_start_utc).toLocaleString()} – {new Date(summary.period_end_utc!).toLocaleString()}
-          </span>
-        )}
-        {summary?.unpriced_requests ? (
-          <span className="ml-2 text-amber-300">
-            {summary.unpriced_requests} unpriced ({formatTokens(summary.unpriced_tokens || 0)} tokens)
-          </span>
-        ) : null}
       </div>
 
 
@@ -535,7 +539,7 @@ export function UsageDashboard() {
                 tickLine={false}
                 tickFormatter={formatTokens}
               />
-              <Tooltip content={<CustomTooltip interval={interval} />} />
+              <RechartsTooltip content={<CustomTooltip interval={interval} />} />
               <Legend
                 wrapperStyle={{ fontSize: "11px", fontFamily: "monospace" }}
                 formatter={(value: string) => (
@@ -626,11 +630,23 @@ export function UsageDashboard() {
 
       {/* Recent Sessions Table */}
       <div className="rounded border border-[#222222] bg-[#0A0A0A]">
-        <div className="border-b border-[#222222] px-4 py-2.5">
+        <div className="border-b border-[#222222] px-4 py-2.5 flex items-center gap-2">
           <p className="text-xs text-[#888888] uppercase tracking-wider">Recent Sessions</p>
-          <p className="mt-1 text-[10px] text-[#666666]">
-            Reset = explicitly archived by reset/new. Expired = no longer in session store but retained from usage history.
-          </p>
+          <Tooltip
+            content={
+              <div className="max-w-xs text-xs leading-relaxed">
+                <div><strong>Active</strong>: updated within the last {ACTIVE_WINDOW_MINUTES} minutes.</div>
+                <div><strong>Inactive</strong>: still in session store, but outside the active window.</div>
+                <div><strong>Expired</strong>: no longer in session store, retained from usage history.</div>
+                <div><strong>Reset</strong>: explicitly archived by reset/new.</div>
+              </div>
+            }
+            placement="right"
+          >
+            <button className="text-[#666666] hover:text-[#bbbbbb]" aria-label="Session status help">
+              <CircleHelp size={13} strokeWidth={1.75} />
+            </button>
+          </Tooltip>
         </div>
         {recentLogs.length === 0 ? (
           <div className="flex h-16 items-center justify-center">
