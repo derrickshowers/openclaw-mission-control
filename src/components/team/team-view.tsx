@@ -1,10 +1,10 @@
 "use client";
 
-import { useState, useEffect, useMemo } from "react";
+import { useState, useEffect, useMemo, useRef } from "react";
 import { parseUTC } from "@/lib/dates";
 import { normalizeAgentId, resolveAgentAvatarUrl } from "@/lib/agents";
 import { Button, Card, CardBody, Chip, Modal, ModalBody, ModalContent, ModalFooter, ModalHeader, Tooltip } from "@heroui/react";
-import { Crown, Crosshair, Landmark, Zap, Palette, Bot, Check, Loader2, Minus, CircleHelp } from "lucide-react";
+import { Crown, Crosshair, Landmark, Zap, Palette, Bot, Check, Loader2, Minus, CircleHelp, XCircle } from "lucide-react";
 import { useSSE } from "@/hooks/use-sse";
 import type { LucideIcon } from "lucide-react";
 
@@ -79,12 +79,38 @@ interface TeamViewProps {
   agents: any[];
 }
 
+type CompactState =
+  | "starting"
+  | "queued"
+  | "running"
+  | "compacted"
+  | "no_change"
+  | "force_reduced"
+  | "failed"
+  | "cancelled";
+
+function mapCompactState(status: string, outcome: string): CompactState {
+  if (status === "queued") return "queued";
+  if (status === "running") return "running";
+  if (status === "cancelled") return "cancelled";
+  if (status === "failed") return "failed";
+  if (status === "completed") {
+    if (outcome === "compacted") return "compacted";
+    if (outcome === "force_reduced" || outcome === "trimmed") return "force_reduced";
+    return "no_change";
+  }
+  if (status === "skipped") return "no_change";
+  return "failed";
+}
+
 export function TeamView({ agents }: TeamViewProps) {
   const [liveStatuses, setLiveStatuses] = useState<Map<string, any>>(new Map());
   const [mainSessions, setMainSessions] = useState<MainSessionRow[]>([]);
-  const [sessionLoading, setSessionLoading] = useState<Record<string, boolean | "success" | "skipped">>({});
+  const [sessionLoading, setSessionLoading] = useState<Record<string, boolean | "success">>({});
+  const [compactStates, setCompactStates] = useState<Record<string, CompactState | undefined>>({});
   const [sessionNotes, setSessionNotes] = useState<Record<string, string | undefined>>({});
   const [resetConfirmSessionKey, setResetConfirmSessionKey] = useState<string | null>(null);
+  const compactPollers = useRef<Record<string, ReturnType<typeof setInterval>>>({});
   const [, setNowTick] = useState(Date.now());
 
   const { lastEvent } = useSSE("agent.status");
@@ -123,13 +149,94 @@ export function TeamView({ agents }: TeamViewProps) {
     return () => clearInterval(id);
   }, []);
 
-  const runSessionAction = async (sessionKey: string, action: "compact" | "reset") => {
-    const loadingKey = `${action}:${sessionKey}`;
+  useEffect(() => {
+    return () => {
+      for (const poller of Object.values(compactPollers.current)) {
+        clearInterval(poller);
+      }
+      compactPollers.current = {};
+    };
+  }, []);
+
+  const clearCompactPoller = (sessionKey: string) => {
+    const poller = compactPollers.current[sessionKey];
+    if (poller) {
+      clearInterval(poller);
+      delete compactPollers.current[sessionKey];
+    }
+  };
+
+  const pollCompactionJob = async (sessionKey: string, jobId: string) => {
+    try {
+      const res = await fetch(`/api/mc/agents/sessions/compact/status/${jobId}`);
+      const data = await res.json().catch(() => null);
+      if (!res.ok) throw new Error(data?.error || "Failed to read compaction status");
+
+      const status = String(data?.status || "").toLowerCase();
+      const outcome = String(data?.outcome || "").toLowerCase();
+      const nextState = mapCompactState(status, outcome);
+
+      setCompactStates((prev) => ({ ...prev, [sessionKey]: nextState }));
+
+      const note = typeof data?.reason === "string" ? data.reason : undefined;
+      if (note) {
+        setSessionNotes((prev) => ({ ...prev, [sessionKey]: note }));
+      }
+
+      if (["compacted", "no_change", "force_reduced", "failed", "cancelled"].includes(nextState)) {
+        clearCompactPoller(sessionKey);
+        await loadMainSessions();
+      }
+    } catch (error: any) {
+      clearCompactPoller(sessionKey);
+      setCompactStates((prev) => ({ ...prev, [sessionKey]: "failed" }));
+      setSessionNotes((prev) => ({
+        ...prev,
+        [sessionKey]: typeof error?.message === "string" ? error.message : "Compaction status check failed",
+      }));
+    }
+  };
+
+  const startCompaction = async (sessionKey: string) => {
+    clearCompactPoller(sessionKey);
+    setCompactStates((prev) => ({ ...prev, [sessionKey]: "starting" }));
+    setSessionNotes((prev) => ({ ...prev, [sessionKey]: undefined }));
+
+    try {
+      const res = await fetch("/api/mc/agents/sessions/compact/start", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ sessionKey, mode: "compact" }),
+      });
+
+      const data = await res.json().catch(() => null);
+      if (!res.ok) throw new Error(data?.error || "Failed to start compaction job");
+
+      const jobId = String(data?.jobId || "");
+      if (!jobId) throw new Error("Compaction job id missing");
+
+      setCompactStates((prev) => ({ ...prev, [sessionKey]: "queued" }));
+
+      await pollCompactionJob(sessionKey, jobId);
+      compactPollers.current[sessionKey] = setInterval(() => {
+        void pollCompactionJob(sessionKey, jobId);
+      }, 1500);
+    } catch (error: any) {
+      setCompactStates((prev) => ({ ...prev, [sessionKey]: "failed" }));
+      setSessionNotes((prev) => ({
+        ...prev,
+        [sessionKey]: typeof error?.message === "string" ? error.message : "Compaction failed",
+      }));
+    }
+  };
+
+  const runResetAction = async (sessionKey: string) => {
+    const loadingKey = `reset:${sessionKey}`;
     setSessionLoading((prev) => ({ ...prev, [loadingKey]: true }));
     setSessionNotes((prev) => ({ ...prev, [sessionKey]: undefined }));
 
     try {
-      const res = await fetch(`/api/mc/agents/sessions/${action}`, {
+      const res = await fetch("/api/mc/agents/sessions/reset", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ sessionKey }),
@@ -138,18 +245,7 @@ export function TeamView({ agents }: TeamViewProps) {
       const data = await res.json().catch(() => null);
       if (!res.ok) throw new Error(data?.error || "Failed");
 
-      const status = String(data?.result?.status || "");
-      const compacted = data?.result?.compacted;
-      const summary = typeof data?.result?.summary === "string" ? data.result.summary : "";
-      const reason = typeof data?.result?.reason === "string" ? data.result.reason : "";
-      const note = reason || summary;
-
-      const nextState = action === "compact" && (compacted === false || status === "timeout") ? "skipped" : "success";
-      setSessionLoading((prev) => ({ ...prev, [loadingKey]: nextState }));
-      if (action === "compact" && note) {
-        setSessionNotes((prev) => ({ ...prev, [sessionKey]: note }));
-      }
-
+      setSessionLoading((prev) => ({ ...prev, [loadingKey]: "success" }));
       await loadMainSessions();
       setTimeout(() => {
         setSessionLoading((prev) => {
@@ -158,31 +254,14 @@ export function TeamView({ agents }: TeamViewProps) {
           return next;
         });
       }, 1500);
-
-      if (action === "compact" && note) {
-        setTimeout(() => {
-          setSessionNotes((prev) => {
-            const next = { ...prev };
-            delete next[sessionKey];
-            return next;
-          });
-        }, 7000);
-      }
     } catch (error: any) {
       setSessionLoading((prev) => {
         const next = { ...prev };
         delete next[loadingKey];
         return next;
       });
-      const message = typeof error?.message === "string" ? error.message : "Action failed";
+      const message = typeof error?.message === "string" ? error.message : "Reset failed";
       setSessionNotes((prev) => ({ ...prev, [sessionKey]: message }));
-      setTimeout(() => {
-        setSessionNotes((prev) => {
-          const next = { ...prev };
-          delete next[sessionKey];
-          return next;
-        });
-      }, 7000);
     }
   };
 
@@ -301,8 +380,8 @@ export function TeamView({ agents }: TeamViewProps) {
                           <div className="flex items-center gap-2">
                             <SessionActionButton
                               action="compact"
-                              loadingState={sessionLoading[`compact:${s.sessionKey}`]}
-                              onClick={() => runSessionAction(s.sessionKey, "compact")}
+                              compactState={compactStates[s.sessionKey]}
+                              onClick={() => startCompaction(s.sessionKey)}
                             />
                             <SessionActionButton
                               action="reset"
@@ -344,7 +423,7 @@ export function TeamView({ agents }: TeamViewProps) {
               onPress={() => {
                 const sessionKey = resetConfirmSessionKey;
                 setResetConfirmSessionKey(null);
-                if (sessionKey) runSessionAction(sessionKey, "reset");
+                if (sessionKey) runResetAction(sessionKey);
               }}
             >
               Reset
@@ -356,49 +435,109 @@ export function TeamView({ agents }: TeamViewProps) {
   );
 }
 
-function SessionActionButton({ 
-  action, 
-  loadingState, 
-  onClick 
-}: { 
+function SessionActionButton({
+  action,
+  loadingState,
+  compactState,
+  onClick,
+}: {
   action: "compact" | "reset";
-  loadingState: boolean | "success" | "skipped" | undefined;
+  loadingState?: boolean | "success";
+  compactState?: CompactState;
   onClick: () => void;
 }) {
-  const isLoading = loadingState === true;
-  const isSuccess = loadingState === "success";
-  const isSkipped = loadingState === "skipped";
-
-  const baseStyles = "flex items-center justify-center gap-1.5 rounded px-2.5 py-1.5 text-[11px] font-medium transition-all duration-200 min-w-[80px]";
+  const baseStyles = "flex items-center justify-center gap-1.5 rounded px-2.5 py-1.5 text-[11px] font-medium transition-all duration-200 min-w-[92px]";
   const variantStyles = action === "compact"
     ? "border border-[#333333] bg-[#111111] hover:bg-[#1a1a1a] text-white"
     : "border border-[#4b1f1f] bg-[#1b0f0f] hover:bg-[#2a1515] text-[#fca5a5]";
 
-  const disabledStyles = "opacity-50 cursor-not-allowed pointer-events-none";
+  if (action === "compact") {
+    const isWorking = compactState === "starting" || compactState === "queued" || compactState === "running";
+
+    const compactLabel = () => {
+      if (compactState === "starting" || compactState === "queued" || compactState === "running") {
+        return (
+          <>
+            <Loader2 className="h-3 w-3 animate-spin" />
+            <span>Compacting...</span>
+          </>
+        );
+      }
+      if (compactState === "compacted") {
+        return (
+          <>
+            <Check className="h-3 w-3" />
+            <span>Compacted</span>
+          </>
+        );
+      }
+      if (compactState === "no_change") {
+        return (
+          <>
+            <Minus className="h-3 w-3" />
+            <span>No change</span>
+          </>
+        );
+      }
+      if (compactState === "force_reduced") {
+        return (
+          <>
+            <Zap className="h-3 w-3" />
+            <span>Force-reduced</span>
+          </>
+        );
+      }
+      if (compactState === "failed") {
+        return (
+          <>
+            <XCircle className="h-3 w-3" />
+            <span>Failed</span>
+          </>
+        );
+      }
+      if (compactState === "cancelled") {
+        return (
+          <>
+            <Minus className="h-3 w-3" />
+            <span>Cancelled</span>
+          </>
+        );
+      }
+      return <span>Compact</span>;
+    };
+
+    return (
+      <button
+        onClick={onClick}
+        disabled={isWorking}
+        className={`${baseStyles} ${variantStyles} ${isWorking ? "opacity-50 cursor-not-allowed pointer-events-none" : ""}`}
+      >
+        {compactLabel()}
+      </button>
+    );
+  }
+
+  const isLoading = loadingState === true;
+  const isSuccess = loadingState === "success";
 
   return (
     <button
       onClick={onClick}
       disabled={!!loadingState}
-      className={`${baseStyles} ${variantStyles} ${loadingState ? disabledStyles : ""}`}
+      className={`${baseStyles} ${variantStyles} ${loadingState ? "opacity-50 cursor-not-allowed pointer-events-none" : ""}`}
     >
       {isLoading ? (
         <>
           <Loader2 className="h-3 w-3 animate-spin" />
-          <span>{action === "compact" ? "Compacting..." : "Resetting..."}</span>
+          <span>Resetting...</span>
         </>
       ) : isSuccess ? (
         <>
           <Check className="h-3 w-3" />
-          <span>{action === "compact" ? "Compacted!" : "Reset!"}</span>
-        </>
-      ) : isSkipped ? (
-        <>
-          <Minus className="h-3 w-3" />
-          <span>Skipped</span>
+          <span>Reset!</span>
         </>
       ) : (
-        <span>{action === "compact" ? "Compact" : "Reset"}</span>
+        <span>Reset</span>
       )}
     </button>
   );
