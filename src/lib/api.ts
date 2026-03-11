@@ -59,6 +59,9 @@ export interface Project {
   name: string;
   description: string | null;
   owner: string | null;
+  start_date?: string | null;
+  target_date?: string | null;
+  created_by?: string | null;
   color: string | null;
   archived_at: string | null;
   created_at: string;

@@ -30,7 +30,7 @@ export function ProjectsView({ initialProjects }: ProjectsViewProps) {
         name: newName,
         description: newDescription || undefined,
         owner: newOwner || undefined,
-      } as any); // cast because createProject params might need update in lib/api.ts
+      });
 
       setProjects((prev) => [...prev, project]);
       setNewName("");

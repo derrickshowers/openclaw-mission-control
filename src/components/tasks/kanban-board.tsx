@@ -128,7 +128,7 @@ export function KanbanBoard({ initialTasks, initialProjectId }: KanbanBoardProps
     } finally {
       setIsSubmitting(false);
     }
-  }, [newTitle, newDescription, newAssignee, newPriority, newStatus, pendingAttachments, isSubmitting, onClose]);
+  }, [newTitle, newDescription, newAssignee, newProject, newPriority, newStatus, pendingAttachments, isSubmitting, onClose]);
 
   // Global keyboard shortcuts
   useEffect(() => {
@@ -158,27 +158,32 @@ export function KanbanBoard({ initialTasks, initialProjectId }: KanbanBoardProps
     if (!lastEvent) return;
     const { event, data } = lastEvent;
 
+    const matchesActiveProject = (task: Task) => !projectId || task.project_id === projectId;
+
     switch (event) {
       case "task.created":
-        if (data.task) {
-          setTasks((prev) => {
-            // Deduplicate — skip if already present
-            if (prev.some((t) => t.id === data.task.id)) return prev;
-            return [...prev, data.task];
-          });
-        }
-        break;
       case "task.updated":
       case "task.moved":
         if (data.task) {
-          setTasks((prev) =>
-            prev.map((t) => {
+          setTasks((prev) => {
+            const idx = prev.findIndex((t) => t.id === data.task.id);
+            const includeTask = matchesActiveProject(data.task as Task);
+
+            if (idx === -1) {
+              return includeTask ? [...prev, data.task] : prev;
+            }
+
+            if (!includeTask) {
+              return prev.filter((t) => t.id !== data.task.id);
+            }
+
+            return prev.map((t) => {
               if (t.id !== data.task.id) return t;
               // Skip if our local version is same or newer
               if (t.updated_at >= data.task.updated_at) return t;
               return data.task;
-            })
-          );
+            });
+          });
         }
         break;
       case "task.deleted":
@@ -187,7 +192,7 @@ export function KanbanBoard({ initialTasks, initialProjectId }: KanbanBoardProps
         }
         break;
     }
-  }, [lastEvent]);
+  }, [lastEvent, projectId]);
 
   const updateTaskStatus = useCallback(async (taskId: string, newStatus: string) => {
     try {

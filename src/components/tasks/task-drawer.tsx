@@ -372,21 +372,23 @@ export function TaskDrawer({ task, isOpen, onClose, onUpdate }: TaskDrawerProps)
             <div className="flex items-center justify-between">
               <span className="text-xs text-[#888888]">Project</span>
               <Select
-                selectedKeys={task.project_id ? [task.project_id] : []}
+                items={[{ id: "__none", name: "No project" }, ...projects.map((p) => ({ id: p.id, name: p.name }))]}
+                selectedKeys={task.project_id ? [task.project_id] : ["__none"]}
                 onSelectionChange={(keys) => {
                   const v = Array.from(keys)[0] as string;
-                  updateField("project_id", v || null);
+                  if (!v || v === "__none") {
+                    updateField("project_id", null);
+                    return;
+                  }
+                  updateField("project_id", v);
                 }}
                 variant="bordered"
                 size="sm"
-                placeholder="No project"
                 className="max-w-[160px]"
                 classNames={{ trigger: "border-[#222222] bg-[#080808] h-8 min-h-8" }}
                 startContent={<Folder size={12} strokeWidth={1.5} className="text-[#555555]" />}
               >
-                {projects.map((p) => (
-                  <SelectItem key={p.id}>{p.name}</SelectItem>
-                ))}
+                {(item) => <SelectItem key={item.id}>{item.name}</SelectItem>}
               </Select>
             </div>
 

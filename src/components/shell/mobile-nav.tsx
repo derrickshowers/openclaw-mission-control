@@ -7,6 +7,7 @@ import {
   LayoutDashboard,
   CheckSquare,
   Activity,
+  FolderKanban,
   Menu,
   Users,
   Brain,
@@ -23,6 +24,7 @@ const primaryItems: { href: string; label: string; Icon: LucideIcon }[] = [
 ];
 
 const moreItems: { href: string; label: string; Icon: LucideIcon }[] = [
+  { href: "/projects", label: "Projects", Icon: FolderKanban },
   { href: "/team", label: "Team", Icon: Users },
   { href: "/memory", label: "Memory", Icon: Brain },
   { href: "/calendar", label: "Calendar", Icon: CalendarDays },
