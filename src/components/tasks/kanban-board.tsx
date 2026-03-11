@@ -6,6 +6,7 @@ import { Button, Input, Textarea, Select, SelectItem, Modal, ModalContent, Modal
 import { Plus, Paperclip, ImagePlus, X } from "lucide-react";
 import { api, type Task } from "@/lib/api";
 import { parseUTC } from "@/lib/dates";
+import { KNOWN_AGENT_IDS } from "@/lib/agents";
 import { TaskCard } from "./task-card";
 import { TaskDrawer } from "./task-drawer";
 
@@ -16,7 +17,7 @@ const COLUMNS = [
   { id: "done", label: "Done", color: "#22c55e" },
 ] as const;
 
-const AGENTS = ["derrick", "frank", "tom", "michael", "joanna", "elena"];
+const AGENTS = [...KNOWN_AGENT_IDS];
 const PRIORITIES = [
   { value: "0", label: "None" },
   { value: "1", label: "Low" },

@@ -9,6 +9,7 @@ import { X, Trash2, Send, Paperclip, ImagePlus, XCircle } from "lucide-react";
 import { api } from "@/lib/api";
 import type { Task, TaskComment, TaskAttachment } from "@/lib/api";
 import { formatLocal } from "@/lib/dates";
+import { KNOWN_AGENT_IDS, resolveAgentAvatarUrl } from "@/lib/agents";
 
 const COLUMNS = [
   { id: "backlog", label: "Backlog" },
@@ -17,7 +18,7 @@ const COLUMNS = [
   { id: "done", label: "Done" },
 ];
 
-const AGENTS = ["derrick", "frank", "tom", "michael", "joanna", "elena"];
+const AGENTS = [...KNOWN_AGENT_IDS];
 
 const statusColors: Record<string, "default" | "primary" | "danger" | "success"> = {
   backlog: "default",
@@ -25,13 +26,6 @@ const statusColors: Record<string, "default" | "primary" | "danger" | "success">
   blocked: "danger",
   done: "success",
 };
-
-function avatarUrlFor(agentName?: string | null): string | null {
-  if (!agentName) return null;
-  if (agentName === "derrick") return "/images/team/derrick.jpg";
-  if (!["frank", "tom", "michael", "joanna", "elena"].includes(agentName)) return null;
-  return `/api/mc/agents/${agentName}/avatar`;
-}
 
 interface TaskDrawerProps {
   task: Task;
@@ -458,8 +452,8 @@ export function TaskDrawer({ task, isOpen, onClose, onUpdate }: TaskDrawerProps)
                   <CardBody className="px-4 py-3">
                     <div className="flex items-center justify-between mb-1.5">
                       <span className="text-xs font-medium text-white capitalize flex items-center gap-1.5">
-                        {avatarUrlFor(c.author) ? (
-                          <img src={avatarUrlFor(c.author)!} alt={c.author} className="h-5 w-5 rounded-full object-cover" />
+                        {resolveAgentAvatarUrl(c.author) ? (
+                          <img src={resolveAgentAvatarUrl(c.author)!} alt={c.author} className="h-5 w-5 rounded-full object-cover" />
                         ) : null}
                         {c.author}
                       </span>

@@ -3,6 +3,7 @@
 import { useState, useEffect, useRef, useCallback } from "react";
 import { Chip, Button } from "@heroui/react";
 import { formatLocalTime as formatLocalTimeUtil } from "@/lib/dates";
+import { TEAM_AGENT_IDS } from "@/lib/agents";
 
 interface ActivityEntry {
   id: number;
@@ -24,7 +25,7 @@ const eventTypeColors: Record<string, "default" | "primary" | "success" | "warni
   "agent.error": "danger",
 };
 
-const AGENTS = ["frank", "tom", "michael", "joanna", "elena"];
+const AGENTS = [...TEAM_AGENT_IDS];
 
 export function ActivityFeed() {
   const [activities, setActivities] = useState<ActivityEntry[]>([]);

@@ -2,11 +2,12 @@
 
 import { useState } from "react";
 import { Button, Card, CardBody, CardHeader, Chip } from "@heroui/react";
-import { Crown, Crosshair, Landmark, Zap, Palette, Wrench, Bot, Users, ListChecks, ArrowRight, ShieldAlert } from "lucide-react";
+import { Crown, Crosshair, Landmark, Zap, Palette, Bot, Users, ListChecks, ArrowRight, ShieldAlert } from "lucide-react";
 import { api } from "@/lib/api";
 import type { LucideIcon } from "lucide-react";
 import type { Task } from "@/lib/api";
 import { timeAgo as timeAgoUtil } from "@/lib/dates";
+import { normalizeAgentId, resolveAgentAvatarUrl } from "@/lib/agents";
 
 interface ActivityEntry {
   id: number;
@@ -47,15 +48,8 @@ const agentIcons: Record<string, LucideIcon> = {
   tom: Landmark,
   michael: Zap,
   joanna: Palette,
-  elena: Wrench,
+  elena: Bot,
 };
-
-function avatarUrlFor(agentName?: string): string | null {
-  if (!agentName) return null;
-  if (agentName === "derrick") return "/images/team/derrick.jpg";
-  if (!["derrick", "frank", "tom", "michael", "joanna", "elena"].includes(agentName)) return null;
-  return `/api/mc/agents/${agentName}/avatar`;
-}
 
 const eventTypeColors: Record<string, "default" | "primary" | "success" | "warning" | "danger"> = {
   "task.created": "primary",
@@ -144,10 +138,11 @@ export function DashboardContent({ tasks, agents, status, recentActivity }: Dash
           </CardHeader>
           <CardBody className="gap-2 p-3">
             {Object.keys(agentRoles).map((name) => {
-              const agent = agents.find((a: any) => a.name === name) || { name };
+              const agent = agents.find((a: any) => normalizeAgentId(a.name) === name) || { name };
               const activity = activityStateConfig[agent.activityState] || activityStateConfig.uninitialized;
-              const hasTask = inProgress.some(t => t.assignee === name);
-              
+              const hasTask = inProgress.some(t => normalizeAgentId(t.assignee) === name);
+              const avatarUrl = resolveAgentAvatarUrl(agent.name, agent.avatarUrl);
+
               let displayColor = activity.color;
               let displayLabel = activity.label;
               if (displayLabel === "idle" && hasTask) {
@@ -161,21 +156,21 @@ export function DashboardContent({ tasks, agents, status, recentActivity }: Dash
                 className="flex items-center justify-between rounded-lg border border-divider bg-content2/50 px-3 py-2 backdrop-blur"
               >
                 <div className="flex items-center gap-3">
-                  {avatarUrlFor(agent.name) ? (
+                  {avatarUrl ? (
                     <img
-                      src={avatarUrlFor(agent.name)!}
+                      src={avatarUrl}
                       alt={agent.name}
                       className="h-7 w-7 rounded-full object-cover"
                     />
                   ) : (
                     <div className="flex h-7 w-7 items-center justify-center rounded-full bg-default-100 text-muted-foreground">
-                      {(() => { const Icon = agentIcons[agent.name] || Bot; return <Icon size={16} strokeWidth={1.5} />; })()}
+                      {(() => { const Icon = agentIcons[normalizeAgentId(agent.name) || ""] || Bot; return <Icon size={16} strokeWidth={1.5} />; })()}
                     </div>
                   )}
                   <div>
                     <p className="text-sm font-medium capitalize">{agent.name}</p>
                     <p className="text-xs text-foreground-400">
-                      {agentRoles[agent.name] || "Agent"}
+                      {agentRoles[normalizeAgentId(agent.name) || ""] || "Agent"}
                     </p>
                   </div>
                 </div>
@@ -210,8 +205,8 @@ export function DashboardContent({ tasks, agents, status, recentActivity }: Dash
                   <div className="flex-1 min-w-0">
                     <p className="truncate text-sm">{task.title}</p>
                     <p className="text-xs text-foreground-400 flex items-center gap-1.5">
-                      {task.assignee && avatarUrlFor(task.assignee) ? (
-                        <img src={avatarUrlFor(task.assignee)!} alt={task.assignee} className="h-4 w-4 rounded-full object-cover" />
+                      {task.assignee && resolveAgentAvatarUrl(task.assignee) ? (
+                        <img src={resolveAgentAvatarUrl(task.assignee)!} alt={task.assignee} className="h-4 w-4 rounded-full object-cover" />
                       ) : null}
                       {task.assignee ? `→ ${task.assignee}` : "Unassigned"}
                     </p>

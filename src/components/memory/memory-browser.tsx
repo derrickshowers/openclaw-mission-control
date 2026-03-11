@@ -5,8 +5,9 @@ import { Button, Input, Select, SelectItem } from "@heroui/react";
 import { Folder, FileText, Search, ArrowLeft, X, Pencil, Save } from "lucide-react";
 import ReactMarkdown from "react-markdown";
 import remarkGfm from "remark-gfm";
+import { TEAM_AGENT_IDS } from "@/lib/agents";
 
-const DEFAULT_SOURCES = ["frank", "tom", "michael", "joanna", "elena", "shared"];
+const DEFAULT_SOURCES = [...TEAM_AGENT_IDS, "shared"];
 
 interface FileEntry {
   name: string;

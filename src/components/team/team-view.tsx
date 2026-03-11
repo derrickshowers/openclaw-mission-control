@@ -2,6 +2,7 @@
 
 import { useState, useEffect, useMemo } from "react";
 import { parseUTC } from "@/lib/dates";
+import { normalizeAgentId, resolveAgentAvatarUrl } from "@/lib/agents";
 import { Card, CardBody, Chip } from "@heroui/react";
 import { Crown, Crosshair, Landmark, Zap, Palette, Bot, Check, Loader2, Minus } from "lucide-react";
 import { useSSE } from "@/hooks/use-sse";
@@ -39,13 +40,6 @@ const agentMeta: Record<string, { role: string; description: string; Icon: Lucid
     Icon: Bot,
   },
 };
-
-function resolveAvatarUrl(url?: string, agentName?: string): string | undefined {
-  if (agentName === "derrick") return "/images/team/derrick.jpg";
-  if (!url) return undefined;
-  if (url.startsWith('/api/agents/')) return url.replace('/api/agents/', '/api/mc/agents/');
-  return url;
-}
 
 function formatLastActiveRelative(dateValue: string | number | Date | null | undefined): string {
   const d = parseUTC(dateValue);
@@ -89,15 +83,17 @@ export function TeamView({ agents }: TeamViewProps) {
   const [liveStatuses, setLiveStatuses] = useState<Map<string, any>>(new Map());
   const [mainSessions, setMainSessions] = useState<MainSessionRow[]>([]);
   const [sessionLoading, setSessionLoading] = useState<Record<string, boolean | "success" | "skipped">>({});
+  const [sessionNotes, setSessionNotes] = useState<Record<string, string | undefined>>({});
   const [, setNowTick] = useState(Date.now());
 
   const { lastEvent } = useSSE("agent.status");
 
   useEffect(() => {
-    if (!lastEvent?.data?.agent) return;
+    const agent = normalizeAgentId(lastEvent?.data?.agent);
+    if (!agent) return;
     setLiveStatuses((prev) => {
       const next = new Map(prev);
-      next.set(lastEvent.data.agent, lastEvent.data);
+      next.set(agent, lastEvent?.data);
       return next;
     });
   }, [lastEvent]);
@@ -131,6 +127,7 @@ export function TeamView({ agents }: TeamViewProps) {
 
     const loadingKey = `${action}:${sessionKey}`;
     setSessionLoading((prev) => ({ ...prev, [loadingKey]: true }));
+    setSessionNotes((prev) => ({ ...prev, [sessionKey]: undefined }));
 
     try {
       const res = await fetch(`/api/mc/agents/sessions/${action}`, {
@@ -142,8 +139,18 @@ export function TeamView({ agents }: TeamViewProps) {
       const data = await res.json().catch(() => null);
       if (!res.ok) throw new Error(data?.error || "Failed");
 
-      const nextState = action === "compact" && data?.result?.compacted === false ? "skipped" : "success";
+      const status = String(data?.result?.status || "");
+      const compacted = data?.result?.compacted;
+      const summary = typeof data?.result?.summary === "string" ? data.result.summary : "";
+      const reason = typeof data?.result?.reason === "string" ? data.result.reason : "";
+      const note = reason || summary;
+
+      const nextState = action === "compact" && (compacted === false || status === "timeout") ? "skipped" : "success";
       setSessionLoading((prev) => ({ ...prev, [loadingKey]: nextState }));
+      if (action === "compact" && note) {
+        setSessionNotes((prev) => ({ ...prev, [sessionKey]: note }));
+      }
+
       await loadMainSessions();
       setTimeout(() => {
         setSessionLoading((prev) => {
@@ -152,32 +159,52 @@ export function TeamView({ agents }: TeamViewProps) {
           return next;
         });
       }, 1500);
-    } catch {
+
+      if (action === "compact" && note) {
+        setTimeout(() => {
+          setSessionNotes((prev) => {
+            const next = { ...prev };
+            delete next[sessionKey];
+            return next;
+          });
+        }, 7000);
+      }
+    } catch (error: any) {
       setSessionLoading((prev) => {
         const next = { ...prev };
         delete next[loadingKey];
         return next;
       });
-      // In a real app we'd trigger a toast here
+      const message = typeof error?.message === "string" ? error.message : "Action failed";
+      setSessionNotes((prev) => ({ ...prev, [sessionKey]: message }));
+      setTimeout(() => {
+        setSessionNotes((prev) => {
+          const next = { ...prev };
+          delete next[sessionKey];
+          return next;
+        });
+      }, 7000);
     }
   };
 
   const knownNames = Object.keys(agentMeta);
-  const mapByName = new Map((agents || []).map((a: any) => [a.name, a]));
+  const mapByName = new Map((agents || []).map((a: any) => [normalizeAgentId(a.name), a]));
   const baseList = knownNames.map((name) => mapByName.get(name) || { name });
 
   const mainSessionByAgent = useMemo(() => {
     const map = new Map<string, MainSessionRow>();
     for (const s of mainSessions) {
-      map.set(s.agent, s);
+      const normalized = normalizeAgentId(s.agent);
+      if (normalized) map.set(normalized, s);
     }
     return map;
   }, [mainSessions]);
 
   // Merge live status into agent data
   const agentList = baseList.map((agent: any) => {
-    const live = liveStatuses.get(agent.name);
-    const mainSession = mainSessionByAgent.get(agent.name);
+    const normalizedName = normalizeAgentId(agent.name);
+    const live = normalizedName ? liveStatuses.get(normalizedName) : undefined;
+    const mainSession = normalizedName ? mainSessionByAgent.get(normalizedName) : undefined;
 
     return {
       ...agent,
@@ -217,7 +244,7 @@ export function TeamView({ agents }: TeamViewProps) {
               <AgentCard
                 key={agent.name}
                 agent={agent}
-                meta={agentMeta[agent.name]}
+                meta={agentMeta[normalizeAgentId(agent.name) || ""]}
               />
             ))}
         </div>
@@ -271,17 +298,22 @@ export function TeamView({ agents }: TeamViewProps) {
                       <td className="px-4 py-2 text-[#999999]">{formatLastActiveRelative(s.lastActiveAt)}</td>
                       <td className="px-4 py-2 text-right font-mono text-white">${(s.estimatedNextTaskCostUsd || 0).toFixed(4)}</td>
                       <td className="px-4 py-2">
-                        <div className="flex items-center gap-2">
-                          <SessionActionButton
-                            action="compact"
-                            loadingState={sessionLoading[`compact:${s.sessionKey}`]}
-                            onClick={() => runSessionAction(s.sessionKey, "compact")}
-                          />
-                          <SessionActionButton
-                            action="reset"
-                            loadingState={sessionLoading[`reset:${s.sessionKey}`]}
-                            onClick={() => runSessionAction(s.sessionKey, "reset")}
-                          />
+                        <div className="flex flex-col gap-1">
+                          <div className="flex items-center gap-2">
+                            <SessionActionButton
+                              action="compact"
+                              loadingState={sessionLoading[`compact:${s.sessionKey}`]}
+                              onClick={() => runSessionAction(s.sessionKey, "compact")}
+                            />
+                            <SessionActionButton
+                              action="reset"
+                              loadingState={sessionLoading[`reset:${s.sessionKey}`]}
+                              onClick={() => runSessionAction(s.sessionKey, "reset")}
+                            />
+                          </div>
+                          {sessionNotes[s.sessionKey] ? (
+                            <p className="max-w-[280px] text-[10px] text-[#8F8F8F]">{sessionNotes[s.sessionKey]}</p>
+                          ) : null}
                         </div>
                       </td>
                     </tr>
@@ -335,7 +367,7 @@ function SessionActionButton({
       ) : isSkipped ? (
         <>
           <Minus className="h-3 w-3" />
-          <span>No change</span>
+          <span>Skipped</span>
         </>
       ) : (
         <span>{action === "compact" ? "Compact" : "Reset"}</span>
@@ -378,7 +410,7 @@ function AgentCard({
   const IconComponent = meta?.Icon || Bot;
   const activity = activityStateConfig[agent.activityState] || activityStateConfig.uninitialized;
   const attention = agent.attention !== "none" ? attentionConfig[agent.attention] : null;
-  const avatarUrl = resolveAvatarUrl(agent.avatarUrl, agent.name);
+  const avatarUrl = resolveAgentAvatarUrl(agent.name, agent.avatarUrl) || undefined;
 
   return (
     <Card className="border border-[#222222] bg-content1">

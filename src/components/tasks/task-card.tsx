@@ -3,6 +3,7 @@
 import { Chip } from "@heroui/react";
 import type { Task } from "@/lib/api";
 import { timeAgo } from "@/lib/dates";
+import { resolveAgentAvatarUrl } from "@/lib/agents";
 
 const priorityConfig: Record<number, { label: string; color: "default" | "warning" | "danger" }> = {
   0: { label: "", color: "default" },
@@ -18,15 +19,9 @@ interface TaskCardProps {
   onStatusChange: (taskId: string, status: string) => void;
 }
 
-function avatarUrlFor(agentName?: string | null): string | null {
-  if (!agentName) return null;
-  if (agentName === "derrick") return "/images/team/derrick.jpg";
-  if (!["frank", "tom", "michael", "joanna", "elena"].includes(agentName)) return null;
-  return `/api/mc/agents/${agentName}/avatar`;
-}
-
 export function TaskCard({ task, onClick }: TaskCardProps) {
   const priority = priorityConfig[task.priority] || priorityConfig[0];
+  const assigneeAvatar = resolveAgentAvatarUrl(task.assignee);
 
   return (
     <button
@@ -37,8 +32,8 @@ export function TaskCard({ task, onClick }: TaskCardProps) {
       <div className="mt-1.5 flex items-center gap-1.5">
         {task.assignee && (
           <span className="text-xs text-[#888888] capitalize flex items-center gap-1.5">
-            {avatarUrlFor(task.assignee) ? (
-              <img src={avatarUrlFor(task.assignee)!} alt={task.assignee} className="h-4 w-4 rounded-full object-cover" />
+            {assigneeAvatar ? (
+              <img src={assigneeAvatar} alt={task.assignee} className="h-4 w-4 rounded-full object-cover" />
             ) : null}
             {task.assignee}
           </span>
