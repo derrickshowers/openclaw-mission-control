@@ -3,15 +3,15 @@
 import { useState, useEffect, useMemo } from "react";
 import { parseUTC } from "@/lib/dates";
 import { normalizeAgentId, resolveAgentAvatarUrl } from "@/lib/agents";
-import { Card, CardBody, Chip } from "@heroui/react";
-import { Crown, Crosshair, Landmark, Zap, Palette, Bot, Check, Loader2, Minus } from "lucide-react";
+import { Card, CardBody, Chip, Tooltip } from "@heroui/react";
+import { Crown, Crosshair, Landmark, Zap, Palette, Bot, Check, Loader2, Minus, CircleHelp } from "lucide-react";
 import { useSSE } from "@/hooks/use-sse";
 import type { LucideIcon } from "lucide-react";
 
 const agentMeta: Record<string, { role: string; description: string; Icon: LucideIcon }> = {
   derrick: {
     role: "Founder",
-    description: "The human behind the team. Founder and orchestrator of OpenClaw.",
+    description: "The King of the Castle 👑",
     Icon: Crown,
   },
   frank: {
@@ -384,6 +384,10 @@ const activityStateConfig: Record<string, { color: "success" | "warning" | "defa
   uninitialized: { color: "default", label: "No session" },
 };
 
+const liveStatusConfig: Record<string, { color: "success" | "warning" | "default" | "primary" | "secondary"; label: string; pulse?: boolean }> = {
+  thinking: { color: "secondary", label: "Thinking", pulse: true },
+};
+
 const attentionConfig: Record<string, { color: "danger"; label: string }> = {
   aborted_last_run: { color: "danger", label: "Aborted last run" },
 };
@@ -408,7 +412,10 @@ function AgentCard({
   meta: { role: string; description: string; Icon: LucideIcon };
 }) {
   const IconComponent = meta?.Icon || Bot;
+  const isHuman = agent.name === "derrick";
   const activity = activityStateConfig[agent.activityState] || activityStateConfig.uninitialized;
+  const liveStatus = liveStatusConfig[String(agent.status || "").toLowerCase()] || null;
+  const chipStatus = liveStatus || activity;
   const attention = agent.attention !== "none" ? attentionConfig[agent.attention] : null;
   const avatarUrl = resolveAgentAvatarUrl(agent.name, agent.avatarUrl) || undefined;
 
@@ -432,23 +439,44 @@ function AgentCard({
           <div className="flex-1 min-w-0">
             <div className="flex items-center gap-2">
               <h3 className="text-sm font-medium capitalize">{agent.name}</h3>
-              <Chip
-                size="sm"
-                variant="flat"
-                color={activity.color as any}
-                className={`text-[10px] h-5 ${activity.pulse ? "animate-pulse" : ""}`}
-              >
-                {activity.label}
-              </Chip>
-              {attention && (
-                <Chip
-                  size="sm"
-                  variant="flat"
-                  color="danger"
-                  className="text-[10px] h-5"
-                >
-                  {attention.label}
-                </Chip>
+              {!isHuman && (
+                <>
+                  <Chip
+                    size="sm"
+                    variant="flat"
+                    color={chipStatus.color as any}
+                    className={`text-[10px] h-5 ${chipStatus.pulse ? "animate-pulse" : ""}`}
+                  >
+                    {chipStatus.label}
+                  </Chip>
+                  <Tooltip
+                    placement="right"
+                    content={
+                      <div className="max-w-xs text-xs leading-relaxed">
+                        <div><strong>Thinking</strong>: active in last ~30s (currently in run loop).</div>
+                        <div><strong>Active (green)</strong>: activity in last ~2 minutes.</div>
+                        <div><strong>Active (purple)</strong>: recently active (2–15 minutes).</div>
+                        <div><strong>Idle</strong>: last activity 15 minutes to 24 hours.</div>
+                        <div><strong>Stale</strong>: no activity for 24+ hours.</div>
+                        <div><strong>No session</strong>: main session not initialized.</div>
+                      </div>
+                    }
+                  >
+                    <button className="text-[#666666] hover:text-[#bbbbbb]" aria-label="Team status help">
+                      <CircleHelp size={13} strokeWidth={1.75} />
+                    </button>
+                  </Tooltip>
+                  {attention && (
+                    <Chip
+                      size="sm"
+                      variant="flat"
+                      color="danger"
+                      className="text-[10px] h-5"
+                    >
+                      {attention.label}
+                    </Chip>
+                  )}
+                </>
               )}
             </div>
             <p className="text-xs text-[#888888] mt-0.5">
@@ -462,14 +490,24 @@ function AgentCard({
             <p className="text-xs text-[#555555] mt-2 line-clamp-2">
               {meta?.description || ""}
             </p>
-            <div className="mt-2 border-t border-[#1c1c1c] pt-2">
-              <p className="text-[10px] uppercase tracking-wider text-[#777777]">
-                {agent.activityState === "active" ? "Processing" : "Last active"}
-              </p>
-              <p className="text-xs text-[#BBBBBB] mt-0.5">
-                {agent.activityState === "active" ? "Working now" : formatLastActiveRelative(agent.lastActiveAt)}
-              </p>
-            </div>
+            {!isHuman && (
+              <div className="mt-2 border-t border-[#1c1c1c] pt-2">
+                <p className="text-[10px] uppercase tracking-wider text-[#777777]">
+                  {String(agent.status || "").toLowerCase() === "thinking"
+                    ? "Processing"
+                    : agent.activityState === "active"
+                      ? "Processing"
+                      : "Last active"}
+                </p>
+                <p className="text-xs text-[#BBBBBB] mt-0.5">
+                  {String(agent.status || "").toLowerCase() === "thinking"
+                    ? "Working now"
+                    : agent.activityState === "active"
+                      ? "Working now"
+                      : formatLastActiveRelative(agent.lastActiveAt)}
+                </p>
+              </div>
+            )}
           </div>
         </div>
       </CardBody>
