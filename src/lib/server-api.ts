@@ -2,6 +2,8 @@
 // Used by server components that can't go through Next.js API routes
 // (middleware blocks internal server-to-server calls that lack a session cookie)
 
+import type { Project, Task } from "./api";
+
 const API_URL = process.env.MISSION_API_URL || "http://localhost:3001";
 const API_KEY = process.env.MISSION_API_KEY || "";
 
@@ -19,12 +21,20 @@ async function serverFetch<T = any>(path: string): Promise<T> {
 }
 
 export const serverApi = {
-  getTasks: (params?: { status?: string; assignee?: string }) => {
+  getTasks: (params?: { status?: string; assignee?: string; project_id?: string }) => {
     const searchParams = new URLSearchParams(
       Object.entries(params || {}).filter(([, v]) => v !== undefined) as [string, string][]
     );
     const qs = searchParams.toString();
-    return serverFetch<any[]>(`/tasks${qs ? `?${qs}` : ""}`);
+    return serverFetch<Task[]>(`/tasks${qs ? `?${qs}` : ""}`);
+  },
+  getProjects: (params?: { include_archived?: boolean }) => {
+    const searchParams = new URLSearchParams();
+    if (params?.include_archived) {
+      searchParams.set("include_archived", "1");
+    }
+    const qs = searchParams.toString();
+    return serverFetch<Project[]>(`/projects${qs ? `?${qs}` : ""}`);
   },
   getAgents: () => serverFetch<any[]>("/agents"),
   getStatus: () => serverFetch<any>("/system/status"),

@@ -1,6 +1,7 @@
 "use client";
 
 import { Chip } from "@heroui/react";
+import { Folder } from "lucide-react";
 import type { Task } from "@/lib/api";
 import { timeAgo } from "@/lib/dates";
 import { resolveAgentAvatarUrl } from "@/lib/agents";
@@ -29,7 +30,17 @@ export function TaskCard({ task, onClick }: TaskCardProps) {
       className="w-full rounded border border-[#222222] bg-[#121212] p-3 text-left transition-colors hover:bg-[#1A1A1A]"
     >
       <p className="text-sm leading-snug">{task.title}</p>
-      <div className="mt-1.5 flex items-center gap-1.5">
+      <div className="mt-1.5 flex flex-wrap items-center gap-1.5">
+        {task.project && (
+          <Chip
+            size="sm"
+            variant="flat"
+            className="h-5 border border-[#222222] bg-[#1A1A1A] text-[10px] text-[#CCCCCC]"
+            startContent={<Folder size={10} strokeWidth={1.5} className="mr-0.5" />}
+          >
+            {task.project.name}
+          </Chip>
+        )}
         {task.assignee && (
           <span className="text-xs text-[#888888] capitalize flex items-center gap-1.5">
             {assigneeAvatar ? (

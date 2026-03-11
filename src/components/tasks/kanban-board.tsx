@@ -2,9 +2,9 @@
 
 import { useState, useCallback, useEffect, useRef } from "react";
 import { useSSE } from "@/hooks/use-sse";
-import { Button, Input, Textarea, Select, SelectItem, Modal, ModalContent, ModalHeader, ModalBody, ModalFooter, useDisclosure } from "@heroui/react";
-import { Plus, Paperclip, ImagePlus, X } from "lucide-react";
-import { api, type Task } from "@/lib/api";
+import { Button, Input, Textarea, Select, SelectItem, Modal, ModalContent, ModalHeader, ModalBody, ModalFooter, Chip, useDisclosure } from "@heroui/react";
+import { Plus, Paperclip, ImagePlus, X, Folder } from "lucide-react";
+import { api, type Task, type Project } from "@/lib/api";
 import { parseUTC } from "@/lib/dates";
 import { KNOWN_AGENT_IDS } from "@/lib/agents";
 import { TaskCard } from "./task-card";
@@ -28,11 +28,14 @@ const PRIORITIES = [
 
 interface KanbanBoardProps {
   initialTasks: Task[];
+  initialProjectId?: string | null;
 }
 
-export function KanbanBoard({ initialTasks }: KanbanBoardProps) {
+export function KanbanBoard({ initialTasks, initialProjectId }: KanbanBoardProps) {
   const [tasks, setTasks] = useState<Task[]>(initialTasks);
   const [selectedTask, setSelectedTask] = useState<Task | null>(null);
+  const [projects, setProjects] = useState<Project[]>([]);
+  const [projectId, setProjectId] = useState<string | null>(initialProjectId || null);
   const [drawerOpen, setDrawerOpen] = useState(false);
   const { isOpen, onOpen, onClose } = useDisclosure();
 
@@ -40,8 +43,18 @@ export function KanbanBoard({ initialTasks }: KanbanBoardProps) {
   const [newTitle, setNewTitle] = useState("");
   const [newDescription, setNewDescription] = useState("");
   const [newAssignee, setNewAssignee] = useState("");
+  const [newProject, setNewProject] = useState(projectId || "");
   const [newPriority, setNewPriority] = useState("0");
   const [newStatus, setNewStatus] = useState("backlog");
+
+  useEffect(() => {
+    api.getProjects().then(setProjects).catch(console.error);
+  }, []);
+
+  useEffect(() => {
+    setNewProject(projectId || "");
+    api.getTasks({ project_id: projectId || undefined }).then(setTasks).catch(console.error);
+  }, [projectId]);
   const [pendingAttachments, setPendingAttachments] = useState<File[]>([]);
   const [attachmentError, setAttachmentError] = useState<string | null>(null);
   const [isSubmitting, setIsSubmitting] = useState(false);
@@ -86,6 +99,7 @@ export function KanbanBoard({ initialTasks }: KanbanBoardProps) {
         title: newTitle,
         description: newDescription || undefined,
         assignee: newAssignee || undefined,
+        project_id: newProject || undefined,
         priority: parseInt(newPriority),
         status: newStatus,
       });
@@ -104,6 +118,7 @@ export function KanbanBoard({ initialTasks }: KanbanBoardProps) {
       setNewTitle("");
       setNewDescription("");
       setNewAssignee("");
+      setNewProject("");
       setNewPriority("0");
       setNewStatus("backlog");
       setPendingAttachments([]);
@@ -199,6 +214,16 @@ export function KanbanBoard({ initialTasks }: KanbanBoardProps) {
       <div className="mb-4 flex items-center justify-between">
         <div className="flex items-center gap-3">
           <span className="text-sm text-[#888888]">{tasks.length} tasks</span>
+          {projectId && (
+            <Chip
+              size="sm"
+              variant="flat"
+              onClose={() => setProjectId(null)}
+              className="h-6 border border-[#222222] bg-[#1A1A1A] text-[10px] text-[#CCCCCC]"
+            >
+              Project: {projects.find((p) => p.id === projectId)?.name || "Loading..."}
+            </Chip>
+          )}
         </div>
         <Button
           size="sm"
@@ -262,7 +287,13 @@ export function KanbanBoard({ initialTasks }: KanbanBoardProps) {
       </div>
 
       {/* Create Task Modal */}
-      <Modal isOpen={isOpen} onClose={onClose} className="dark bg-[#121212] text-white">
+      <Modal 
+        isOpen={isOpen} 
+        onClose={onClose} 
+        className="dark bg-[#121212] text-white max-h-[85dvh]"
+        placement="top-center"
+        scrollBehavior="inside"
+      >
         <ModalContent>
           <ModalHeader className="border-b border-[#222222] text-sm">
             New Task
@@ -284,6 +315,20 @@ export function KanbanBoard({ initialTasks }: KanbanBoardProps) {
               }}
               autoFocus
             />
+            <Select
+              label="Project"
+              placeholder="No project"
+              selectedKeys={newProject ? [newProject] : []}
+              onSelectionChange={(keys) => setNewProject(Array.from(keys)[0] as string || "")}
+              variant="bordered"
+              size="sm"
+              classNames={{ trigger: "border-[#222222] bg-[#080808]" }}
+              startContent={<Folder size={14} strokeWidth={1.5} className="text-[#888888]" />}
+            >
+              {projects.map((p) => (
+                <SelectItem key={p.id}>{p.name}</SelectItem>
+              ))}
+            </Select>
             <Textarea
               label="Description"
               placeholder="Optional details..."

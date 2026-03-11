@@ -164,3 +164,22 @@ button:not(.rounded-full) {
 .pb-safe {
   padding-bottom: max(1rem, env(safe-area-inset-bottom, 1rem));
 }
+
+/* Disable double-tap-to-zoom and tapping delay on interactive elements */
+a, 
+button, 
+input, 
+textarea, 
+select, 
+[role="button"] {
+  touch-action: manipulation;
+}
+
+/* Fix iOS auto-zoom on focus by ensuring 16px min font size on mobile */
+@media (max-width: 768px) {
+  input, 
+  textarea, 
+  select {
+    font-size: 16px !important;
+  }
+}

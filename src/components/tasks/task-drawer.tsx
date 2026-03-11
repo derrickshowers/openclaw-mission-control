@@ -5,9 +5,9 @@ import { useSession } from "next-auth/react";
 import { useSSE } from "@/hooks/use-sse";
 import { Button, Input, Textarea, Select, SelectItem, Chip, Card, CardBody, Modal, ModalContent, ModalHeader, ModalBody, ModalFooter } from "@heroui/react";
 import { MentionTextarea } from "@/components/shared/mention-textarea";
-import { X, Trash2, Send, Paperclip, ImagePlus, XCircle } from "lucide-react";
+import { X, Trash2, Send, Paperclip, ImagePlus, XCircle, Folder } from "lucide-react";
 import { api } from "@/lib/api";
-import type { Task, TaskComment, TaskAttachment } from "@/lib/api";
+import type { Task, TaskComment, TaskAttachment, Project } from "@/lib/api";
 import { formatLocal } from "@/lib/dates";
 import { KNOWN_AGENT_IDS, resolveAgentAvatarUrl } from "@/lib/agents";
 
@@ -39,6 +39,7 @@ export function TaskDrawer({ task, isOpen, onClose, onUpdate }: TaskDrawerProps)
   const [editing, setEditing] = useState(false);
   const [title, setTitle] = useState(task.title);
   const [description, setDescription] = useState(task.description || "");
+  const [projects, setProjects] = useState<Project[]>([]);
   const [comments, setComments] = useState<TaskComment[]>([]);
   const [newComment, setNewComment] = useState("");
   const [submitting, setSubmitting] = useState(false);
@@ -55,6 +56,7 @@ export function TaskDrawer({ task, isOpen, onClose, onUpdate }: TaskDrawerProps)
     if (isOpen) {
       api.getComments(task.id).then(setComments).catch(console.error);
       api.getAttachments(task.id).then(setAttachments).catch(console.error);
+      api.getProjects().then(setProjects).catch(console.error);
     }
   }, [isOpen, task.id]);
 
@@ -367,6 +369,27 @@ export function TaskDrawer({ task, isOpen, onClose, onUpdate }: TaskDrawerProps)
 
           {/* Fields */}
           <div className="space-y-3 border-t border-[#222222] pt-4">
+            <div className="flex items-center justify-between">
+              <span className="text-xs text-[#888888]">Project</span>
+              <Select
+                selectedKeys={task.project_id ? [task.project_id] : []}
+                onSelectionChange={(keys) => {
+                  const v = Array.from(keys)[0] as string;
+                  updateField("project_id", v || null);
+                }}
+                variant="bordered"
+                size="sm"
+                placeholder="No project"
+                className="max-w-[160px]"
+                classNames={{ trigger: "border-[#222222] bg-[#080808] h-8 min-h-8" }}
+                startContent={<Folder size={12} strokeWidth={1.5} className="text-[#555555]" />}
+              >
+                {projects.map((p) => (
+                  <SelectItem key={p.id}>{p.name}</SelectItem>
+                ))}
+              </Select>
+            </div>
+
             <div className="flex items-center justify-between">
               <span className="text-xs text-[#888888]">Status</span>
               <Select

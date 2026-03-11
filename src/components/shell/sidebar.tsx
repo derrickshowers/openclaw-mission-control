@@ -3,12 +3,13 @@
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { useSession } from "next-auth/react";
-import { LayoutDashboard, CheckSquare, Users, Brain, Activity, Umbrella, BookOpen, CalendarDays } from "lucide-react";
+import { LayoutDashboard, CheckSquare, FolderKanban, Users, Brain, Activity, Umbrella, BookOpen, CalendarDays } from "lucide-react";
 import { Avatar, Skeleton } from "@heroui/react";
 import type { LucideIcon } from "lucide-react";
 
 const navItems: { href: string; label: string; Icon: LucideIcon }[] = [
   { href: "/", label: "Dashboard", Icon: LayoutDashboard },
+  { href: "/projects", label: "Projects", Icon: FolderKanban },
   { href: "/tasks", label: "Tasks", Icon: CheckSquare },
   { href: "/team", label: "Team", Icon: Users },
   { href: "/memory", label: "Memory", Icon: Brain },

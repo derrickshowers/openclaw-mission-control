@@ -53,6 +53,27 @@ async function apiFetch<T = any>(path: string, options: FetchOptions = {}): Prom
   return res.json();
 }
 
+export interface Project {
+  id: string;
+  slug: string;
+  name: string;
+  description: string | null;
+  owner: string | null;
+  color: string | null;
+  archived_at: string | null;
+  created_at: string;
+  updated_at: string;
+  last_activity_at?: string | null;
+  task_summary?: {
+    total: number;
+    backlog: number;
+    in_progress: number;
+    blocked: number;
+    done: number;
+    progress: number;
+  };
+}
+
 // Tasks
 export interface Task {
   id: string;
@@ -63,6 +84,8 @@ export interface Task {
   priority: number;
   tags: string | null;
   position: number;
+  project_id: string | null;
+  project?: Project | null;
   created_by: string;
   created_at: string;
   updated_at: string;
@@ -88,17 +111,29 @@ export interface TaskComment {
   created_at: string;
 }
 
+type TaskUpdate = Partial<Pick<Task, "title" | "description" | "status" | "assignee" | "priority" | "position" | "project_id">> & {
+  tags?: string[] | null;
+};
+
 export const api = {
   // Tasks
-  getTasks: (params?: { status?: string; assignee?: string }) =>
+  getTasks: (params?: { status?: string; assignee?: string; project_id?: string }) =>
     apiFetch<Task[]>("/tasks", { params: params as Record<string, string> }),
 
   getTask: (id: string) => apiFetch<Task>(`/tasks/${id}`),
 
-  createTask: (data: { title: string; description?: string; assignee?: string; priority?: number; tags?: string[]; status?: string }) =>
+  createTask: (data: {
+    title: string;
+    description?: string;
+    assignee?: string;
+    priority?: number;
+    tags?: string[];
+    status?: string;
+    project_id?: string | null;
+  }) =>
     apiFetch<Task>("/tasks", { method: "POST", body: JSON.stringify(data) }),
 
-  updateTask: (id: string, data: Partial<Pick<Task, "title" | "description" | "status" | "assignee" | "priority" | "position">>) =>
+  updateTask: (id: string, data: TaskUpdate) =>
     apiFetch<Task>(`/tasks/${id}`, { method: "PATCH", body: JSON.stringify(data) }),
 
   deleteTask: (id: string) =>
@@ -106,6 +141,25 @@ export const api = {
 
   moveTask: (id: string, status: string, position: number) =>
     apiFetch<Task>(`/tasks/${id}/position`, { method: "PATCH", body: JSON.stringify({ status, position }) }),
+
+  // Projects
+  getProjects: (params?: { include_archived?: boolean }) =>
+    apiFetch<Project[]>("/projects", {
+      params: params?.include_archived ? { include_archived: "1" } : undefined,
+    }),
+
+  getProject: (id: string) => apiFetch<Project>(`/projects/${id}`),
+
+  createProject: (data: {
+    name: string;
+    slug?: string;
+    description?: string;
+    owner?: string;
+    color?: string;
+  }) => apiFetch<Project>("/projects", { method: "POST", body: JSON.stringify(data) }),
+
+  updateProject: (id: string, data: Partial<Project> & { archived?: boolean }) =>
+    apiFetch<Project>(`/projects/${id}`, { method: "PATCH", body: JSON.stringify(data) }),
 
   // Attachments
   getAttachments: (taskId: string) =>
