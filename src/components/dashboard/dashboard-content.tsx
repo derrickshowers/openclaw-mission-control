@@ -2,7 +2,7 @@
 
 import { useState } from "react";
 import { Button, Card, CardBody, CardHeader, Chip } from "@heroui/react";
-import { Crown, Crosshair, Landmark, Zap, Palette, Bot, Users, ListChecks, ArrowRight, ShieldAlert } from "lucide-react";
+import { Crown, Crosshair, Landmark, Zap, Palette, Wrench, Bot, Users, ListChecks, ArrowRight, ShieldAlert } from "lucide-react";
 import { api } from "@/lib/api";
 import type { LucideIcon } from "lucide-react";
 import type { Task } from "@/lib/api";
@@ -38,6 +38,7 @@ const agentRoles: Record<string, string> = {
   tom: "Lead Architect",
   michael: "Full Stack Engineer",
   joanna: "UX/Product Designer",
+  elena: "OpenClaw Platform Specialist",
 };
 
 const agentIcons: Record<string, LucideIcon> = {
@@ -46,12 +47,13 @@ const agentIcons: Record<string, LucideIcon> = {
   tom: Landmark,
   michael: Zap,
   joanna: Palette,
+  elena: Wrench,
 };
 
 function avatarUrlFor(agentName?: string): string | null {
   if (!agentName) return null;
   if (agentName === "derrick") return "/images/team/derrick.jpg";
-  if (!["derrick", "frank", "tom", "michael", "joanna"].includes(agentName)) return null;
+  if (!["derrick", "frank", "tom", "michael", "joanna", "elena"].includes(agentName)) return null;
   return `/api/mc/agents/${agentName}/avatar`;
 }
 
