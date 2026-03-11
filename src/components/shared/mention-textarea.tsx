@@ -327,7 +327,7 @@ export function MentionTextarea({
           suppressContentEditableWarning
           role="textbox"
           aria-multiline="true"
-          className={`w-full min-h-[36px] max-h-[96px] overflow-y-auto rounded-lg border border-[#222222] bg-[#080808] px-3 py-2 text-sm text-[#CCCCCC] outline-none focus:border-[#333333] transition-colors ${
+          className={`w-full min-h-[36px] max-h-[96px] overflow-y-auto rounded-lg border border-[#222222] bg-[#080808] px-3 py-2 text-base md:text-sm text-[#CCCCCC] outline-none focus:border-[#333333] transition-colors ${
             classNames?.inputWrapper || ""
           }`}
           onInput={handleInput}
