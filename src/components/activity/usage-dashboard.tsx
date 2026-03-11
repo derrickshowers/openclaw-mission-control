@@ -320,12 +320,17 @@ export function UsageDashboard() {
     try {
       const tzOffset = getTzOffset();
       const range = resolvedRange;
-      const rangeParams = `start=${encodeURIComponent(range.startIso)}&end=${encodeURIComponent(range.endIso)}`;
+      const rangeParams = new URLSearchParams({
+        start: range.startIso,
+        end: range.endIso,
+      });
+      const summaryParams = new URLSearchParams(rangeParams);
+      summaryParams.set("periodDays", String(range.periodDays));
 
       const [summaryRes, chartRes, breakdownRes, logRes] = await Promise.all([
-        fetch(`/api/mc/usage/summary?${rangeParams}`),
-        fetch(`/api/mc/usage/chart?${rangeParams}&interval=${interval}&tzOffset=${tzOffset}`),
-        fetch(`/api/mc/usage/breakdown?${rangeParams}`),
+        fetch(`/api/mc/usage/summary?${summaryParams.toString()}`),
+        fetch(`/api/mc/usage/chart?${rangeParams.toString()}&interval=${interval}&tzOffset=${tzOffset}`),
+        fetch(`/api/mc/usage/breakdown?${rangeParams.toString()}`),
         fetch(`/api/mc/usage/log?limit=40`),
       ]);
 
@@ -446,7 +451,7 @@ export function UsageDashboard() {
           <MetricCard
             label="Est. Cost"
             value={formatCost(summary.total_cost_usd)}
-            sub={`${summary.period_days}d period`}
+            sub={`${resolvedRange.periodDays}d period`}
             icon={<DollarSign size={14} strokeWidth={1.5} />}
           />
           <MetricCard
@@ -459,7 +464,7 @@ export function UsageDashboard() {
             label="Burn Rate"
             value={interval === "hour"
               ? formatTokens(Math.round(summary.total_tokens / Math.max((resolvedRange.end.getTime() - resolvedRange.start.getTime()) / (60 * 60 * 1000), 1)))
-              : (summary.period_days > 0 ? formatTokens(Math.round(summary.total_tokens / summary.period_days)) : "0")}
+              : (resolvedRange.periodDays > 0 ? formatTokens(Math.round(summary.total_tokens / resolvedRange.periodDays)) : "0")}
             sub={interval === "hour" ? "tokens/hour" : "tokens/day"}
             icon={<TrendingUp size={14} strokeWidth={1.5} />}
           />
