@@ -56,6 +56,7 @@ interface LogRow {
   input_tokens: number;
   cached_input_tokens?: number;
   output_tokens: number;
+  llm_calls?: number;
   cost_usd: number;
   cost_source?: "exact" | "partial" | "unpriced" | "none";
   session_key: string | null;
@@ -74,12 +75,13 @@ interface LogRow {
 
 // Muted dark-mode colors for each agent
 const AGENT_COLORS: Record<string, string> = {
-  frank: "#6366f1",   // indigo
-  tom: "#8b5cf6",     // violet
-  michael: "#06b6d4", // cyan
-  joanna: "#a78bfa",  // light purple
-  elena: "#f472b6",   // pink
-  derrick: "#64748b", // slate
+  frank: "#6366f1",       // indigo
+  tom: "#8b5cf6",         // violet
+  michael: "#06b6d4",     // cyan
+  joanna: "#a78bfa",      // light purple
+  contractors: "#f59e0b", // amber
+  elena: "#f472b6",       // pink
+  derrick: "#64748b",     // slate
 };
 
 
@@ -626,6 +628,9 @@ export function UsageDashboard() {
       <div className="rounded border border-[#222222] bg-[#0A0A0A]">
         <div className="border-b border-[#222222] px-4 py-2.5">
           <p className="text-xs text-[#888888] uppercase tracking-wider">Recent Sessions</p>
+          <p className="mt-1 text-[10px] text-[#666666]">
+            Reset = explicitly archived by reset/new. Expired = no longer in session store but retained from usage history.
+          </p>
         </div>
         {recentLogs.length === 0 ? (
           <div className="flex h-16 items-center justify-center">
@@ -642,6 +647,7 @@ export function UsageDashboard() {
                   <th className="px-4 py-1.5 font-medium">Source</th>
                   <th className="px-4 py-1.5 font-medium">Status</th>
                   <th className="px-4 py-1.5 font-medium">Model</th>
+                  <th className="px-4 py-1.5 font-medium text-right">Calls</th>
                   <th className="px-4 py-1.5 font-medium text-right">Context</th>
                   <th className="px-4 py-1.5 font-medium text-right">Input</th>
                   <th className="px-4 py-1.5 font-medium text-right">Cached</th>
@@ -694,6 +700,9 @@ export function UsageDashboard() {
                         </span>
                       </td>
                       <td className="px-4 py-1 text-xs font-mono text-[#888888]">{row.model || "-"}</td>
+                      <td className="px-4 py-1 text-right text-xs font-mono text-[#CCCCCC]">
+                        {row.llm_calls != null ? formatTokens(row.llm_calls) : "-"}
+                      </td>
                       <td className="px-4 py-1 text-right text-xs">
                         {row.fullness_pct != null && row.total_tokens != null && row.context_tokens ? (
                           <div className="inline-flex items-center justify-end gap-2" title={`${formatTokens(row.total_tokens)} / ${formatTokens(row.context_tokens)} (${row.fullness_pct.toFixed(1)}%)`}>
