@@ -1,7 +1,15 @@
 "use client";
 
 import { useState, useEffect, useCallback, useRef } from "react";
-import { Button, Input } from "@heroui/react";
+import {
+  Button,
+  Input,
+  Modal,
+  ModalBody,
+  ModalContent,
+  ModalFooter,
+  ModalHeader,
+} from "@heroui/react";
 import {
   Folder,
   FileText,
@@ -11,9 +19,10 @@ import {
   X,
   Pencil,
   Save,
-  Plus,
   FolderPlus,
   FilePlus,
+  MoreHorizontal,
+  Trash2,
 } from "lucide-react";
 import ReactMarkdown from "react-markdown";
 import remarkGfm from "remark-gfm";
@@ -55,6 +64,15 @@ export function DocsBrowser() {
   const [newFolderName, setNewFolderName] = useState("");
   const [creatingPage, setCreatingPage] = useState(false);
   const folderInputRef = useRef<HTMLInputElement>(null);
+
+  // Rename / delete state
+  const [menuOpenForPath, setMenuOpenForPath] = useState<string | null>(null);
+  const [renamingPath, setRenamingPath] = useState<string | null>(null);
+  const [renameValue, setRenameValue] = useState("");
+  const renameInputRef = useRef<HTMLInputElement>(null);
+  const skipRenameBlurRef = useRef(false);
+  const [deleteTarget, setDeleteTarget] = useState<{ path: string; name: string } | null>(null);
+  const [deleting, setDeleting] = useState(false);
 
   // Load tree
   const loadTree = useCallback(async () => {
@@ -254,6 +272,93 @@ export function DocsBrowser() {
     }
   }, [getActiveFolder, loadTree]);
 
+  const startRename = useCallback((docPath: string, docName: string) => {
+    setMenuOpenForPath(null);
+    setRenamingPath(docPath);
+    setRenameValue(docName);
+    setTimeout(() => {
+      renameInputRef.current?.focus();
+      renameInputRef.current?.select();
+    }, 30);
+  }, []);
+
+  const cancelRename = useCallback(() => {
+    setRenamingPath(null);
+    setRenameValue("");
+  }, []);
+
+  const submitRename = useCallback(async (oldPath: string) => {
+    const rawName = renameValue.trim();
+    if (!rawName) {
+      cancelRename();
+      return;
+    }
+
+    const oldParts = oldPath.split("/");
+    const oldName = oldParts[oldParts.length - 1] || oldPath;
+    if (rawName === oldName) {
+      cancelRename();
+      return;
+    }
+
+    const parent = oldParts.length > 1 ? oldParts.slice(0, -1).join("/") : "";
+    const newPath = parent ? `${parent}/${rawName}` : rawName;
+
+    try {
+      const res = await fetch("/api/mc/docs/rename", {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ oldPath, newPath }),
+      });
+
+      if (!res.ok) {
+        const data = await res.json().catch(() => ({}));
+        throw new Error(data.error || "Failed to rename document.");
+      }
+
+      if (selectedFile === oldPath) {
+        setSelectedFile(newPath);
+      }
+      await loadTree();
+      cancelRename();
+    } catch (err: any) {
+      alert(err?.message || "Failed to rename document.");
+    }
+  }, [renameValue, selectedFile, loadTree, cancelRename]);
+
+  const requestDelete = useCallback((docPath: string, docName: string) => {
+    setMenuOpenForPath(null);
+    setDeleteTarget({ path: docPath, name: docName });
+  }, []);
+
+  const confirmDelete = useCallback(async () => {
+    if (!deleteTarget) return;
+
+    setDeleting(true);
+    try {
+      const res = await fetch(`/api/mc/docs/delete?path=${encodeURIComponent(deleteTarget.path)}`, {
+        method: "DELETE",
+      });
+      if (!res.ok) {
+        const data = await res.json().catch(() => ({}));
+        throw new Error(data.error || "Failed to delete document.");
+      }
+
+      if (selectedFile === deleteTarget.path) {
+        setSelectedFile(null);
+        setFileContent(null);
+        setEditing(false);
+        setDirty(false);
+      }
+      setDeleteTarget(null);
+      await loadTree();
+    } catch (err: any) {
+      alert(err?.message || "Failed to delete document.");
+    } finally {
+      setDeleting(false);
+    }
+  }, [deleteTarget, selectedFile, loadTree]);
+
   // Keyboard shortcuts
   useEffect(() => {
     const handler = (e: KeyboardEvent) => {
@@ -293,6 +398,20 @@ export function DocsBrowser() {
     }
   }, [creatingFolder]);
 
+  useEffect(() => {
+    if (!menuOpenForPath) return;
+
+    const onPointerDown = (e: MouseEvent) => {
+      const target = e.target as HTMLElement;
+      if (!target.closest("[data-doc-menu]") && !target.closest("[data-doc-menu-button]")) {
+        setMenuOpenForPath(null);
+      }
+    };
+
+    document.addEventListener("mousedown", onPointerDown);
+    return () => document.removeEventListener("mousedown", onPointerDown);
+  }, [menuOpenForPath]);
+
   function renderTree(nodes: DocNode[], depth: number = 0, isMobile: boolean = false) {
     return nodes.map((node) => {
       const isExpanded = expandedDirs.has(node.path);
@@ -321,25 +440,110 @@ export function DocsBrowser() {
         );
       }
 
+      const isRenaming = renamingPath === node.path;
+      const isMenuOpen = menuOpenForPath === node.path;
+
       return (
-        <button
-          key={node.path}
-          data-file
-          onClick={() => {
-            if (editing && dirty) {
-              if (!confirm("Discard unsaved changes?")) return;
-            }
-            loadFile(node.path);
-            if (isMobile) setShowMobileTree(false);
-          }}
-          className={`flex w-full items-center gap-1.5 rounded px-2 py-1.5 text-left text-xs transition-colors hover:bg-[#1A1A1A] ${
-            isSelected ? "bg-[#1A1A1A] text-white" : "text-[#CCCCCC]"
-          }`}
-          style={{ paddingLeft: `${20 + depth * 12}px` }}
-        >
-          <FileText size={14} strokeWidth={1.5} className="flex-shrink-0 text-[#888888]" />
-          <span className="truncate">{node.name}</span>
-        </button>
+        <div key={node.path} className="group relative" data-file>
+          <div
+            className={`flex w-full items-center rounded px-2 py-1.5 text-left text-xs transition-colors hover:bg-[#1A1A1A] focus-within:bg-[#1A1A1A] ${
+              isSelected ? "bg-[#1A1A1A] text-white" : "text-[#CCCCCC]"
+            }`}
+            style={{ paddingLeft: `${20 + depth * 12}px` }}
+          >
+            <button
+              onClick={() => {
+                if (editing && dirty) {
+                  if (!confirm("Discard unsaved changes?")) return;
+                }
+                loadFile(node.path);
+                if (isMobile) setShowMobileTree(false);
+              }}
+              onKeyDown={(e) => {
+                if (e.key === "F2") {
+                  e.preventDefault();
+                  startRename(node.path, node.name);
+                }
+                if (e.key === "Delete") {
+                  e.preventDefault();
+                  requestDelete(node.path, node.name);
+                }
+              }}
+              className="flex min-w-0 flex-1 items-center gap-1.5 rounded text-left outline-none"
+              aria-label={`Open ${node.name}`}
+            >
+              <FileText size={14} strokeWidth={1.5} className="flex-shrink-0 text-[#888888]" />
+              {isRenaming ? (
+                <input
+                  ref={renameInputRef}
+                  type="text"
+                  value={renameValue}
+                  onChange={(e) => setRenameValue(e.target.value)}
+                  onKeyDown={(e) => {
+                    if (e.key === "Enter") {
+                      e.preventDefault();
+                      submitRename(node.path);
+                    }
+                    if (e.key === "Escape") {
+                      e.preventDefault();
+                      skipRenameBlurRef.current = true;
+                      cancelRename();
+                    }
+                  }}
+                  onBlur={() => {
+                    if (skipRenameBlurRef.current) {
+                      skipRenameBlurRef.current = false;
+                      return;
+                    }
+                    submitRename(node.path);
+                  }}
+                  className="h-5 flex-1 rounded border border-[#333333] bg-[#080808] px-1.5 font-mono text-[12px] text-[#CCCCCC] outline-none focus:border-[#555555]"
+                  aria-label="Rename document"
+                />
+              ) : (
+                <span className="truncate">{node.name}</span>
+              )}
+            </button>
+
+            {!isRenaming && (
+              <button
+                data-doc-menu-button
+                onClick={(e) => {
+                  e.stopPropagation();
+                  setMenuOpenForPath((prev) => (prev === node.path ? null : node.path));
+                }}
+                className={`ml-1 rounded p-1 text-[#888888] transition-colors hover:bg-[#1F1F1F] hover:text-white focus:bg-[#1F1F1F] focus:text-white ${
+                  isMenuOpen ? "opacity-100" : "opacity-0 group-hover:opacity-100 group-focus-within:opacity-100"
+                }`}
+                aria-label={`Actions for ${node.name}`}
+              >
+                <MoreHorizontal size={12} strokeWidth={1.5} />
+              </button>
+            )}
+          </div>
+
+          {isMenuOpen && !isRenaming && (
+            <div
+              data-doc-menu
+              className="absolute right-2 z-20 mt-1 w-36 rounded border border-neutral-800 bg-[#080808] p-1 shadow-lg"
+            >
+              <button
+                onClick={() => startRename(node.path, node.name)}
+                className="flex w-full items-center justify-between rounded px-2 py-1.5 text-left text-[12px] text-[#CCCCCC] hover:bg-[#141414]"
+              >
+                <span>Rename</span>
+                <span className="font-mono text-[10px] text-[#666666]">F2</span>
+              </button>
+              <button
+                onClick={() => requestDelete(node.path, node.name)}
+                className="mt-0.5 flex w-full items-center justify-between rounded px-2 py-1.5 text-left text-[12px] text-[#CCCCCC] hover:bg-[#1b1111] hover:text-red-500"
+              >
+                <span>Delete</span>
+                <Trash2 size={12} strokeWidth={1.5} />
+              </button>
+            </div>
+          )}
+        </div>
       );
     });
   }
@@ -623,6 +827,39 @@ export function DocsBrowser() {
           </div>
         )}
       </div>
+
+      <Modal
+        isOpen={!!deleteTarget}
+        onClose={() => !deleting && setDeleteTarget(null)}
+        className="dark bg-[#080808] text-white border border-neutral-800"
+      >
+        <ModalContent>
+          <ModalHeader className="border-b border-[#222222] text-sm">Delete document?</ModalHeader>
+          <ModalBody className="py-4">
+            <p className="text-sm text-[#CCCCCC]">
+              Are you sure you want to delete &quot;{deleteTarget?.name}&quot;? This cannot be undone.
+            </p>
+          </ModalBody>
+          <ModalFooter className="border-t border-[#222222]">
+            <Button
+              size="sm"
+              variant="flat"
+              onPress={() => setDeleteTarget(null)}
+              isDisabled={deleting}
+            >
+              Cancel
+            </Button>
+            <Button
+              size="sm"
+              color="danger"
+              onPress={confirmDelete}
+              isLoading={deleting}
+            >
+              Delete
+            </Button>
+          </ModalFooter>
+        </ModalContent>
+      </Modal>
     </div>
   );
 }
