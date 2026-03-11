@@ -77,19 +77,91 @@ const AGENT_COLORS: Record<string, string> = {
 
 
 const PERIOD_OPTIONS = [
-  { value: "1", label: "Today" },
-  { value: "7", label: "7 days" },
-  { value: "14", label: "14 days" },
-  { value: "30", label: "30 days" },
-];
+  { value: "today", label: "Today" },
+  { value: "yesterday", label: "Yesterday" },
+  { value: "7d", label: "7 days" },
+  { value: "14d", label: "14 days" },
+  { value: "30d", label: "30 days" },
+] as const;
+
+type PeriodKey = typeof PERIOD_OPTIONS[number]["value"];
+
+interface ResolvedRange {
+  start: Date;
+  end: Date;
+  startIso: string;
+  endIso: string;
+  periodDays: number;
+}
 
 /** Auto-select interval based on period */
-function intervalForDays(days: string): string {
-  switch (days) {
-    case "1": return "hour";
-    case "30": return "week";
-    default: return "day"; // 7d, 14d
+function intervalForPeriod(period: PeriodKey): string {
+  switch (period) {
+    case "today":
+    case "yesterday":
+      return "hour";
+    case "30d":
+      return "week";
+    default:
+      return "day"; // 7d, 14d
   }
+}
+
+function startOfLocalDay(date: Date): Date {
+  const d = new Date(date);
+  d.setHours(0, 0, 0, 0);
+  return d;
+}
+
+function addLocalDays(date: Date, days: number): Date {
+  const d = new Date(date);
+  d.setDate(d.getDate() + days);
+  return d;
+}
+
+function resolveRange(period: PeriodKey, now = new Date()): ResolvedRange {
+  const todayStart = startOfLocalDay(now);
+
+  let start: Date;
+  let end: Date;
+  let periodDays: number;
+
+  switch (period) {
+    case "today":
+      start = todayStart;
+      end = now;
+      periodDays = 1;
+      break;
+    case "yesterday":
+      start = addLocalDays(todayStart, -1);
+      end = todayStart;
+      periodDays = 1;
+      break;
+    case "14d":
+      start = addLocalDays(todayStart, -13);
+      end = now;
+      periodDays = 14;
+      break;
+    case "30d":
+      start = addLocalDays(todayStart, -29);
+      end = now;
+      periodDays = 30;
+      break;
+    case "7d":
+    default:
+      start = addLocalDays(todayStart, -6);
+      end = now;
+      periodDays = 7;
+      break;
+  }
+
+  return {
+    start,
+    end,
+    startIso: start.toISOString(),
+    endIso: end.toISOString(),
+    periodDays,
+  };
 }
 
 /** Get client timezone offset in minutes (for backend SQL adjustment) */
@@ -231,7 +303,7 @@ const INTERVAL_LABELS: Record<string, string> = {
 };
 
 export function UsageDashboard() {
-  const [days, setDays] = useState("7");
+  const [period, setPeriod] = useState<PeriodKey>("7d");
   const [summary, setSummary] = useState<Summary | null>(null);
   const [chartData, setChartData] = useState<any[]>([]);
   const [breakdown, setBreakdown] = useState<BreakdownRow[]>([]);
@@ -239,17 +311,21 @@ export function UsageDashboard() {
   const [loading, setLoading] = useState(true);
   const [lastUpdatedAt, setLastUpdatedAt] = useState<Date | null>(null);
 
+  const resolvedRange = useMemo(() => resolveRange(period), [period]);
   // Auto-derived interval based on period
-  const interval = useMemo(() => intervalForDays(days), [days]);
+  const interval = useMemo(() => intervalForPeriod(period), [period]);
 
   const fetchData = useCallback(async () => {
     setLoading(true);
     try {
       const tzOffset = getTzOffset();
+      const range = resolvedRange;
+      const rangeParams = `start=${encodeURIComponent(range.startIso)}&end=${encodeURIComponent(range.endIso)}`;
+
       const [summaryRes, chartRes, breakdownRes, logRes] = await Promise.all([
-        fetch(`/api/mc/usage/summary?days=${days}`),
-        fetch(`/api/mc/usage/chart?days=${days}&interval=${interval}&tzOffset=${tzOffset}`),
-        fetch(`/api/mc/usage/breakdown?days=${days}`),
+        fetch(`/api/mc/usage/summary?${rangeParams}`),
+        fetch(`/api/mc/usage/chart?${rangeParams}&interval=${interval}&tzOffset=${tzOffset}`),
+        fetch(`/api/mc/usage/breakdown?${rangeParams}`),
         fetch(`/api/mc/usage/log?limit=40`),
       ]);
 
@@ -268,12 +344,15 @@ export function UsageDashboard() {
       // For hourly view, pre-seed a continuous local-hour series so Recharts
       // always gets contiguous X-axis points (even when an hour has zero usage).
       if (interval === "hour") {
-        const hours = Math.max(parseInt(days, 10) * 24, 24);
-        const cursor = new Date();
-        cursor.setMinutes(0, 0, 0);
-        cursor.setHours(cursor.getHours() - (hours - 1));
+        const startHour = new Date(range.start);
+        startHour.setMinutes(0, 0, 0);
 
-        for (let i = 0; i < hours; i += 1) {
+        const endExclusive = new Date(range.end);
+        const endHour = new Date(endExclusive.getTime() - 1);
+        endHour.setMinutes(0, 0, 0);
+
+        const cursor = new Date(startHour);
+        while (cursor <= endHour) {
           dateMap.set(formatHourKey(cursor), { date: formatHourKey(cursor) } as any);
           cursor.setHours(cursor.getHours() + 1);
         }
@@ -301,7 +380,7 @@ export function UsageDashboard() {
       setLastUpdatedAt(new Date());
       setLoading(false);
     }
-  }, [days, interval]);
+  }, [resolvedRange, interval]);
 
   useEffect(() => {
     fetchData();
@@ -329,10 +408,10 @@ export function UsageDashboard() {
           ) : null}
         </div>
         <Select
-          selectedKeys={[days]}
+          selectedKeys={[period]}
           onSelectionChange={(keys) => {
-            const v = Array.from(keys)[0] as string;
-            if (v) setDays(v);
+            const v = Array.from(keys)[0] as PeriodKey | undefined;
+            if (v) setPeriod(v);
           }}
           variant="bordered"
           size="sm"
@@ -378,10 +457,10 @@ export function UsageDashboard() {
           />
           <MetricCard
             label="Burn Rate"
-            value={days === "1"
-              ? formatTokens(Math.round(summary.total_tokens / Math.max(new Date().getHours() + 1, 1)))
+            value={interval === "hour"
+              ? formatTokens(Math.round(summary.total_tokens / Math.max((resolvedRange.end.getTime() - resolvedRange.start.getTime()) / (60 * 60 * 1000), 1)))
               : (summary.period_days > 0 ? formatTokens(Math.round(summary.total_tokens / summary.period_days)) : "0")}
-            sub={days === "1" ? "tokens/hour" : "tokens/day"}
+            sub={interval === "hour" ? "tokens/hour" : "tokens/day"}
             icon={<TrendingUp size={14} strokeWidth={1.5} />}
           />
         </div>
