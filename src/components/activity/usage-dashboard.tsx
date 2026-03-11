@@ -22,6 +22,8 @@ interface Summary {
   total_cost_usd: number;
   active_agents: number;
   period_days: number;
+  period_start_utc?: string;
+  period_end_utc?: string;
   unpriced_requests?: number;
   unpriced_tokens?: number;
 }
@@ -344,41 +346,52 @@ export function UsageDashboard() {
       setRecentLogs(Array.isArray(logData) ? logData : []);
 
       // Transform chart data: pivot agent rows into { date, frank: N, tom: N, ... }
-      const dateMap = new Map<string, Record<string, number>>();
+      const dateMap = new Map<string, any>();
 
       // For hourly view, pre-seed a continuous local-hour series so Recharts
       // always gets contiguous X-axis points (even when an hour has zero usage).
       if (interval === "hour") {
-        const startHour = new Date(range.start);
-        startHour.setMinutes(0, 0, 0);
+        // Use a fixed start/end to avoid loop mutation bugs and ensure full day coverage
+        const start = new Date(range.start);
+        start.setHours(start.getHours(), 0, 0, 0);
 
-        const endExclusive = new Date(range.end);
-        const endHour = new Date(endExclusive.getTime() - 1);
-        endHour.setMinutes(0, 0, 0);
+        const end = new Date(range.end);
+        // If it's a past calendar day (like Yesterday), ensure we cover all 24 hours
+        if (period === "yesterday") {
+          end.setHours(23, 59, 59, 999);
+        }
+        end.setHours(end.getHours(), 0, 0, 0);
 
-        const cursor = new Date(startHour);
-        while (cursor <= endHour) {
-          dateMap.set(formatHourKey(cursor), { date: formatHourKey(cursor) } as any);
+        const cursor = new Date(start);
+        // Safety limit to prevent infinite loops (max 31 days of hours)
+        let safety = 0;
+        while (cursor <= end && safety < 800) {
+          const key = formatHourKey(cursor);
+          dateMap.set(key, { date: key });
           cursor.setHours(cursor.getHours() + 1);
+          safety++;
         }
       }
 
       for (const row of chartRows) {
         if (!dateMap.has(row.date)) {
-          dateMap.set(row.date, { date: row.date } as any);
+          dateMap.set(row.date, { date: row.date });
         }
         const entry = dateMap.get(row.date)!;
         entry[row.agent] = (entry[row.agent] || 0) + row.input_tokens + row.output_tokens;
       }
 
       const chartAgents = Array.from(new Set(chartRows.map((r) => r.agent)));
-      for (const entry of dateMap.values()) {
+      const sortedData = Array.from(dateMap.values())
+        .sort((a, b) => String(a.date).localeCompare(String(b.date)));
+
+      for (const entry of sortedData) {
         for (const agent of chartAgents) {
           if (entry[agent] === undefined) entry[agent] = 0;
         }
       }
 
-      setChartData(Array.from(dateMap.values()));
+      setChartData(sortedData);
     } catch (err) {
       console.error("Failed to fetch usage data:", err);
     } finally {
@@ -427,6 +440,20 @@ export function UsageDashboard() {
             <SelectItem key={p.value}>{p.label}</SelectItem>
           ))}
         </Select>
+      </div>
+
+      <div className="rounded border border-[#222222] bg-[#0A0A0A] px-3 py-2 text-[11px] text-[#777777]">
+        OpenClaw telemetry → usage-tracker hook → Mission Control usage_logs. Costs are estimated from model pricing.
+        {summary?.period_start_utc && (
+          <span className="ml-2 text-[#555555]">
+            Window: {new Date(summary.period_start_utc).toLocaleString()} – {new Date(summary.period_end_utc!).toLocaleString()}
+          </span>
+        )}
+        {summary?.unpriced_requests ? (
+          <span className="ml-2 text-amber-300">
+            {summary.unpriced_requests} unpriced ({formatTokens(summary.unpriced_tokens || 0)} tokens)
+          </span>
+        ) : null}
       </div>
 
 
