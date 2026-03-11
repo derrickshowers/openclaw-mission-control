@@ -50,7 +50,6 @@ export function TaskDrawer({ task, isOpen, onClose, onUpdate }: TaskDrawerProps)
   const [dragOver, setDragOver] = useState(false);
   const [confirmDelete, setConfirmDelete] = useState(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
-  const commentsEndRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
     if (isOpen) {
@@ -76,9 +75,8 @@ export function TaskDrawer({ task, isOpen, onClose, onUpdate }: TaskDrawerProps)
     if (event === "comment.created" && data.comment?.task_id === task.id) {
       setComments((prev) => {
         if (prev.some((c) => c.id === data.comment.id)) return prev;
-        return [...prev, data.comment];
+        return [data.comment, ...prev];
       });
-      setTimeout(() => commentsEndRef.current?.scrollIntoView({ behavior: "smooth" }), 50);
     }
 
     if (event === "attachment.created" && data.attachment?.task_id === task.id) {
@@ -99,9 +97,8 @@ export function TaskDrawer({ task, isOpen, onClose, onUpdate }: TaskDrawerProps)
     setSubmitting(true);
     try {
       const comment = await api.addComment(task.id, author, newComment.trim());
-      setComments((prev) => [...prev, comment]);
+      setComments((prev) => [comment, ...prev]);
       setNewComment("");
-      setTimeout(() => commentsEndRef.current?.scrollIntoView({ behavior: "smooth" }), 50);
     } catch (err) {
       console.error("Failed to post comment:", err);
     } finally {
@@ -499,7 +496,6 @@ export function TaskDrawer({ task, isOpen, onClose, onUpdate }: TaskDrawerProps)
                   </CardBody>
                 </Card>
               ))}
-              <div ref={commentsEndRef} />
             </div>
 
           </div>
