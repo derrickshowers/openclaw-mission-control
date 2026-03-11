@@ -1,8 +1,8 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState } from "react";
 import Link from "next/link";
-import { Button, Input, Textarea, Card, CardBody, Progress, Modal, ModalContent, ModalHeader, ModalBody, ModalFooter, useDisclosure, Chip } from "@heroui/react";
+import { Button, Input, Textarea, Card, CardBody, Progress, Modal, ModalContent, ModalHeader, ModalBody, ModalFooter, useDisclosure } from "@heroui/react";
 import { Plus, Folder, ArrowRight, AlertTriangle, User } from "lucide-react";
 import { api, type Project } from "@/lib/api";
 import { timeAgo } from "@/lib/dates";
@@ -46,7 +46,7 @@ export function ProjectsView({ initialProjects }: ProjectsViewProps) {
   return (
     <div className="flex h-full flex-col">
       {/* Header */}
-      <div className="mb-6 flex items-center justify-between">
+      <div className="mb-4 flex flex-col gap-3 sm:mb-6 sm:flex-row sm:items-center sm:justify-between">
         <div>
           <h1 className="text-xl font-semibold">Projects</h1>
           <p className="text-sm text-[#888888]">Track high-level progress across workstreams</p>
@@ -55,7 +55,7 @@ export function ProjectsView({ initialProjects }: ProjectsViewProps) {
           size="sm"
           variant="flat"
           onPress={onOpen}
-          className="border border-[#222222] bg-[#121212] text-sm"
+          className="w-full border border-[#222222] bg-[#121212] text-sm sm:w-auto"
           startContent={<Plus size={16} strokeWidth={1.5} />}
         >
           New Project
@@ -71,7 +71,7 @@ export function ProjectsView({ initialProjects }: ProjectsViewProps) {
             shadow="none"
             radius="sm"
           >
-            <CardBody className="flex flex-row items-center gap-6 p-4">
+            <CardBody className="flex flex-col gap-3 p-3 sm:p-4 lg:flex-row lg:items-center lg:gap-6">
               {/* Left: Info */}
               <div className="flex flex-1 flex-col min-w-0">
                 <div className="flex items-center gap-2">
@@ -86,10 +86,10 @@ export function ProjectsView({ initialProjects }: ProjectsViewProps) {
               </div>
 
               {/* Center: Progress */}
-              <div className="flex-[1.5] flex flex-col gap-2">
-                <div className="flex items-center justify-between text-[10px] text-[#888888]">
+              <div className="w-full lg:flex-[1.5] flex flex-col gap-2">
+                <div className="flex flex-col gap-1 text-[10px] text-[#888888] sm:flex-row sm:items-center sm:justify-between">
                   <span>{project.task_summary?.progress || 0}% complete · {project.task_summary?.total || 0} tasks</span>
-                  <div className="flex gap-2">
+                  <div className="flex flex-wrap gap-2">
                     {project.task_summary?.backlog ? <span>{project.task_summary.backlog} Backlog</span> : null}
                     {project.task_summary?.in_progress ? <span>{project.task_summary.in_progress} In Progress</span> : null}
                     {project.task_summary?.blocked ? <span className="text-[#EF4444] font-medium">{project.task_summary.blocked} Blocked</span> : null}
@@ -100,7 +100,7 @@ export function ProjectsView({ initialProjects }: ProjectsViewProps) {
                   aria-label="Project progress"
                   size="sm"
                   value={project.task_summary?.progress || 0}
-                  className="max-w-md"
+                  className="max-w-full"
                   classNames={{
                     base: "h-1",
                     indicator: "bg-[#8b5cf6]",
@@ -110,8 +110,8 @@ export function ProjectsView({ initialProjects }: ProjectsViewProps) {
               </div>
 
               {/* Right: Meta & CTA */}
-              <div className="flex flex-1 items-center justify-end gap-6 text-[11px] text-[#555555]">
-                <div className="flex items-center gap-1.5 min-w-[80px]">
+              <div className="flex w-full items-center justify-between gap-3 text-[11px] text-[#555555] lg:flex-1 lg:justify-end lg:gap-6">
+                <div className="flex items-center gap-1.5 min-w-[70px]">
                   <User size={12} strokeWidth={1.5} />
                   <span className="capitalize">{project.owner || "derrick"}</span>
                 </div>
@@ -145,7 +145,13 @@ export function ProjectsView({ initialProjects }: ProjectsViewProps) {
       </div>
 
       {/* New Project Modal */}
-      <Modal isOpen={isOpen} onClose={onClose} className="dark bg-[#121212] text-white">
+      <Modal
+        isOpen={isOpen}
+        onClose={onClose}
+        className="dark bg-[#121212] text-white max-h-[85dvh]"
+        placement="top-center"
+        scrollBehavior="inside"
+      >
         <ModalContent>
           <ModalHeader className="border-b border-[#222222] text-sm">
             New Project
