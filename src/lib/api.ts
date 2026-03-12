@@ -77,7 +77,7 @@ export interface Project {
   };
 }
 
-// Tasks
+// Team tasks
 export interface Task {
   id: string;
   title: string;
@@ -89,10 +89,105 @@ export interface Task {
   position: number;
   project_id: string | null;
   project?: Project | null;
-  created_by: string;
+  created_by: string | null;
   created_at: string;
   updated_at: string;
   deleted_at: string | null;
+}
+
+// Personal tasks
+export interface PersonalTask {
+  id: string;
+  source: "notion";
+  source_id: string;
+  source_url: string | null;
+  title: string;
+  description: string | null;
+  status: "backlog" | "in_progress" | "blocked" | "done";
+  source_status: string | null;
+  priority: number;
+  due_at: string | null;
+  owner: string;
+  source_last_edited_at: string | null;
+  last_synced_at: string;
+  sync_state: "active" | "archived" | "deleted" | "error";
+  archived_at: string | null;
+  created_at: string;
+  updated_at: string;
+  link_count: number;
+  open_link_count: number;
+}
+
+export interface PersonalTaskDetail extends PersonalTask {
+  raw_payload?: Record<string, any>;
+  linked_team_tasks: Array<{
+    id: string;
+    personal_task_id: string;
+    team_task_id: string;
+    relation: "delegated" | "related";
+    created_by: string | null;
+    created_at: string;
+    team_task_deleted: boolean;
+    team_task: {
+      id: string;
+      title: string;
+      status: string;
+      assignee: string | null;
+      priority: number;
+      project_id: string | null;
+      project_name: string | null;
+      updated_at: string;
+    } | null;
+  }>;
+}
+
+export interface PersonalTaskSummary {
+  total: number;
+  backlog: number;
+  in_progress: number;
+  blocked: number;
+  done: number;
+  overdue: number;
+  due_today: number;
+  linked: number;
+  linked_open: number;
+  last_synced_at: string | null;
+}
+
+export interface PersonalTaskSyncRun {
+  id: string;
+  provider: string;
+  run_type: "incremental" | "full";
+  trigger: "scheduled" | "manual" | "startup";
+  status: "running" | "success" | "partial" | "failed" | "skipped";
+  started_at: string;
+  finished_at: string | null;
+  window_start_at: string | null;
+  window_end_at: string | null;
+  cursor_start: string | null;
+  cursor_end: string | null;
+  seen_count: number;
+  imported_count: number;
+  updated_count: number;
+  archived_count: number;
+  error: string | null;
+}
+
+export interface PersonalTaskSyncResult {
+  runId: string | null;
+  status: "running" | "success" | "partial" | "failed" | "skipped";
+  runType: "incremental" | "full";
+  skipped?: boolean;
+  reason?: string;
+  counts: {
+    seen: number;
+    imported: number;
+    updated: number;
+    archived: number;
+  };
+  cursorStart: string | null;
+  cursorEnd: string | null;
+  error: string | null;
 }
 
 export interface TaskAttachment {
@@ -119,7 +214,7 @@ type TaskUpdate = Partial<Pick<Task, "title" | "description" | "status" | "assig
 };
 
 export const api = {
-  // Tasks
+  // Team tasks
   getTasks: (params?: { status?: string; assignee?: string; project_id?: string }) =>
     apiFetch<Task[]>("/tasks", { params: params as Record<string, string> }),
 
@@ -144,6 +239,65 @@ export const api = {
 
   moveTask: (id: string, status: string, position: number) =>
     apiFetch<Task>(`/tasks/${id}/position`, { method: "PATCH", body: JSON.stringify({ status, position }) }),
+
+  // Personal tasks
+  getPersonalTasks: (params?: {
+    status?: string;
+    sync_state?: string;
+    linked?: "linked" | "unlinked";
+    due?: "overdue" | "today" | "soon";
+    include_archived?: boolean;
+    sort?: "due" | "updated" | "priority";
+    limit?: number;
+  }) =>
+    apiFetch<PersonalTask[]>("/personal-tasks", {
+      params: {
+        status: params?.status || "",
+        sync_state: params?.sync_state || "",
+        linked: params?.linked || "",
+        due: params?.due || "",
+        sort: params?.sort || "",
+        limit: params?.limit !== undefined ? String(params.limit) : "",
+        include_archived: params?.include_archived ? "1" : "",
+      },
+    }),
+
+  getPersonalTask: (id: string) => apiFetch<PersonalTaskDetail>(`/personal-tasks/${id}`),
+
+  getPersonalTaskSummary: () =>
+    apiFetch<PersonalTaskSummary>("/personal-tasks", { params: { summary: "1" } }),
+
+  syncPersonalTasks: (runType: "incremental" | "full" = "incremental") =>
+    apiFetch<PersonalTaskSyncResult>("/personal-tasks/sync", {
+      method: "POST",
+      body: JSON.stringify({ run_type: runType }),
+    }),
+
+  getPersonalTaskSyncRuns: (params?: { limit?: number; status?: string }) =>
+    apiFetch<PersonalTaskSyncRun[]>("/personal-tasks/sync-runs", {
+      params: {
+        limit: params?.limit !== undefined ? String(params.limit) : "",
+        status: params?.status || "",
+      },
+    }),
+
+  promotePersonalTask: (
+    id: string,
+    data?: {
+      title?: string;
+      description?: string;
+      assignee?: string;
+      priority?: number;
+      status?: "backlog" | "in_progress" | "blocked" | "done";
+      project_id?: string | null;
+      create_another?: boolean;
+      relation?: "delegated" | "related";
+    }
+  ) =>
+    apiFetch<any>(`/personal-tasks/${id}/promote`, {
+      method: "POST",
+      body: JSON.stringify(data || {}),
+    }),
 
   // Projects
   getProjects: (params?: { include_archived?: boolean }) =>

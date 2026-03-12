@@ -2,7 +2,7 @@
 
 import { useState } from "react";
 import { Button, Card, CardBody, CardHeader, Chip } from "@heroui/react";
-import { Crown, Crosshair, Landmark, Zap, Palette, Bot, Users, ListChecks, ArrowRight, ShieldAlert } from "lucide-react";
+import { Crown, Crosshair, Landmark, Zap, Palette, Bot, Users, ListChecks, ArrowRight, ShieldAlert, User } from "lucide-react";
 import { api } from "@/lib/api";
 import type { LucideIcon } from "lucide-react";
 import type { Task } from "@/lib/api";
@@ -19,6 +19,7 @@ interface ActivityEntry {
 }
 
 interface DashboardContentProps {
+  personalSummary?: any;
   tasks: Task[];
   agents: any[];
   status: any;
@@ -80,7 +81,7 @@ const activityStateConfig: Record<string, { color: "success" | "warning" | "defa
   uninitialized: { color: "default", label: "none" },
 };
 
-export function DashboardContent({ tasks, agents, status, recentActivity }: DashboardContentProps) {
+export function DashboardContent({ tasks, agents, status, recentActivity, personalSummary }: DashboardContentProps) {
   const inProgress = tasks.filter((t) => t.status === "in_progress");
   const blocked = tasks.filter((t) => t.status === "blocked");
   const done = tasks.filter((t) => t.status === "done");
@@ -127,7 +128,7 @@ export function DashboardContent({ tasks, agents, status, recentActivity }: Dash
         <StatCard label="Completed" value={done.length} />
       </div>
 
-      <div className="grid gap-6 lg:grid-cols-2">
+      <div className="grid gap-6 lg:grid-cols-2 xl:grid-cols-3">
         {/* Active Agents */}
         <Card className="border border-divider bg-content1/50 backdrop-blur-xl shadow-[0_8px_30px_rgba(0,0,0,0.15)] dark:shadow-[0_8px_30px_rgba(0,0,0,0.35)]">
           <CardHeader className="border-b border-divider px-4 py-2.5">
@@ -236,6 +237,61 @@ export function DashboardContent({ tasks, agents, status, recentActivity }: Dash
             )}
           </CardBody>
         </Card>
+      {/* Personal Summary Widget */}
+      {personalSummary && (
+        <Card className="border border-divider bg-content1/50 backdrop-blur-xl shadow-[0_8px_30px_rgba(0,0,0,0.15)] dark:shadow-[0_8px_30px_rgba(0,0,0,0.35)]">
+          <CardHeader className="border-b border-divider px-4 py-2.5">
+            <div className="flex w-full items-center justify-between">
+              <span className="flex items-center gap-2 text-xs font-medium uppercase tracking-wider text-foreground-400">
+                <User size={16} strokeWidth={1.5} className="text-muted-foreground" />
+                Personal Backlog (Notion)
+              </span>
+              {personalSummary.last_synced_at && (
+                <span className="text-[10px] text-foreground-500 font-mono">
+                  Synced {timeAgo(personalSummary.last_synced_at)}
+                </span>
+              )}
+            </div>
+          </CardHeader>
+          <CardBody className="p-3">
+            <div className="grid grid-cols-3 gap-2 mb-4">
+              <div className="rounded-lg bg-content2/50 p-2 text-center">
+                <p className="text-[10px] uppercase text-foreground-400">Overdue</p>
+                <p className={`text-lg font-bold ${personalSummary.overdue > 0 ? 'text-danger' : 'text-foreground'}`}>
+                  {personalSummary.overdue}
+                </p>
+              </div>
+              <div className="rounded-lg bg-content2/50 p-2 text-center">
+                <p className="text-[10px] uppercase text-foreground-400">Today</p>
+                <p className="text-lg font-bold text-primary">{personalSummary.due_today}</p>
+              </div>
+              <div className="rounded-lg bg-content2/50 p-2 text-center">
+                <p className="text-[10px] uppercase text-foreground-400">Open</p>
+                <p className="text-lg font-bold">{personalSummary.in_progress + personalSummary.backlog + personalSummary.blocked}</p>
+              </div>
+            </div>
+            
+            <div className="space-y-2">
+              <div className="flex items-center justify-between text-xs px-1">
+                <span className="text-foreground-400">Delegated items</span>
+                <span className="font-medium text-primary">{personalSummary.linked_open} active</span>
+              </div>
+              <Button 
+                as="a" 
+                href="/tasks?scope=personal" 
+                variant="flat" 
+                size="sm" 
+                fullWidth 
+                className="mt-2 text-xs"
+                endContent={<ArrowRight size={14} />}
+              >
+                View Personal Tasks
+              </Button>
+            </div>
+          </CardBody>
+        </Card>
+      )}
+
       </div>
 
       <Card className="border border-divider bg-content1/50 backdrop-blur-xl shadow-[0_8px_30px_rgba(0,0,0,0.15)] dark:shadow-[0_8px_30px_rgba(0,0,0,0.35)]">

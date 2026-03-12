@@ -1,0 +1,250 @@
+"use client";
+
+import { useState, useCallback, useEffect } from "react";
+import { 
+  Table, 
+  TableHeader, 
+  TableColumn, 
+  TableBody, 
+  TableRow, 
+  TableCell, 
+  Chip, 
+  Button,
+  Tooltip,
+  Spinner,
+  Card
+} from "@heroui/react";
+import { 
+  ExternalLink, 
+  RefreshCw, 
+  Calendar, 
+  AlertCircle,
+  Link as LinkIcon,
+  CheckCircle2,
+  Clock,
+  ArrowUpCircle
+} from "lucide-react";
+import { api, type PersonalTask } from "@/lib/api";
+import { formatLocal, timeAgo } from "@/lib/dates";
+import { PersonalTaskDrawer } from "./personal-task-drawer";
+import { useSSE } from "@/hooks/use-sse";
+
+const statusConfig: Record<string, { color: "default" | "primary" | "danger" | "success" | "warning"; icon: any }> = {
+  backlog: { color: "default", icon: Clock },
+  in_progress: { color: "primary", icon: RefreshCw },
+  blocked: { color: "danger", icon: AlertCircle },
+  done: { color: "success", icon: CheckCircle2 },
+};
+
+const priorityConfig: Record<number, { label: string; color: "default" | "warning" | "danger" }> = {
+  0: { label: "None", color: "default" },
+  1: { label: "Low", color: "default" },
+  2: { label: "Medium", color: "warning" },
+  3: { label: "High", color: "danger" },
+  4: { label: "Urgent", color: "danger" },
+};
+
+interface PersonalTaskListProps {
+  initialTasks: PersonalTask[];
+}
+
+export function PersonalTaskList({ initialTasks }: PersonalTaskListProps) {
+  const [tasks, setTasks] = useState<PersonalTask[]>(initialTasks);
+  const [selectedTaskId, setSelectedTaskId] = useState<string | null>(null);
+  const [isSyncing, setIsSyncing] = useState(false);
+  const [isLoading, setIsLoading] = useState(false);
+
+  const fetchTasks = useCallback(async () => {
+    setIsLoading(true);
+    try {
+      const data = await api.getPersonalTasks({ limit: 100 });
+      setTasks(data);
+    } catch (err) {
+      console.error("Failed to fetch personal tasks:", err);
+    } finally {
+      setIsLoading(false);
+    }
+  }, []);
+
+  const handleSync = async () => {
+    setIsSyncing(true);
+    try {
+      await api.syncPersonalTasks("incremental");
+      // The SSE event will trigger a refresh or we can poll
+    } catch (err) {
+      console.error("Sync failed:", err);
+      setIsSyncing(false);
+    }
+  };
+
+  // SSE for sync completion and promotions
+  const { lastEvent } = useSSE(["personal_task.sync.completed", "personal_task.promoted"]);
+
+  useEffect(() => {
+    if (!lastEvent) return;
+    if (lastEvent.event === "personal_task.sync.completed") {
+      setIsSyncing(false);
+      fetchTasks();
+    }
+    if (lastEvent.event === "personal_task.promoted") {
+        fetchTasks();
+    }
+  }, [lastEvent, fetchTasks]);
+
+  const renderCell = (task: PersonalTask, columnKey: React.Key) => {
+    switch (columnKey) {
+      case "title":
+        return (
+          <div className="flex flex-col">
+            <span className="text-sm font-medium text-foreground">{task.title}</span>
+            <span className="text-xs text-foreground-400 truncate max-w-[300px]">
+              {task.description || "No description"}
+            </span>
+          </div>
+        );
+      case "status":
+        const config = statusConfig[task.status] || statusConfig.backlog;
+        const Icon = config.icon;
+        return (
+          <Chip
+            startContent={<Icon size={12} />}
+            variant="flat"
+            color={config.color}
+            size="sm"
+            className="capitalize"
+          >
+            {task.source_status || task.status.replace("_", " ")}
+          </Chip>
+        );
+      case "priority":
+        const pConfig = priorityConfig[task.priority] || priorityConfig[0];
+        return (
+          <Chip variant="dot" color={pConfig.color} size="sm" className="border-none">
+            {pConfig.label}
+          </Chip>
+        );
+      case "due":
+        if (!task.due_at) return <span className="text-xs text-foreground-500">-</span>;
+        const isOverdue = new Date(task.due_at) < new Date() && task.status !== "done";
+        return (
+          <div className={`flex items-center gap-1.5 text-xs ${isOverdue ? "text-danger" : "text-foreground-500"}`}>
+            <Calendar size={12} />
+            {formatLocal(task.due_at, { month: "short", day: "numeric" })}
+          </div>
+        );
+      case "links":
+        if (task.link_count === 0) return null;
+        return (
+          <Tooltip content={`${task.link_count} linked team tasks (${task.open_link_count} open)`}>
+            <div className="flex items-center gap-1 text-primary">
+              <LinkIcon size={14} />
+              <span className="text-xs font-medium">{task.link_count}</span>
+              {task.open_link_count > 0 && (
+                 <span className="flex h-1.5 w-1.5 rounded-full bg-primary animate-pulse" />
+              )}
+            </div>
+          </Tooltip>
+        );
+      case "actions":
+        return (
+          <div className="flex items-center gap-2">
+            {task.source_url && (
+              <Button
+                isIconOnly
+                size="sm"
+                variant="light"
+                as="a"
+                href={task.source_url}
+                target="_blank"
+                rel="noopener noreferrer"
+              >
+                <ExternalLink size={14} className="text-foreground-400" />
+              </Button>
+            )}
+            <Button
+              size="sm"
+              variant="flat"
+              color="primary"
+              className="h-7 text-[10px] font-medium uppercase tracking-wider"
+              onPress={() => setSelectedTaskId(task.id)}
+            >
+              Details
+            </Button>
+          </div>
+        );
+      default:
+        return null;
+    }
+  };
+
+  return (
+    <div className="space-y-4">
+      <div className="flex items-center justify-between px-1">
+        <div className="flex items-center gap-4">
+          <span className="text-sm text-foreground-400">{tasks.length} personal tasks</span>
+          {tasks.length > 0 && (
+             <span className="text-[10px] text-foreground-500 font-mono">
+               Last synced {timeAgo(tasks[0].last_synced_at)}
+             </span>
+          )}
+        </div>
+        <Button
+          size="sm"
+          variant="flat"
+          onPress={handleSync}
+          isLoading={isSyncing}
+          startContent={!isSyncing && <RefreshCw size={14} />}
+          className="border border-divider bg-content1"
+        >
+          {isSyncing ? "Syncing..." : "Sync Notion"}
+        </Button>
+      </div>
+
+      <Card className="border border-divider bg-content1/50 backdrop-blur-xl">
+        <Table 
+          aria-label="Personal tasks table"
+          classNames={{
+            base: "max-h-[70vh] overflow-y-auto",
+            table: "min-w-[800px]",
+            thead: "bg-content2/50",
+            th: "text-[10px] font-semibold uppercase tracking-wider text-foreground-500 border-b border-divider",
+            td: "py-3 border-b border-divider/50"
+          }}
+          removeWrapper
+        >
+          <TableHeader>
+            <TableColumn key="title">Task</TableColumn>
+            <TableColumn key="status" width={140}>Status</TableColumn>
+            <TableColumn key="priority" width={100}>Priority</TableColumn>
+            <TableColumn key="due" width={100}>Due Date</TableColumn>
+            <TableColumn key="links" width={60}>Links</TableColumn>
+            <TableColumn key="actions" width={120} align="end">Actions</TableColumn>
+          </TableHeader>
+          <TableBody 
+            items={tasks}
+            loadingContent={<Spinner size="sm" />}
+            isLoading={isLoading}
+            emptyContent={"No personal tasks found in Notion."}
+          >
+            {(item) => (
+              <TableRow key={item.id} className="hover:bg-content2/30 cursor-pointer" onClick={() => setSelectedTaskId(item.id)}>
+                {(columnKey) => <TableCell>{renderCell(item, columnKey)}</TableCell>}
+              </TableRow>
+            )}
+          </TableBody>
+        </Table>
+      </Card>
+
+      {selectedTaskId && (
+        <PersonalTaskDrawer 
+          taskId={selectedTaskId}
+          isOpen={!!selectedTaskId}
+          onClose={() => setSelectedTaskId(null)}
+          onPromoted={() => {
+            fetchTasks();
+          }}
+        />
+      )}
+    </div>
+  );
+}

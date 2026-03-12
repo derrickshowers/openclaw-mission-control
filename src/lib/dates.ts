@@ -47,10 +47,10 @@ function fallbackDateLabel(dateValue: string | number | Date | null | undefined)
 /**
  * Format a backend timestamp as a locale string in the user's local timezone.
  */
-export function formatLocal(dateValue: string | number | Date | null | undefined): string {
+export function formatLocal(dateValue: string | number | Date | null | undefined, options?: Intl.DateTimeFormatOptions): string {
   const d = parseUTC(dateValue);
   if (isNaN(d.getTime())) return fallbackDateLabel(dateValue);
-  return d.toLocaleString();
+  return d.toLocaleString("en-US", options);
 }
 
 /**

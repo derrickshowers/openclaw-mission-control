@@ -36,7 +36,17 @@ NEXT_PUBLIC_API_URL=https://api.mission.showerstech.com  # for production
 
 ## Deployment
 
-This app deploys to **Vercel**. Derrick will:
+This app deploys to **Vercel**.
+
+### Production topology
+
+- Frontend source repo: `/data/developer/repos/mission-control/web`
+- Production web: `mission.showerstech.com`
+- Production API: `https://api.mission.showerstech.com`
+- The production API is backed by the deployed runtime at `/data/srv/mission-control/api/current` inside the OpenClaw container, not the editable API repo checkout.
+
+### Vercel flow
+
 1. Push this repo to GitHub
 2. Connect to Vercel
 3. Add environment variables in Vercel dashboard

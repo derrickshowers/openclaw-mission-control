@@ -29,12 +29,13 @@ const PRIORITIES = [
 interface KanbanBoardProps {
   initialTasks: Task[];
   initialProjectId?: string | null;
+  projects?: Project[];
 }
 
-export function KanbanBoard({ initialTasks, initialProjectId }: KanbanBoardProps) {
+export function KanbanBoard({ initialTasks, initialProjectId, projects: initialProjects }: KanbanBoardProps) {
   const [tasks, setTasks] = useState<Task[]>(initialTasks);
   const [selectedTask, setSelectedTask] = useState<Task | null>(null);
-  const [projects, setProjects] = useState<Project[]>([]);
+  const [projects, setProjects] = useState<Project[]>(initialProjects || []);
   const [projectId, setProjectId] = useState<string | null>(initialProjectId || null);
   const [drawerOpen, setDrawerOpen] = useState(false);
   const { isOpen, onOpen, onClose } = useDisclosure();
