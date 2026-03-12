@@ -10,6 +10,8 @@ import { api } from "@/lib/api";
 import type { Task, TaskComment, TaskAttachment, Project } from "@/lib/api";
 import { formatLocal, parseUTC } from "@/lib/dates";
 import { KNOWN_AGENT_IDS, resolveAgentAvatarUrl } from "@/lib/agents";
+import ReactMarkdown from "react-markdown";
+import remarkGfm from "remark-gfm";
 
 const COLUMNS = [
   { id: "backlog", label: "Backlog" },
@@ -31,6 +33,34 @@ const sortCommentsDesc = (items: TaskComment[]) =>
   [...items].sort(
     (a, b) => parseUTC(b.created_at).getTime() - parseUTC(a.created_at).getTime()
   );
+
+// Helper to process text nodes and highlight @mentions
+const processChildrenForMentions = (children: any): any => {
+  if (!children) return children;
+  
+  const processNode = (child: any, index: number): any => {
+    if (typeof child === 'string') {
+      // Split on @mentions and wrap them
+      const parts = child.split(/(@\w+)/g);
+      return parts.map((part: string, i: number) =>
+        /^@\w+$/.test(part) ? (
+          <span key={`${index}-${i}`} className="inline-block rounded px-1 py-0.5 bg-[#8b5cf6]/15 text-[#8b5cf6] font-medium text-xs">
+            {part}
+          </span>
+        ) : (
+          part
+        )
+      );
+    }
+    return child;
+  };
+
+  if (Array.isArray(children)) {
+    return children.map((child, i) => processNode(child, i));
+  }
+  
+  return processNode(children, 0);
+};
 
 interface TaskDrawerProps {
   task: Task;
@@ -489,15 +519,80 @@ export function TaskDrawer({ task, isOpen, onClose, onUpdate }: TaskDrawerProps)
                         {formatLocal(c.created_at)}
                       </span>
                     </div>
-                    <p className="text-sm text-[#aaaaaa] whitespace-pre-wrap leading-relaxed">
-                      {c.content.split(/(@\w+)/g).map((part: string, j: number) =>
-                        /^@\w+$/.test(part) ? (
-                          <span key={j} className="inline-block rounded px-1 py-0.5 bg-[#8b5cf6]/15 text-[#8b5cf6] font-medium text-xs">{part}</span>
-                        ) : (
-                          part
-                        )
-                      )}
-                    </p>
+                    <div className="comment-markdown text-sm text-[#EDEDED] leading-[1.5]">
+                      <ReactMarkdown
+                        remarkPlugins={[remarkGfm]}
+                        components={{
+                          h1: ({ node, ...props }) => (
+                            <h1 className="text-[15px] font-semibold mt-4 mb-2 first:mt-0" {...props} />
+                          ),
+                          h2: ({ node, ...props }) => (
+                            <h2 className="text-[14px] font-semibold mt-4 mb-2 first:mt-0" {...props} />
+                          ),
+                          h3: ({ node, ...props }) => (
+                            <h3 className="text-[13px] font-semibold mt-4 mb-2 text-[#A3A3A3] first:mt-0" {...props} />
+                          ),
+                          h4: ({ node, ...props }) => (
+                            <h4 className="text-[13px] font-semibold mt-4 mb-2 text-[#A3A3A3] first:mt-0" {...props} />
+                          ),
+                          h5: ({ node, ...props }) => (
+                            <h5 className="text-[13px] font-semibold mt-4 mb-2 text-[#A3A3A3] first:mt-0" {...props} />
+                          ),
+                          h6: ({ node, ...props }) => (
+                            <h6 className="text-[13px] font-semibold mt-4 mb-2 text-[#A3A3A3] first:mt-0" {...props} />
+                          ),
+                          p: ({ node, children, ...props }) => {
+                            // Handle @mentions in paragraph text
+                            const processedChildren = processChildrenForMentions(children);
+                            return <p className="mb-3 last:mb-0" {...props}>{processedChildren}</p>;
+                          },
+                          code: ({ node, className, ...props }) => {
+                            // Inline code if no language class (not in a pre block)
+                            const isInline = !className;
+                            return isInline ? (
+                              <code 
+                                className="font-mono text-[12px] bg-[#1A1A1A] border border-[#2A2A2A] rounded px-1 py-0.5 text-[#EFEFEF]" 
+                                {...props} 
+                              />
+                            ) : (
+                              <code className={`font-mono text-[12px] leading-[1.4] ${className || ''}`} {...props} />
+                            );
+                          },
+                          pre: ({ node, ...props }) => (
+                            <pre 
+                              className="font-mono text-[12px] leading-[1.4] bg-[#121212] border border-[#2A2A2A] rounded-md p-3 mt-2 mb-3 overflow-x-auto" 
+                              {...props} 
+                            />
+                          ),
+                          blockquote: ({ node, ...props }) => (
+                            <blockquote 
+                              className="border-l-2 border-[#333333] pl-3 ml-0 text-[#888888] my-3" 
+                              {...props} 
+                            />
+                          ),
+                          ul: ({ node, ...props }) => (
+                            <ul className="pl-5 space-y-1 my-2" {...props} />
+                          ),
+                          ol: ({ node, ...props }) => (
+                            <ol className="pl-5 space-y-1 my-2" {...props} />
+                          ),
+                          li: ({ node, children, ...props }) => {
+                            const processedChildren = processChildrenForMentions(children);
+                            return <li className="my-1" {...props}>{processedChildren}</li>;
+                          },
+                          a: ({ node, ...props }) => (
+                            <a 
+                              className="text-[#EDEDED] underline decoration-[#555555] hover:decoration-white transition-colors" 
+                              target="_blank"
+                              rel="noopener noreferrer"
+                              {...props} 
+                            />
+                          ),
+                        }}
+                      >
+                        {c.content}
+                      </ReactMarkdown>
+                    </div>
                   </CardBody>
                 </Card>
               ))}
