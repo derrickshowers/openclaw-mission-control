@@ -74,7 +74,7 @@ export function PersonalTaskList({ initialTasks }: PersonalTaskListProps) {
       } else if (filter === "overdue") {
         params.view = "overdue";
       }
-      
+
       const data = await api.getPersonalTasks(params);
       setTasks(data);
     } catch (err) {

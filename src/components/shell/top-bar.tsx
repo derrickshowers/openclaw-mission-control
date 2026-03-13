@@ -25,6 +25,10 @@ export function TopBar() {
     )?.[1] ||
     "Dashboard";
 
+  const openCommandPalette = () => {
+    window.dispatchEvent(new KeyboardEvent("keydown", { key: "k", metaKey: true }));
+  };
+
   return (
     <header className="mx-2 mt-2 flex h-14 items-center justify-between rounded-xl border border-divider bg-content1/50 px-4 backdrop-blur-xl lg:mx-3 lg:px-5">
       <div className="flex items-center gap-3">
@@ -38,9 +42,12 @@ export function TopBar() {
             {connected ? "Live" : "Offline"}
           </span>
         </div>
-        <kbd className="hidden lg:inline-flex items-center gap-1 rounded border border-divider bg-default-100 px-2 py-0.5 text-xs text-foreground-400">
+        <button 
+          onClick={openCommandPalette}
+          className="hidden lg:inline-flex items-center gap-1 rounded border border-divider bg-default-100 px-2 py-0.5 text-xs text-foreground-400 hover:bg-default-200 transition-colors"
+        >
           ⌘K
-        </kbd>
+        </button>
       </div>
     </header>
   );
