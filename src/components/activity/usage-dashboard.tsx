@@ -648,11 +648,9 @@ export function UsageDashboard() {
           <Tooltip
             content={
               <div className="max-w-xs text-xs leading-relaxed">
-                <div><strong>Active</strong>: updated within the last {ACTIVE_WINDOW_MINUTES} minutes.</div>
-                <div><strong>Inactive</strong>: still in session store, but outside the active window.</div>
-                <div><strong>Expired</strong>: no longer in session store, retained from usage history.</div>
-                <div><strong>Reset</strong>: explicitly archived by reset/new.</div>
-                <div className="mt-1"><strong>Task worker</strong> sessions show the task ID, title, and run number — these are dedicated per-task sessions.</div>
+                <div><strong>Task Run Status</strong>: the task lifecycle for that worker run (`dispatched`, `active`, `handoff`, `blocked`, `done`, etc.).</div>
+                <div className="mt-1"><strong>Run</strong>: the per-task worker run number for that agent.</div>
+                <div className="mt-1"><strong>Row dimming</strong>: session liveness only — active rows are full strength, inactive/expired/reset rows are grayed back so they don’t compete with the task-run signal.</div>
               </div>
             }
             placement="right"
@@ -673,8 +671,9 @@ export function UsageDashboard() {
                 <tr className="border-b border-divider text-left text-[10px] text-foreground-300 uppercase tracking-wider">
                   <th className="px-4 py-1.5 font-medium">Time</th>
                   <th className="px-4 py-1.5 font-medium">Agent</th>
-                  <th className="px-4 py-1.5 font-medium">Scope</th>
-                  <th className="px-4 py-1.5 font-medium">Status</th>
+                  <th className="px-4 py-1.5 font-medium">Task</th>
+                  <th className="px-4 py-1.5 font-medium">Run</th>
+                  <th className="px-4 py-1.5 font-medium">Task Run Status</th>
                   <th className="px-4 py-1.5 font-medium">Model</th>
                   <th className="px-4 py-1.5 font-medium text-right">Calls</th>
                   <th className="px-4 py-1.5 font-medium text-right">Context</th>
@@ -688,22 +687,13 @@ export function UsageDashboard() {
                 {recentLogs.map((row) => {
                   const isTaskScoped = row.source === "task" && !!row.task_id;
                   const rawStatus = String(row.status || "unknown").toLowerCase();
-                  const statusLabel = rawStatus.startsWith("active")
-                    ? "Active"
+                  const rowMutedClass = rawStatus.startsWith("active")
+                    ? ""
                     : rawStatus.includes("inactive")
-                      ? "Inactive"
-                      : rawStatus === "deleted" || rawStatus === "reset"
-                        ? "Reset"
-                        : rawStatus === "expired"
-                          ? "Expired"
-                          : rawStatus.replace(/[_-]+/g, " ");
-                  const statusTone = rawStatus.startsWith("active")
-                    ? "border border-success-200 dark:border-green-500/25 bg-success-50 dark:bg-green-500/10 text-success-700 dark:text-green-300"
-                    : rawStatus === "deleted" || rawStatus === "reset"
-                      ? "border border-warning-200 dark:border-amber-500/25 bg-warning-50 dark:bg-amber-500/10 text-warning-700 dark:text-amber-300"
-                      : rawStatus === "expired"
-                        ? "border border-divider dark:border-[#3a3a3a] bg-gray-100 dark:bg-[#222222] text-foreground-400 dark:text-[#999999]"
-                        : "border border-divider dark:border-[#3a3a3a] bg-gray-50 dark:bg-[#1f1f1f] text-foreground-500 dark:text-[#b0b0b0]";
+                      ? "opacity-70"
+                      : rawStatus === "deleted" || rawStatus === "reset" || rawStatus === "expired"
+                        ? "opacity-50"
+                        : "opacity-75";
 
                   // Task run status badge (from task_runs table)
                   const taskRunStatus = row.task_run_status;
@@ -717,12 +707,16 @@ export function UsageDashboard() {
                           ? "bg-danger-50 dark:bg-red-500/10 text-danger-700 dark:text-red-300 border border-danger-200 dark:border-red-500/25"
                           : taskRunStatus === "handoff" || taskRunStatus === "blocked"
                             ? "bg-warning-50 dark:bg-amber-500/10 text-warning-700 dark:text-amber-300 border border-warning-200 dark:border-amber-500/25"
-                            : "";
+                            : taskRunStatus === "superseded"
+                              ? "bg-gray-100 dark:bg-[#1f1f1f] text-foreground-500 dark:text-[#b0b0b0] border border-divider dark:border-[#3a3a3a]"
+                              : "";
+                  const taskRunStatusLabel = taskRunStatus ? taskRunStatus.replace(/[_-]+/g, " ") : null;
 
                   return (
                     <tr
                       key={row.id}
-                      className={`hover:bg-gray-50 dark:hover:bg-[#0D0D0D] transition-colors ${isTaskScoped ? "border-l-2 border-l-indigo-400 dark:border-l-indigo-500/60" : ""}`}
+                      title={rawStatus.replace(/[_-]+/g, " ")}
+                      className={`hover:bg-gray-50 dark:hover:bg-[#0D0D0D] transition-colors ${rowMutedClass} ${isTaskScoped ? "border-l-2 border-l-indigo-400 dark:border-l-indigo-500/60" : ""}`}
                     >
                       <td className="px-4 py-1 text-xs font-mono text-foreground-300">
                         {row.created_at ? formatLocalTime(row.created_at) : "-"}
@@ -736,7 +730,6 @@ export function UsageDashboard() {
                           <span className="text-xs text-foreground-500 dark:text-[#CCCCCC] capitalize">{row.agent || "-"}</span>
                         </div>
                       </td>
-                      {/* Scope column — task-scoped sessions show task context prominently */}
                       <td className="max-w-[340px] px-4 py-1 text-xs">
                         {isTaskScoped ? (
                           <div className="flex flex-col gap-0.5">
@@ -745,16 +738,6 @@ export function UsageDashboard() {
                               <span className="font-mono text-indigo-600 dark:text-indigo-300 font-medium">
                                 Task {row.task_id!.slice(0, 8)}
                               </span>
-                              {row.task_run_seq != null && (
-                                <span className="rounded bg-indigo-100 dark:bg-indigo-500/15 px-1 py-px text-[10px] font-mono font-medium text-indigo-600 dark:text-indigo-300">
-                                  r{row.task_run_seq}
-                                </span>
-                              )}
-                              {taskRunStatus && (
-                                <span className={`inline-flex items-center whitespace-nowrap rounded-md px-1.5 py-0.5 text-[10px] font-medium ${taskRunStatusTone}`}>
-                                  {taskRunStatus}
-                                </span>
-                              )}
                             </div>
                             {row.task_title && (
                               <span className="text-foreground-400 dark:text-[#999999] truncate pl-[18px]" title={row.task_title}>
@@ -775,10 +758,17 @@ export function UsageDashboard() {
                           </div>
                         )}
                       </td>
+                      <td className="px-4 py-1 text-xs font-mono text-foreground-400">
+                        {isTaskScoped && row.task_run_seq != null ? `Run ${row.task_run_seq}` : <span className="text-foreground-300">—</span>}
+                      </td>
                       <td className="px-4 py-1 text-xs">
-                        <span className={`inline-flex items-center whitespace-nowrap rounded-md px-1.5 py-0.5 text-[10px] font-medium ${statusTone}`}>
-                          {statusLabel}
-                        </span>
+                        {taskRunStatus && taskRunStatusLabel ? (
+                          <span className={`inline-flex items-center whitespace-nowrap rounded-md px-1.5 py-0.5 text-[10px] font-medium ${taskRunStatusTone}`}>
+                            {taskRunStatusLabel}
+                          </span>
+                        ) : (
+                          <span className="text-foreground-300">—</span>
+                        )}
                       </td>
                       <td className="px-4 py-1 text-xs font-mono text-foreground-400">{row.model || "-"}</td>
                       <td className="px-4 py-1 text-right text-xs font-mono text-foreground-500 dark:text-[#CCCCCC]">
@@ -803,13 +793,13 @@ export function UsageDashboard() {
                         )}
                       </td>
                       <td className="px-4 py-1 text-right text-xs font-mono text-foreground-500 dark:text-[#CCCCCC]">
-                        {row.input_tokens ? formatTokens(row.input_tokens) : "-"}
+                        {row.input_tokens != null ? formatTokens(row.input_tokens) : "-"}
                       </td>
                       <td className="px-4 py-1 text-right text-xs font-mono text-foreground-400">
-                        {row.cached_input_tokens ? formatTokens(row.cached_input_tokens) : "-"}
+                        {row.cached_input_tokens != null ? formatTokens(row.cached_input_tokens) : "-"}
                       </td>
                       <td className="px-4 py-1 text-right text-xs font-mono text-foreground-400">
-                        {row.output_tokens ? formatTokens(row.output_tokens) : "-"}
+                        {row.output_tokens != null ? formatTokens(row.output_tokens) : "-"}
                       </td>
                       <td className="px-4 py-1 text-right text-xs font-mono text-foreground-400">
                         {row.cost_source === "none" ? (
