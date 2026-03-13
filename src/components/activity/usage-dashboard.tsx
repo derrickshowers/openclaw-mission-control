@@ -12,7 +12,7 @@ import {
   ResponsiveContainer,
   Legend,
 } from "recharts";
-import { Zap, DollarSign, Users, TrendingUp, CircleHelp } from "lucide-react";
+import { Zap, DollarSign, Users, TrendingUp, CircleHelp, ListChecks } from "lucide-react";
 import { formatLocalTime as formatLocalTimeShared } from "@/lib/dates";
 import { useTheme } from "next-themes";
 
@@ -72,6 +72,12 @@ interface LogRow {
   fullness_pct?: number | null;
   created_at: string | null;
   updated_at?: string | null;
+  // Task-scoped session enrichment
+  task_id?: string | null;
+  task_title?: string | null;
+  task_run_seq?: number | null;
+  task_run_status?: string | null;
+  task_display_parent?: string | null;
 }
 
 // Muted colors for each agent
@@ -646,6 +652,7 @@ export function UsageDashboard() {
                 <div><strong>Inactive</strong>: still in session store, but outside the active window.</div>
                 <div><strong>Expired</strong>: no longer in session store, retained from usage history.</div>
                 <div><strong>Reset</strong>: explicitly archived by reset/new.</div>
+                <div className="mt-1"><strong>Task worker</strong> sessions show the task ID, title, and run number — these are dedicated per-task sessions.</div>
               </div>
             }
             placement="right"
@@ -666,8 +673,7 @@ export function UsageDashboard() {
                 <tr className="border-b border-divider text-left text-[10px] text-foreground-300 uppercase tracking-wider">
                   <th className="px-4 py-1.5 font-medium">Time</th>
                   <th className="px-4 py-1.5 font-medium">Agent</th>
-                  <th className="px-4 py-1.5 font-medium">Session</th>
-                  <th className="px-4 py-1.5 font-medium">Source</th>
+                  <th className="px-4 py-1.5 font-medium">Scope</th>
                   <th className="px-4 py-1.5 font-medium">Status</th>
                   <th className="px-4 py-1.5 font-medium">Model</th>
                   <th className="px-4 py-1.5 font-medium text-right">Calls</th>
@@ -680,7 +686,7 @@ export function UsageDashboard() {
               </thead>
               <tbody className="divide-y divide-divider dark:divide-[#161616]">
                 {recentLogs.map((row) => {
-                  const sessionLabel = row.display_name || row.label || row.session_key || row.session_id || "-";
+                  const isTaskScoped = row.source === "task" && !!row.task_id;
                   const rawStatus = String(row.status || "unknown").toLowerCase();
                   const statusLabel = rawStatus.startsWith("active")
                     ? "Active"
@@ -699,8 +705,25 @@ export function UsageDashboard() {
                         ? "border border-divider dark:border-[#3a3a3a] bg-gray-100 dark:bg-[#222222] text-foreground-400 dark:text-[#999999]"
                         : "border border-divider dark:border-[#3a3a3a] bg-gray-50 dark:bg-[#1f1f1f] text-foreground-500 dark:text-[#b0b0b0]";
 
+                  // Task run status badge (from task_runs table)
+                  const taskRunStatus = row.task_run_status;
+                  const taskRunStatusTone = taskRunStatus === "active"
+                    ? "bg-blue-50 dark:bg-blue-500/10 text-blue-700 dark:text-blue-300 border border-blue-200 dark:border-blue-500/25"
+                    : taskRunStatus === "done"
+                      ? "bg-success-50 dark:bg-green-500/10 text-success-700 dark:text-green-300 border border-success-200 dark:border-green-500/25"
+                      : taskRunStatus === "dispatched"
+                        ? "bg-purple-50 dark:bg-purple-500/10 text-purple-700 dark:text-purple-300 border border-purple-200 dark:border-purple-500/25"
+                        : taskRunStatus === "stalled" || taskRunStatus === "failed"
+                          ? "bg-danger-50 dark:bg-red-500/10 text-danger-700 dark:text-red-300 border border-danger-200 dark:border-red-500/25"
+                          : taskRunStatus === "handoff" || taskRunStatus === "blocked"
+                            ? "bg-warning-50 dark:bg-amber-500/10 text-warning-700 dark:text-amber-300 border border-warning-200 dark:border-amber-500/25"
+                            : "";
+
                   return (
-                    <tr key={row.id} className="hover:bg-gray-50 dark:hover:bg-[#0D0D0D] transition-colors">
+                    <tr
+                      key={row.id}
+                      className={`hover:bg-gray-50 dark:hover:bg-[#0D0D0D] transition-colors ${isTaskScoped ? "border-l-2 border-l-indigo-400 dark:border-l-indigo-500/60" : ""}`}
+                    >
                       <td className="px-4 py-1 text-xs font-mono text-foreground-300">
                         {row.created_at ? formatLocalTime(row.created_at) : "-"}
                       </td>
@@ -713,10 +736,45 @@ export function UsageDashboard() {
                           <span className="text-xs text-foreground-500 dark:text-[#CCCCCC] capitalize">{row.agent || "-"}</span>
                         </div>
                       </td>
-                      <td className="max-w-[280px] px-4 py-1 text-xs font-mono text-foreground-400" title={sessionLabel}>
-                        <span className="block truncate">{sessionLabel}</span>
+                      {/* Scope column — task-scoped sessions show task context prominently */}
+                      <td className="max-w-[340px] px-4 py-1 text-xs">
+                        {isTaskScoped ? (
+                          <div className="flex flex-col gap-0.5">
+                            <div className="flex items-center gap-1.5">
+                              <ListChecks size={12} strokeWidth={1.75} className="text-indigo-500 dark:text-indigo-400 shrink-0" />
+                              <span className="font-mono text-indigo-600 dark:text-indigo-300 font-medium">
+                                Task {row.task_id!.slice(0, 8)}
+                              </span>
+                              {row.task_run_seq != null && (
+                                <span className="rounded bg-indigo-100 dark:bg-indigo-500/15 px-1 py-px text-[10px] font-mono font-medium text-indigo-600 dark:text-indigo-300">
+                                  r{row.task_run_seq}
+                                </span>
+                              )}
+                              {taskRunStatus && (
+                                <span className={`inline-flex items-center whitespace-nowrap rounded-md px-1.5 py-0.5 text-[10px] font-medium ${taskRunStatusTone}`}>
+                                  {taskRunStatus}
+                                </span>
+                              )}
+                            </div>
+                            {row.task_title && (
+                              <span className="text-foreground-400 dark:text-[#999999] truncate pl-[18px]" title={row.task_title}>
+                                {row.task_title}
+                              </span>
+                            )}
+                          </div>
+                        ) : (
+                          <div className="flex items-center gap-1.5">
+                            <span className="font-mono text-foreground-400 truncate" title={row.display_name || row.label || row.session_key || row.session_id || "-"}>
+                              {row.display_name || row.label || row.session_key || row.session_id || "-"}
+                            </span>
+                            {row.source && row.source !== "other" && (
+                              <span className="rounded bg-gray-100 dark:bg-[#1f1f1f] px-1 py-px text-[10px] font-mono text-foreground-400">
+                                {row.source}
+                              </span>
+                            )}
+                          </div>
+                        )}
                       </td>
-                      <td className="px-4 py-1 text-xs text-foreground-500 dark:text-[#BBBBBB]">{row.source || row.session_type || "-"}</td>
                       <td className="px-4 py-1 text-xs">
                         <span className={`inline-flex items-center whitespace-nowrap rounded-md px-1.5 py-0.5 text-[10px] font-medium ${statusTone}`}>
                           {statusLabel}
