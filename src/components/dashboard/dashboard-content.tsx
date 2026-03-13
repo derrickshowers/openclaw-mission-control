@@ -274,7 +274,7 @@ export function DashboardContent({ tasks, agents, status, recentActivity, person
             <div className="space-y-2">
               <div className="flex items-center justify-between text-xs px-1">
                 <span className="text-foreground-400">Delegated items</span>
-                <span className="font-medium text-primary">{personalSummary.linked_open} active</span>
+                <span className="font-medium text-primary">{personalSummary.linked_open ?? personalSummary.delegated ?? 0} active</span>
               </div>
               <Button 
                 as="a" 

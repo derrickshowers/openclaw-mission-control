@@ -157,8 +157,13 @@ export interface PersonalTaskSummary {
   done: number;
   overdue: number;
   due_today: number;
-  linked: number;
-  linked_open: number;
+  // Legacy fields (current API main)
+  linked?: number;
+  linked_open?: number;
+  // New derived-view fields (API PR #3)
+  delegated?: number;
+  needs_delegation?: number;
+  done_on_team?: number;
   last_synced_at: string | null;
 }
 
@@ -253,6 +258,7 @@ export const api = {
     status?: string;
     sync_state?: string;
     linked?: "linked" | "unlinked";
+    view?: "needs_delegation" | "delegated" | "done_on_team" | "overdue";
     due?: "overdue" | "today" | "soon";
     include_archived?: boolean;
     sort?: "due" | "updated" | "priority";
@@ -263,6 +269,7 @@ export const api = {
         status: params?.status || "",
         sync_state: params?.sync_state || "",
         linked: params?.linked || "",
+        view: params?.view || "",
         due: params?.due || "",
         sort: params?.sort || "",
         limit: params?.limit !== undefined ? String(params.limit) : "",
