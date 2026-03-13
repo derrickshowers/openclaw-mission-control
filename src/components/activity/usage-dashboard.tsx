@@ -648,9 +648,9 @@ export function UsageDashboard() {
           <Tooltip
             content={
               <div className="max-w-xs text-xs leading-relaxed">
-                <div><strong>Task Run Status</strong>: the task lifecycle for that worker run (`dispatched`, `active`, `handoff`, `blocked`, `done`, etc.).</div>
-                <div className="mt-1"><strong>Run</strong>: the per-task worker run number for that agent.</div>
-                <div className="mt-1"><strong>Row dimming</strong>: session liveness only — active rows are full strength, inactive/expired/reset rows are grayed back so they don’t compete with the task-run signal.</div>
+                <div><strong>Status</strong>: the primary task/run lifecycle for that row (`dispatched`, `active`, `handoff`, `blocked`, `done`, etc.).</div>
+                <div className="mt-1"><strong>Run</strong>: which worker run you are looking at for that task/agent pair.</div>
+                <div className="mt-1"><strong>Session liveness</strong> is no longer a separate explicit status here — inactive / expired / reset sessions are shown by row treatment (dimmed/grayed) so the main signal stays on task/run state.</div>
               </div>
             }
             placement="right"
@@ -671,9 +671,9 @@ export function UsageDashboard() {
                 <tr className="border-b border-divider text-left text-[10px] text-foreground-300 uppercase tracking-wider">
                   <th className="px-4 py-1.5 font-medium">Time</th>
                   <th className="px-4 py-1.5 font-medium">Agent</th>
-                  <th className="px-4 py-1.5 font-medium">Task</th>
+                  <th className="px-4 py-1.5 font-medium">Scope</th>
                   <th className="px-4 py-1.5 font-medium">Run</th>
-                  <th className="px-4 py-1.5 font-medium">Task Run Status</th>
+                  <th className="px-4 py-1.5 font-medium">Status</th>
                   <th className="px-4 py-1.5 font-medium">Model</th>
                   <th className="px-4 py-1.5 font-medium text-right">Calls</th>
                   <th className="px-4 py-1.5 font-medium text-right">Context</th>
@@ -690,9 +690,9 @@ export function UsageDashboard() {
                   const rowMutedClass = rawStatus.startsWith("active")
                     ? ""
                     : rawStatus.includes("inactive")
-                      ? "opacity-70"
+                      ? "opacity-65 saturate-75"
                       : rawStatus === "deleted" || rawStatus === "reset" || rawStatus === "expired"
-                        ? "opacity-50"
+                        ? "opacity-45 saturate-50"
                         : "opacity-75";
 
                   // Task run status badge (from task_runs table)
