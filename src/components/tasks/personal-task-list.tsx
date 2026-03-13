@@ -469,6 +469,7 @@ export function PersonalTaskList({ initialTasks }: PersonalTaskListProps) {
         </div>
       </div>
 
+      <div className="hidden md:block">
       <Card className="rounded-md border border-zinc-200 dark:border-white/10 bg-white dark:bg-[#080808] shadow-none">
         <Table
           aria-label="Personal tasks table"
@@ -529,6 +530,83 @@ export function PersonalTaskList({ initialTasks }: PersonalTaskListProps) {
           </TableBody>
         </Table>
       </Card>
+      </div>
+
+      <div className="flex flex-col gap-3 md:hidden">
+        {isLoading && filteredTasks.length === 0 && (
+          <div className="flex justify-center py-8"><Spinner size="sm" /></div>
+        )}
+        {!isLoading && filteredTasks.length === 0 && (
+          <div className="text-center py-8 text-[13px] text-zinc-500">No personal tasks found.</div>
+        )}
+        {filteredTasks.map((task) => {
+          const meta = taskMetaById.get(task.id) || EMPTY_META;
+          
+          const leftBorder =
+            meta.emphasis === "today"
+              ? "border-[#5e6ad2]"
+              : meta.emphasis === "next7"
+                ? "border-zinc-300 dark:border-white/20"
+                : meta.emphasis === "overdue"
+                  ? "border-rose-500/70"
+                  : "border-transparent";
+
+          const titleTone =
+            meta.emphasis === "today"
+              ? "text-zinc-900 dark:text-zinc-100"
+              : meta.emphasis === "next7"
+                ? "text-zinc-800 dark:text-zinc-200"
+                : meta.emphasis === "overdue"
+                  ? "text-rose-300"
+                  : "text-zinc-500";
+                  
+          const rowTone =
+            meta.emphasis === "today"
+              ? "bg-[#5e6ad2]/[0.07]"
+              : meta.emphasis === "next7"
+                ? "bg-amber-500/[0.04]"
+                : meta.emphasis === "overdue"
+                  ? "bg-rose-500/[0.04]"
+                  : "bg-white dark:bg-[#080808]";
+
+          return (
+            <Card
+              key={task.id}
+              isPressable
+              onPress={() => setSelectedTaskId(task.id)}
+              className={`flex flex-col gap-3 rounded-md border border-zinc-200 dark:border-white/10 p-4 shadow-none border-l-2 ${leftBorder} ${rowTone}`}
+            >
+              <div className="flex flex-col gap-1 text-left w-full">
+                <span className={`text-[14px] font-medium leading-tight ${titleTone}`}>
+                  {task.title}
+                </span>
+                {task.description && (
+                  <span className="line-clamp-2 text-[12px] text-zinc-500">
+                    {task.description}
+                  </span>
+                )}
+              </div>
+
+              <div className="flex flex-wrap items-center gap-2 mt-1 w-full">
+                {renderCell(task, "status")}
+                {renderCell(task, "priority")}
+              </div>
+              
+              {(task.due_at || task.scheduled_at) && (
+                <div className="w-full">
+                  {renderCell(task, "due")}
+                </div>
+              )}
+
+              {task.delegation && (
+                <div className="mt-1 pt-3 border-t border-zinc-200 dark:border-white/10 w-full text-left">
+                  {renderCell(task, "delegation")}
+                </div>
+              )}
+            </Card>
+          );
+        })}
+      </div>
 
       {selectedTaskId && (
         <PersonalTaskDrawer
