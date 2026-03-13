@@ -6,6 +6,7 @@ import { useSession } from "next-auth/react";
 import { LayoutDashboard, CheckSquare, FolderKanban, Users, Brain, Activity, Umbrella, BookOpen, CalendarDays } from "lucide-react";
 import { Avatar, Skeleton } from "@heroui/react";
 import type { LucideIcon } from "lucide-react";
+import { ThemeToggle } from "@/components/theme-toggle";
 
 const navItems: { href: string; label: string; Icon: LucideIcon }[] = [
   { href: "/", label: "Dashboard", Icon: LayoutDashboard },
@@ -28,7 +29,7 @@ export function Sidebar() {
   return (
     <aside className="m-3 flex h-[calc(100vh-1.5rem)] w-sidebar flex-col rounded-2xl border border-divider bg-content1/50 backdrop-blur-xl shadow-[0_12px_40px_rgba(0,0,0,0.15)] dark:shadow-[0_12px_40px_rgba(0,0,0,0.45)]">
       {/* Logo */}
-      <div className="flex h-14 items-center border-b border-divider px-4">
+      <div className="flex h-14 items-center justify-between border-b border-divider px-4">
         <span className="flex items-center gap-2">
           <Umbrella size={16} strokeWidth={1.5} />
           <span className="flex flex-col leading-tight">
@@ -36,6 +37,7 @@ export function Sidebar() {
             <span className="text-[10px] text-foreground-400 tracking-wider">MISSION CONTROL</span>
           </span>
         </span>
+        <ThemeToggle />
       </div>
 
       {/* Navigation */}

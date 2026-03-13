@@ -16,6 +16,7 @@ import {
   X,
 } from "lucide-react";
 import type { LucideIcon } from "lucide-react";
+import { ThemeToggle } from "@/components/theme-toggle";
 
 const primaryItems: { href: string; label: string; Icon: LucideIcon }[] = [
   { href: "/", label: "Home", Icon: LayoutDashboard },
@@ -60,12 +61,15 @@ export function MobileNav() {
               <span className="text-xs font-medium text-[#888888] uppercase tracking-wider">
                 More
               </span>
-              <button
-                onClick={() => setMenuOpen(false)}
-                className="text-[#888888] hover:text-white p-1"
-              >
-                <X size={16} strokeWidth={1.5} />
-              </button>
+              <div className="flex items-center gap-2">
+                <ThemeToggle />
+                <button
+                  onClick={() => setMenuOpen(false)}
+                  className="text-[#888888] hover:text-white p-1"
+                >
+                  <X size={16} strokeWidth={1.5} />
+                </button>
+              </div>
             </div>
 
             {/* Menu Items */}
