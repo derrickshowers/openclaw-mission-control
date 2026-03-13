@@ -74,13 +74,15 @@ export function MentionTextarea({
     const el = editorRef.current;
     if (!el || isSyncing.current) return;
 
+    const currentText = extractText(el);
+    if (value === currentText) return;
+
     // Only sync when the editor is empty and value is empty (after submit)
-    // or on initial mount
-    if (value === "" && extractText(el) !== "") {
+    // or on initial mount or when value is changed externally
+    if (value === "") {
       el.innerHTML = "";
-    }
-    // On mount, if there's a value, render it (with mentions parsed)
-    if (value && el.childNodes.length === 0) {
+    } else if (el.childNodes.length === 0 || value !== currentText) {
+      el.innerHTML = "";
       const parts = value.split(/(@\w+)/g);
       for (const part of parts) {
         const mentionMatch = part.match(/^@(\w+)$/);
@@ -104,29 +106,31 @@ export function MentionTextarea({
     const el = editorRef.current;
     if (!el) return;
     isSyncing.current = true;
-    onValueChange(extractText(el));
-    requestAnimationFrame(() => {
+    const text = extractText(el);
+    onValueChange(text);
+    // Use a timeout to reset syncing to ensure it covers the re-render
+    setTimeout(() => {
       isSyncing.current = false;
-    });
+    }, 0);
   }, [onValueChange]);
 
   /** Check if we're currently typing a mention (text after @) */
   const checkForMentionTrigger = useCallback(() => {
     const sel = window.getSelection();
     if (!sel || !sel.rangeCount) {
-      setShowMentions(false);
+      if (showMentions) setShowMentions(false);
       return;
     }
 
     const range = sel.getRangeAt(0);
     if (!range.collapsed) {
-      setShowMentions(false);
+      if (showMentions) setShowMentions(false);
       return;
     }
 
     const node = range.startContainer;
     if (node.nodeType !== Node.TEXT_NODE) {
-      setShowMentions(false);
+      if (showMentions) setShowMentions(false);
       return;
     }
 
@@ -140,19 +144,20 @@ export function MentionTextarea({
       const filter = match[2];
       setMentionFilter(filter);
       setSelectedIndex(0);
-      setShowMentions(true);
+      if (!showMentions) setShowMentions(true);
       // Store the anchor point: the @ position
       mentionAnchor.current = {
         node,
         offset: offset - filter.length - 1, // position of @
       };
     } else {
-      setShowMentions(false);
+      if (showMentions) setShowMentions(false);
       mentionAnchor.current = null;
     }
-  }, []);
+  }, [showMentions]);
 
-  const handleInput = useCallback(() => {
+  const handleInput = useCallback((e: React.FormEvent) => {
+    e.stopPropagation();
     syncValue();
     checkForMentionTrigger();
   }, [syncValue, checkForMentionTrigger]);
@@ -187,7 +192,7 @@ export function MentionTextarea({
       parent.insertBefore(mentionSpan, textNode);
 
       // Add a space after the mention and the remaining text
-      const afterText = document.createTextNode(`\u00A0${after}`);
+      const afterText = document.createTextNode(` ${after}`);
       parent.insertBefore(afterText, textNode);
 
       // Remove the original text node
@@ -211,6 +216,7 @@ export function MentionTextarea({
   /** Handle keydown for mention navigation and atomic deletion */
   const handleKeyDown = useCallback(
     (e: React.KeyboardEvent<HTMLDivElement>) => {
+      e.stopPropagation();
       if (disabled) {
         e.preventDefault();
         return;
@@ -306,6 +312,7 @@ export function MentionTextarea({
   // Handle paste: strip to plain text only
   const handlePaste = useCallback(
     (e: React.ClipboardEvent) => {
+      e.stopPropagation();
       if (disabled) return;
       e.preventDefault();
       const text = e.clipboardData.getData("text/plain");
