@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect, useCallback, useRef } from "react";
+import React, { useState, useEffect, useCallback, useRef } from "react";
 import {
   Button,
   Input,
@@ -9,7 +9,21 @@ import {
   ModalContent,
   ModalFooter,
   ModalHeader,
+  Dropdown,
+  DropdownTrigger,
+  DropdownMenu,
+  DropdownItem,
 } from "@heroui/react";
+import {
+  DndContext,
+  useDraggable,
+  useDroppable,
+  DragOverlay,
+  PointerSensor,
+  useSensor,
+  useSensors,
+  defaultDropAnimationSideEffects,
+} from "@dnd-kit/core";
 import {
   Folder,
   FileText,
@@ -23,14 +37,19 @@ import {
   FilePlus,
   MoreHorizontal,
   Trash2,
+  ArrowUpDown,
+  GripVertical,
 } from "lucide-react";
 import ReactMarkdown from "react-markdown";
 import remarkGfm from "remark-gfm";
+import { CSS } from "@dnd-kit/utilities";
 
 interface DocNode {
   name: string;
   type: "file" | "directory";
   path: string;
+  created_at: string;
+  updated_at: string;
   children?: DocNode[];
 }
 
@@ -41,9 +60,252 @@ interface SearchResult {
   matches: number;
 }
 
+interface DocNodeItemProps {
+  node: DocNode;
+  depth: number;
+  isMobile: boolean;
+  selectedFile: string | null;
+  selectedPaths: Set<string>;
+  expandedDirs: Set<string>;
+  renamingPath: string | null;
+  renameValue: string;
+  menuOpenForPath: string | null;
+  onToggleDir: (path: string) => void;
+  onFileClick: (path: string, e: React.MouseEvent<HTMLButtonElement>, isMobile: boolean) => void;
+  onStartRename: (path: string, name: string) => void;
+  onCancelRename: () => void;
+  onSubmitRename: (path: string) => void;
+  onRenameValueChange: (val: string) => void;
+  onRequestDelete: (path: string, name: string) => void;
+  onMenuToggle: (path: string | null) => void;
+  skipRenameBlurRef: React.MutableRefObject<boolean>;
+  renameInputRef: React.RefObject<HTMLInputElement | null>;
+  renderTree: (nodes: DocNode[], depth: number, isMobile: boolean) => React.ReactNode;
+}
+
+function DocNodeItem({
+  node,
+  depth,
+  isMobile,
+  selectedFile,
+  selectedPaths,
+  expandedDirs,
+  renamingPath,
+  renameValue,
+  menuOpenForPath,
+  onToggleDir,
+  onFileClick,
+  onStartRename,
+  onCancelRename,
+  onSubmitRename,
+  onRenameValueChange,
+  onRequestDelete,
+  onMenuToggle,
+  skipRenameBlurRef,
+  renameInputRef,
+  renderTree,
+}: DocNodeItemProps) {
+  const isExpanded = expandedDirs.has(node.path);
+  const isSelected = selectedFile === node.path;
+  const isMultiSelected = selectedPaths.has(node.path);
+  const isRenaming = renamingPath === node.path;
+  const isMenuOpen = menuOpenForPath === node.path;
+
+  const { attributes, listeners, setNodeRef, transform, isDragging } = useDraggable({
+    id: node.path,
+  });
+
+  const { setNodeRef: setDroppableRef, isOver } = useDroppable({
+    id: node.path,
+    disabled: node.type !== "directory",
+  });
+
+  // Auto-expand folder on hover during drag
+  useEffect(() => {
+    if (isOver && node.type === "directory" && !isExpanded) {
+      const timer = setTimeout(() => {
+        onToggleDir(node.path);
+      }, 300);
+      return () => clearTimeout(timer);
+    }
+  }, [isOver, node.type, isExpanded, onToggleDir, node.path]);
+
+  const style = transform ? {
+    transform: CSS.Translate.toString(transform),
+    opacity: isDragging ? 0.5 : 1,
+  } : undefined;
+
+  if (node.type === "directory") {
+    return (
+      <div key={node.path} ref={setDroppableRef} className={`${isOver ? "bg-[#8b5cf6]/10 ring-1 ring-[#8b5cf6]/30 rounded" : ""}`}>
+        <div 
+          ref={setNodeRef} 
+          style={style}
+          className="group relative flex w-full items-center"
+        >
+          <div
+            {...attributes}
+            {...listeners}
+            className="opacity-0 group-hover:opacity-100 cursor-grab active:cursor-grabbing p-1 text-[#444444] hover:text-[#888888] absolute left-0 z-10"
+            style={{ left: `${depth * 12}px` }}
+          >
+            <GripVertical size={12} />
+          </div>
+          <button
+            onClick={() => onToggleDir(node.path)}
+            className={`flex w-full items-center gap-1.5 rounded px-2 py-1.5 text-left text-xs text-[#CCCCCC] transition-colors hover:bg-[#1A1A1A] ${isOver ? "bg-[#1A1A1A]" : ""}`}
+            style={{ paddingLeft: `${18 + depth * 12}px` }}
+          >
+            {isExpanded ? (
+              <ChevronDown size={12} strokeWidth={1.5} className="flex-shrink-0 text-[#888888]" />
+            ) : (
+              <ChevronRight size={12} strokeWidth={1.5} className="flex-shrink-0 text-[#888888]" />
+            )}
+            <Folder size={14} strokeWidth={1.5} className="flex-shrink-0 text-[#888888]" />
+            <span className="truncate">{node.name}</span>
+          </button>
+        </div>
+        {isExpanded && node.children && (
+          <div>{renderTree(node.children, depth + 1, isMobile)}</div>
+        )}
+      </div>
+    );
+  }
+
+  return (
+    <div key={node.path} className="group relative" data-file>
+      <div
+        ref={setNodeRef}
+        className={`flex w-full items-center rounded px-2 py-1.5 text-left text-xs transition-colors hover:bg-[#1A1A1A] focus-within:bg-[#1A1A1A] ${
+          isSelected || isMultiSelected ? "bg-[#1A1A1A] text-white" : "text-[#CCCCCC]"
+        }`}
+        style={{ ...style, paddingLeft: `${depth * 12}px` }}
+      >
+        <div
+          {...attributes}
+          {...listeners}
+          className="opacity-0 group-hover:opacity-100 cursor-grab active:cursor-grabbing p-1 text-[#444444] hover:text-[#888888] flex-shrink-0"
+        >
+          <GripVertical size={12} />
+        </div>
+        <button
+          onClick={(e) => onFileClick(node.path, e, isMobile)}
+          onKeyDown={(e) => {
+            if (e.key === "F2") {
+              e.preventDefault();
+              onStartRename(node.path, node.name);
+            }
+            if (e.key === "Delete") {
+              e.preventDefault();
+              onRequestDelete(node.path, node.name);
+            }
+          }}
+          className="flex min-w-0 flex-1 items-center gap-1.5 rounded text-left outline-none"
+          aria-label={`Open ${node.name}`}
+        >
+          <FileText size={14} strokeWidth={1.5} className="flex-shrink-0 text-[#888888]" />
+          {isRenaming ? (
+            <input
+              ref={renameInputRef}
+              type="text"
+              value={renameValue}
+              onChange={(e) => onRenameValueChange(e.target.value)}
+              onKeyDown={(e) => {
+                if (e.key === "Enter") {
+                  e.preventDefault();
+                  onSubmitRename(node.path);
+                }
+                if (e.key === "Escape") {
+                  e.preventDefault();
+                  skipRenameBlurRef.current = true;
+                  onCancelRename();
+                }
+              }}
+              onBlur={() => {
+                if (skipRenameBlurRef.current) {
+                  skipRenameBlurRef.current = false;
+                  return;
+                }
+                onSubmitRename(node.path);
+              }}
+              className="h-5 flex-1 rounded border border-[#333333] bg-[#080808] px-1.5 font-mono text-[12px] text-[#CCCCCC] outline-none focus:border-[#555555]"
+              aria-label="Rename document"
+            />
+          ) : (
+            <span className="truncate">{node.name}</span>
+          )}
+        </button>
+
+        {!isRenaming && (
+          <button
+            data-doc-menu-button
+            onClick={(e) => {
+              e.stopPropagation();
+              onMenuToggle(isMenuOpen ? null : node.path);
+            }}
+            className={`ml-1 rounded p-1 text-[#888888] transition-colors hover:bg-[#1F1F1F] hover:text-white focus:bg-[#1F1F1F] focus:text-white ${
+              isMenuOpen ? "opacity-100" : "opacity-0 group-hover:opacity-100 group-focus-within:opacity-100"
+            }`}
+            aria-label={`Actions for ${node.name}`}
+          >
+            <MoreHorizontal size={12} strokeWidth={1.5} />
+          </button>
+        )}
+      </div>
+
+      {isMenuOpen && !isRenaming && (
+        <div
+          data-doc-menu
+          className="absolute right-2 z-20 mt-1 w-36 rounded border border-neutral-800 bg-[#080808] p-1 shadow-lg"
+        >
+          <button
+            onClick={() => onStartRename(node.path, node.name)}
+            className="flex w-full items-center justify-between rounded px-2 py-1.5 text-left text-[12px] text-[#CCCCCC] hover:bg-[#141414]"
+          >
+            <span>Rename</span>
+            <span className="font-mono text-[10px] text-[#666666]">F2</span>
+          </button>
+          <button
+            onClick={() => onRequestDelete(node.path, node.name)}
+            className="mt-0.5 flex w-full items-center justify-between rounded px-2 py-1.5 text-left text-[12px] text-[#CCCCCC] hover:bg-[#1b1111] hover:text-red-500"
+          >
+            <span>Delete</span>
+            <Trash2 size={12} strokeWidth={1.5} />
+          </button>
+        </div>
+      )}
+    </div>
+  );
+}
+
+function findNodeByPath(nodes: DocNode[], path: string): DocNode | null {
+  for (const node of nodes) {
+    if (node.path === path) return node;
+    if (node.children) {
+      const found = findNodeByPath(node.children, path);
+      if (found) return found;
+    }
+  }
+  return null;
+}
+
+function RootDropTarget({ children }: { children: React.ReactNode }) {
+  const { setNodeRef, isOver } = useDroppable({
+    id: "root",
+  });
+
+  return (
+    <div ref={setNodeRef} className={`flex-1 overflow-y-auto p-1 transition-colors ${isOver ? "bg-[#8b5cf6]/10" : ""}`}>
+      {children}
+    </div>
+  );
+}
+
 export function DocsBrowser() {
   const [tree, setTree] = useState<DocNode[]>([]);
   const [selectedFile, setSelectedFile] = useState<string | null>(null);
+  const [selectedPaths, setSelectedPaths] = useState<Set<string>>(new Set());
+  const [selectionAnchor, setSelectionAnchor] = useState<string | null>(null);
   const [fileContent, setFileContent] = useState<string | null>(null);
   const [searchQuery, setSearchQuery] = useState("");
   const [searchResults, setSearchResults] = useState<SearchResult[] | null>(null);
@@ -51,6 +313,38 @@ export function DocsBrowser() {
   const [loading, setLoading] = useState(false);
   const [treeLoading, setTreeLoading] = useState(true);
   const [showMobileTree, setShowMobileTree] = useState(false);
+
+  // Sorting state
+  const [sortKey, setSortKey] = useState<"name" | "created" | "updated">("name");
+  const [sortOrder, setSortOrder] = useState<"asc" | "desc">("asc");
+
+  const sortTree = useCallback((nodes: DocNode[], key: string, order: string): DocNode[] => {
+    const sorted = [...nodes].sort((a, b) => {
+      // Directories first
+      if (a.type === "directory" && b.type !== "directory") return -1;
+      if (a.type !== "directory" && b.type === "directory") return 1;
+
+      let comparison = 0;
+      if (key === "name") {
+        comparison = a.name.localeCompare(b.name);
+      } else if (key === "created") {
+        comparison = new Date(a.created_at).getTime() - new Date(b.created_at).getTime();
+      } else if (key === "updated") {
+        comparison = new Date(a.updated_at).getTime() - new Date(b.updated_at).getTime();
+      }
+
+      return order === "asc" ? comparison : -comparison;
+    });
+
+    return sorted.map((node) => {
+      if (node.children) {
+        return { ...node, children: sortTree(node.children, key, order) };
+      }
+      return node;
+    });
+  }, []);
+
+  const sortedTree = sortTree(tree, sortKey, sortOrder);
 
   // Edit mode state
   const [editing, setEditing] = useState(false);
@@ -74,17 +368,6 @@ export function DocsBrowser() {
   const [deleteTarget, setDeleteTarget] = useState<{ path: string; name: string } | null>(null);
   const [deleting, setDeleting] = useState(false);
 
-  // Generic modals
-  const [confirmModal, setConfirmModal] = useState<{
-    title: string;
-    message: string;
-    onConfirm: () => void;
-  } | null>(null);
-  const [alertModal, setAlertModal] = useState<{
-    title: string;
-    message: string;
-  } | null>(null);
-
   // Load tree
   const loadTree = useCallback(async () => {
     try {
@@ -99,6 +382,193 @@ export function DocsBrowser() {
       setTreeLoading(false);
     }
   }, []);
+
+  // Drag and drop state
+  const [activeId, setActiveId] = useState<string | null>(null);
+  const [moveToast, setMoveToast] = useState<{ count: number; undoOps: Array<{ from: string; to: string }> } | null>(null);
+  const moveToastTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const sensors = useSensors(
+    useSensor(PointerSensor, {
+      activationConstraint: {
+        distance: 5,
+      },
+    })
+  );
+
+  const handleDragStart = useCallback((event: any) => {
+    setActiveId(event.active.id);
+  }, []);
+
+  const handleDragEnd = useCallback(async (event: any) => {
+    const { active, over } = event;
+    setActiveId(null);
+
+    if (!over || active.id === over.id) return;
+
+    const sourcePath = String(active.id);
+    const targetDirPath = over.id === "root" ? "" : String(over.id);
+
+    const candidatePaths = selectedPaths.has(sourcePath) && selectedPaths.size > 1
+      ? Array.from(selectedPaths)
+      : [sourcePath];
+
+    const pathsToMove = Array.from(new Set(candidatePaths))
+      .filter((path) => !(targetDirPath === path || targetDirPath.startsWith(`${path}/`)))
+      .sort((a, b) => a.length - b.length);
+
+    if (pathsToMove.length === 0) return;
+
+    const completed: Array<{ from: string; to: string }> = [];
+
+    try {
+      for (const oldPath of pathsToMove) {
+        const fileName = oldPath.split("/").pop() || "";
+        const newPath = targetDirPath ? `${targetDirPath}/${fileName}` : fileName;
+        if (oldPath === newPath) continue;
+
+        const res = await fetch("/api/mc/docs/rename", {
+          method: "PATCH",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ oldPath, newPath }),
+        });
+
+        if (!res.ok) {
+          const data = await res.json().catch(() => ({}));
+          throw new Error(data.error || `Failed to move ${oldPath}`);
+        }
+
+        completed.push({ from: oldPath, to: newPath });
+      }
+
+      if (completed.length === 0) return;
+
+      if (selectedFile) {
+        let mapped = selectedFile;
+        for (const op of completed) {
+          if (mapped === op.from || mapped.startsWith(`${op.from}/`)) {
+            mapped = mapped.replace(op.from, op.to);
+          }
+        }
+        if (mapped !== selectedFile) setSelectedFile(mapped);
+      }
+
+      setExpandedDirs((prev) => {
+        let next = new Set(prev);
+        let changed = false;
+
+        for (const op of completed) {
+          const updated = new Set<string>();
+          for (const path of next) {
+            if (path === op.from) {
+              updated.add(op.to);
+              changed = true;
+            } else if (path.startsWith(`${op.from}/`)) {
+              updated.add(path.replace(`${op.from}/`, `${op.to}/`));
+              changed = true;
+            } else {
+              updated.add(path);
+            }
+          }
+          next = updated;
+        }
+
+        return changed ? next : prev;
+      });
+
+      await loadTree();
+
+      const newSelection = new Set<string>();
+      for (const path of pathsToMove) {
+        const op = completed.find((entry) => entry.from === path);
+        if (op) newSelection.add(op.to);
+      }
+      if (newSelection.size > 0) {
+        setSelectedPaths(newSelection);
+        setSelectionAnchor(Array.from(newSelection)[0] || null);
+      }
+
+      if (moveToastTimerRef.current) clearTimeout(moveToastTimerRef.current);
+      setMoveToast({
+        count: completed.length,
+        undoOps: completed.map((op) => ({ from: op.to, to: op.from })),
+      });
+      moveToastTimerRef.current = setTimeout(() => {
+        setMoveToast(null);
+        moveToastTimerRef.current = null;
+      }, 5000);
+    } catch (err: any) {
+      for (const op of [...completed].reverse()) {
+        await fetch("/api/mc/docs/rename", {
+          method: "PATCH",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ oldPath: op.to, newPath: op.from }),
+        }).catch(() => null);
+      }
+
+      setAlertModal({ title: "Move failed", message: err.message || "Failed to move document." });
+      await loadTree();
+    }
+  }, [selectedFile, selectedPaths, loadTree]);
+
+  const undoLastMove = useCallback(async () => {
+    if (!moveToast) return;
+
+    const ops = [...moveToast.undoOps];
+    setMoveToast(null);
+    if (moveToastTimerRef.current) {
+      clearTimeout(moveToastTimerRef.current);
+      moveToastTimerRef.current = null;
+    }
+
+    try {
+      for (const op of ops) {
+        const res = await fetch("/api/mc/docs/rename", {
+          method: "PATCH",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ oldPath: op.from, newPath: op.to }),
+        });
+        if (!res.ok) {
+          const data = await res.json().catch(() => ({}));
+          throw new Error(data.error || "Undo failed");
+        }
+      }
+
+      if (selectedFile) {
+        let mapped = selectedFile;
+        for (const op of ops) {
+          if (mapped === op.from || mapped.startsWith(`${op.from}/`)) {
+            mapped = mapped.replace(op.from, op.to);
+          }
+        }
+        if (mapped !== selectedFile) setSelectedFile(mapped);
+      }
+
+      setSelectedPaths(new Set(ops.map((op) => op.to)));
+      setSelectionAnchor(ops[0]?.to || null);
+      await loadTree();
+    } catch (err: any) {
+      setAlertModal({ title: "Undo failed", message: err.message || "Failed to undo move." });
+    }
+  }, [moveToast, loadTree, selectedFile]);
+
+  useEffect(() => {
+    return () => {
+      if (moveToastTimerRef.current) {
+        clearTimeout(moveToastTimerRef.current);
+      }
+    };
+  }, []);
+
+  // Generic modals
+  const [confirmModal, setConfirmModal] = useState<{
+    title: string;
+    message: string;
+    onConfirm: () => void;
+  } | null>(null);
+  const [alertModal, setAlertModal] = useState<{
+    title: string;
+    message: string;
+  } | null>(null);
 
   // Initial load
   useEffect(() => {
@@ -140,6 +610,8 @@ export function DocsBrowser() {
       const data = await res.json();
       setFileContent(data.content || "");
       setSelectedFile(filePath);
+      setSelectedPaths(new Set([filePath]));
+      setSelectionAnchor(filePath);
       setSearchResults(null);
     } catch {
       setFileContent("Error loading file");
@@ -164,6 +636,53 @@ export function DocsBrowser() {
     loadFile(filePath);
     afterOpen?.();
   }, [editing, dirty, loadFile]);
+
+  const flattenFilePaths = useCallback((nodes: DocNode[]): string[] => {
+    const out: string[] = [];
+    for (const node of nodes) {
+      if (node.type === "file") {
+        out.push(node.path);
+      }
+      if (node.children) {
+        out.push(...flattenFilePaths(node.children));
+      }
+    }
+    return out;
+  }, []);
+
+  const handleFileClick = useCallback((filePath: string, e: React.MouseEvent<HTMLButtonElement>, isMobile: boolean) => {
+    const isMod = e.metaKey || e.ctrlKey;
+    const isShift = e.shiftKey;
+    const fileOrder = flattenFilePaths(sortedTree);
+
+    if (isShift && selectionAnchor) {
+      const anchorIdx = fileOrder.indexOf(selectionAnchor);
+      const targetIdx = fileOrder.indexOf(filePath);
+      if (anchorIdx >= 0 && targetIdx >= 0) {
+        const [start, end] = anchorIdx < targetIdx ? [anchorIdx, targetIdx] : [targetIdx, anchorIdx];
+        const range = fileOrder.slice(start, end + 1);
+        setSelectedPaths(new Set(range));
+        return;
+      }
+    }
+
+    if (isMod) {
+      setSelectedPaths((prev) => {
+        const next = new Set(prev);
+        if (next.has(filePath)) next.delete(filePath);
+        else next.add(filePath);
+        return next;
+      });
+      setSelectionAnchor(filePath);
+      return;
+    }
+
+    setSelectedPaths(new Set([filePath]));
+    setSelectionAnchor(filePath);
+    openFileWithUnsavedGuard(filePath, () => {
+      if (isMobile) setShowMobileTree(false);
+    });
+  }, [flattenFilePaths, openFileWithUnsavedGuard, selectionAnchor, sortedTree]);
 
   const doSearch = useCallback(async () => {
     if (!searchQuery.trim()) return;
@@ -286,6 +805,8 @@ export function DocsBrowser() {
       const data = await res.json();
       setFileContent(data.content || "");
       setSelectedFile(finalPath);
+      setSelectedPaths(new Set([finalPath]));
+      setSelectionAnchor(finalPath);
       setSearchResults(null);
       setEditContent(data.content || "");
       setEditing(true);
@@ -417,6 +938,8 @@ export function DocsBrowser() {
 
       if (selectedFile === deleteTarget.path) {
         setSelectedFile(null);
+        setSelectedPaths(new Set());
+        setSelectionAnchor(null);
         setFileContent(null);
         setEditing(false);
         setDirty(false);
@@ -499,143 +1022,68 @@ export function DocsBrowser() {
   }, [menuOpenForPath]);
 
   function renderTree(nodes: DocNode[], depth: number = 0, isMobile: boolean = false) {
-    return nodes.map((node) => {
-      const isExpanded = expandedDirs.has(node.path);
-      const isSelected = selectedFile === node.path;
-
-      if (node.type === "directory") {
-        return (
-          <div key={node.path}>
-            <button
-              onClick={() => toggleDir(node.path)}
-              className="flex w-full items-center gap-1.5 rounded px-2 py-1.5 text-left text-xs text-[#CCCCCC] transition-colors hover:bg-[#1A1A1A]"
-              style={{ paddingLeft: `${8 + depth * 12}px` }}
-            >
-              {isExpanded ? (
-                <ChevronDown size={12} strokeWidth={1.5} className="flex-shrink-0 text-[#888888]" />
-              ) : (
-                <ChevronRight size={12} strokeWidth={1.5} className="flex-shrink-0 text-[#888888]" />
-              )}
-              <Folder size={14} strokeWidth={1.5} className="flex-shrink-0 text-[#888888]" />
-              <span className="truncate">{node.name}</span>
-            </button>
-            {isExpanded && node.children && (
-              <div>{renderTree(node.children, depth + 1, isMobile)}</div>
-            )}
-          </div>
-        );
-      }
-
-      const isRenaming = renamingPath === node.path;
-      const isMenuOpen = menuOpenForPath === node.path;
-
-      return (
-        <div key={node.path} className="group relative" data-file>
-          <div
-            className={`flex w-full items-center rounded px-2 py-1.5 text-left text-xs transition-colors hover:bg-[#1A1A1A] focus-within:bg-[#1A1A1A] ${
-              isSelected ? "bg-[#1A1A1A] text-white" : "text-[#CCCCCC]"
-            }`}
-            style={{ paddingLeft: `${20 + depth * 12}px` }}
-          >
-            <button
-              onClick={() => {
-                openFileWithUnsavedGuard(node.path, () => {
-                  if (isMobile) setShowMobileTree(false);
-                });
-              }}
-              onKeyDown={(e) => {
-                if (e.key === "F2") {
-                  e.preventDefault();
-                  startRename(node.path, node.name);
-                }
-                if (e.key === "Delete") {
-                  e.preventDefault();
-                  requestDelete(node.path, node.name);
-                }
-              }}
-              className="flex min-w-0 flex-1 items-center gap-1.5 rounded text-left outline-none"
-              aria-label={`Open ${node.name}`}
-            >
-              <FileText size={14} strokeWidth={1.5} className="flex-shrink-0 text-[#888888]" />
-              {isRenaming ? (
-                <input
-                  ref={renameInputRef}
-                  type="text"
-                  value={renameValue}
-                  onChange={(e) => setRenameValue(e.target.value)}
-                  onKeyDown={(e) => {
-                    if (e.key === "Enter") {
-                      e.preventDefault();
-                      submitRename(node.path);
-                    }
-                    if (e.key === "Escape") {
-                      e.preventDefault();
-                      skipRenameBlurRef.current = true;
-                      cancelRename();
-                    }
-                  }}
-                  onBlur={() => {
-                    if (skipRenameBlurRef.current) {
-                      skipRenameBlurRef.current = false;
-                      return;
-                    }
-                    submitRename(node.path);
-                  }}
-                  className="h-5 flex-1 rounded border border-[#333333] bg-[#080808] px-1.5 font-mono text-[12px] text-[#CCCCCC] outline-none focus:border-[#555555]"
-                  aria-label="Rename document"
-                />
-              ) : (
-                <span className="truncate">{node.name}</span>
-              )}
-            </button>
-
-            {!isRenaming && (
-              <button
-                data-doc-menu-button
-                onClick={(e) => {
-                  e.stopPropagation();
-                  setMenuOpenForPath((prev) => (prev === node.path ? null : node.path));
-                }}
-                className={`ml-1 rounded p-1 text-[#888888] transition-colors hover:bg-[#1F1F1F] hover:text-white focus:bg-[#1F1F1F] focus:text-white ${
-                  isMenuOpen ? "opacity-100" : "opacity-0 group-hover:opacity-100 group-focus-within:opacity-100"
-                }`}
-                aria-label={`Actions for ${node.name}`}
-              >
-                <MoreHorizontal size={12} strokeWidth={1.5} />
-              </button>
-            )}
-          </div>
-
-          {isMenuOpen && !isRenaming && (
-            <div
-              data-doc-menu
-              className="absolute right-2 z-20 mt-1 w-36 rounded border border-neutral-800 bg-[#080808] p-1 shadow-lg"
-            >
-              <button
-                onClick={() => startRename(node.path, node.name)}
-                className="flex w-full items-center justify-between rounded px-2 py-1.5 text-left text-[12px] text-[#CCCCCC] hover:bg-[#141414]"
-              >
-                <span>Rename</span>
-                <span className="font-mono text-[10px] text-[#666666]">F2</span>
-              </button>
-              <button
-                onClick={() => requestDelete(node.path, node.name)}
-                className="mt-0.5 flex w-full items-center justify-between rounded px-2 py-1.5 text-left text-[12px] text-[#CCCCCC] hover:bg-[#1b1111] hover:text-red-500"
-              >
-                <span>Delete</span>
-                <Trash2 size={12} strokeWidth={1.5} />
-              </button>
-            </div>
-          )}
-        </div>
-      );
-    });
+    return nodes.map((node) => (
+      <DocNodeItem
+        key={node.path}
+        node={node}
+        depth={depth}
+        isMobile={isMobile}
+        selectedFile={selectedFile}
+        selectedPaths={selectedPaths}
+        expandedDirs={expandedDirs}
+        renamingPath={renamingPath}
+        renameValue={renameValue}
+        menuOpenForPath={menuOpenForPath}
+        onToggleDir={toggleDir}
+        onFileClick={handleFileClick}
+        onStartRename={startRename}
+        onCancelRename={cancelRename}
+        onSubmitRename={submitRename}
+        onRenameValueChange={setRenameValue}
+        onRequestDelete={requestDelete}
+        onMenuToggle={setMenuOpenForPath}
+        skipRenameBlurRef={skipRenameBlurRef}
+        renameInputRef={renameInputRef}
+        renderTree={renderTree}
+      />
+    ));
   }
+
+  const activeSortLabel = sortKey === "name" ? "Name" : sortKey === "created" ? "Created" : "Updated";
 
   const sidebarHeader = (
     <div className="flex items-center justify-between border-b border-[#222222] px-3 py-2">
       <span className="text-xs font-medium text-[#888888] uppercase tracking-wider">Docs</span>
       <div className="flex items-center gap-1">
+        <Dropdown className="dark bg-[#080808] border border-[#222222]">
+          <DropdownTrigger>
+            <button
+              className="flex items-center gap-1 rounded px-1.5 py-1 text-[11px] text-[#888888] transition-colors hover:bg-[#1A1A1A] hover:text-white"
+              title="Sort docs"
+            >
+              <ArrowUpDown size={12} strokeWidth={1.5} />
+              <span>Sort: {activeSortLabel}</span>
+            </button>
+          </DropdownTrigger>
+          <DropdownMenu
+            aria-label="Sort options"
+            variant="flat"
+            selectionMode="single"
+            selectedKeys={[`${sortKey}-${sortOrder}`]}
+            onAction={(key) => {
+              const [k, o] = (key as string).split("-");
+              setSortKey(k as any);
+              setSortOrder(o as any);
+            }}
+          >
+            <DropdownItem key="name-asc" className="text-xs">Name (A-Z)</DropdownItem>
+            <DropdownItem key="name-desc" className="text-xs">Name (Z-A)</DropdownItem>
+            <DropdownItem key="created-desc" className="text-xs border-t border-[#222222]">Date Created (Newest)</DropdownItem>
+            <DropdownItem key="created-asc" className="text-xs">Date Created (Oldest)</DropdownItem>
+            <DropdownItem key="updated-desc" className="text-xs border-t border-[#222222]">Date Updated (Newest)</DropdownItem>
+            <DropdownItem key="updated-asc" className="text-xs">Date Updated (Oldest)</DropdownItem>
+          </DropdownMenu>
+        </Dropdown>
         <button
           onClick={createPage}
           className="rounded p-1 text-[#888888] transition-colors hover:bg-[#1A1A1A] hover:text-white"
@@ -675,124 +1123,182 @@ export function DocsBrowser() {
     </div>
   ) : null;
 
+  const activeNode = activeId ? findNodeByPath(sortedTree, activeId) : null;
+
   return (
     <div className="mx-auto flex h-full max-w-[1400px] gap-4">
-      {/* Desktop sidebar */}
-      <div className="hidden md:flex md:flex-col w-64 flex-shrink-0 overflow-hidden rounded border border-[#222222] bg-[#0A0A0A]">
-        {sidebarHeader}
-        {/* Search */}
-        <div className="border-b border-[#222222] p-2">
-          <Input
-            size="sm"
-            placeholder="Search docs..."
-            value={searchQuery}
-            onValueChange={setSearchQuery}
-            onKeyDown={(e) => e.key === "Enter" && doSearch()}
-            variant="bordered"
-            classNames={{ inputWrapper: "border-[#222222] bg-[#080808] h-7 min-h-7" }}
-            startContent={<Search size={12} strokeWidth={1.5} className="text-[#888888]" />}
-            endContent={
-              searchQuery ? (
-                <button onClick={clearSearch} className="text-[#888888] hover:text-white">
-                  <X size={12} strokeWidth={1.5} />
-                </button>
-              ) : null
-            }
-          />
+      <DndContext
+        sensors={sensors}
+        onDragStart={handleDragStart}
+        onDragEnd={handleDragEnd}
+      >
+        {/* Desktop sidebar */}
+        <div className="hidden md:flex md:flex-col w-64 flex-shrink-0 overflow-hidden rounded border border-[#222222] bg-[#0A0A0A]">
+          {sidebarHeader}
+          {/* Search */}
+          <div className="border-b border-[#222222] p-2">
+            <Input
+              size="sm"
+              placeholder="Search docs..."
+              value={searchQuery}
+              onValueChange={setSearchQuery}
+              onKeyDown={(e) => e.key === "Enter" && doSearch()}
+              variant="bordered"
+              classNames={{ inputWrapper: "border-[#222222] bg-[#080808] h-7 min-h-7" }}
+              startContent={<Search size={12} strokeWidth={1.5} className="text-[#888888]" />}
+              endContent={
+                searchQuery ? (
+                  <button onClick={clearSearch} className="text-[#888888] hover:text-white">
+                    <X size={12} strokeWidth={1.5} />
+                  </button>
+                ) : null
+              }
+            />
+          </div>
+          {folderCreationInput}
+          {/* Tree */}
+          <RootDropTarget>
+            {treeLoading ? (
+              <div className="space-y-1 px-2 py-2">
+                <div className="skeleton h-4 w-24" />
+                <div className="skeleton ml-3 h-4 w-32" />
+                <div className="skeleton ml-3 h-4 w-28" />
+                <div className="skeleton h-4 w-20" />
+                <div className="skeleton ml-3 h-4 w-36" />
+                <div className="skeleton ml-3 h-4 w-24" />
+              </div>
+            ) : tree.length === 0 ? (
+              <p className="py-4 text-center text-xs text-[#555555]">No docs found</p>
+            ) : (
+              renderTree(sortedTree)
+            )}
+          </RootDropTarget>
         </div>
-        {folderCreationInput}
-        {/* Tree */}
-        <div className="flex-1 overflow-y-auto p-1">
-          {treeLoading ? (
-            <div className="space-y-1 px-2 py-2">
-              <div className="skeleton h-4 w-24" />
-              <div className="skeleton ml-3 h-4 w-32" />
-              <div className="skeleton ml-3 h-4 w-28" />
-              <div className="skeleton h-4 w-20" />
-              <div className="skeleton ml-3 h-4 w-36" />
-              <div className="skeleton ml-3 h-4 w-24" />
-            </div>
-          ) : tree.length === 0 ? (
-            <p className="py-4 text-center text-xs text-[#555555]">No docs found</p>
-          ) : (
-            renderTree(tree)
-          )}
-        </div>
-      </div>
 
-      {/* Mobile tree overlay */}
-      {showMobileTree && (
-        <>
-          <div
-            className="fixed inset-0 z-40 bg-black/50 md:hidden"
-            onClick={() => setShowMobileTree(false)}
-          />
-          <div className="fixed inset-y-0 left-0 z-50 w-72 flex flex-col overflow-hidden border-r border-[#222222] bg-[#0A0A0A] md:hidden">
-            <div className="flex items-center justify-between border-b border-[#222222] p-3">
-              <span className="text-xs font-medium text-[#888888] uppercase tracking-wider">Browse Docs</span>
-              <div className="flex items-center gap-1">
-                <button
-                  onClick={createPage}
-                  className="rounded p-1 text-[#888888] transition-colors hover:bg-[#1A1A1A] hover:text-white"
-                  title="New page"
-                >
-                  <FilePlus size={14} strokeWidth={1.5} />
-                </button>
-                <button
-                  onClick={() => { setCreatingFolder(true); setNewFolderName(""); }}
-                  className="rounded p-1 text-[#888888] transition-colors hover:bg-[#1A1A1A] hover:text-white"
-                  title="New folder"
-                >
-                  <FolderPlus size={14} strokeWidth={1.5} />
-                </button>
-                <button onClick={() => setShowMobileTree(false)} className="rounded p-1 text-[#888888] hover:text-white">
-                  <X size={16} strokeWidth={1.5} />
-                </button>
+        {/* Mobile tree overlay */}
+        {showMobileTree && (
+          <>
+            <div
+              className="fixed inset-0 z-40 bg-black/50 md:hidden"
+              onClick={() => setShowMobileTree(false)}
+            />
+            <div className="fixed inset-y-0 left-0 z-50 w-72 flex flex-col overflow-hidden border-r border-[#222222] bg-[#0A0A0A] md:hidden">
+              <div className="flex items-center justify-between border-b border-[#222222] p-3">
+                <span className="text-xs font-medium text-[#888888] uppercase tracking-wider">Browse Docs</span>
+                <div className="flex items-center gap-1">
+                  <Dropdown className="dark bg-[#080808] border border-[#222222]">
+                    <DropdownTrigger>
+                      <button
+                        className="flex items-center gap-1 rounded px-1.5 py-1 text-[11px] text-[#888888] transition-colors hover:bg-[#1A1A1A] hover:text-white"
+                        title="Sort docs"
+                      >
+                        <ArrowUpDown size={12} strokeWidth={1.5} />
+                        <span>Sort: {activeSortLabel}</span>
+                      </button>
+                    </DropdownTrigger>
+                    <DropdownMenu
+                      aria-label="Sort options"
+                      variant="flat"
+                      selectionMode="single"
+            selectedKeys={[`${sortKey}-${sortOrder}`]}
+            onAction={(key) => {
+                        const [k, o] = (key as string).split("-");
+                        setSortKey(k as any);
+                        setSortOrder(o as any);
+                      }}
+                    >
+                      <DropdownItem key="name-asc" className="text-xs">Name (A-Z)</DropdownItem>
+                      <DropdownItem key="name-desc" className="text-xs">Name (Z-A)</DropdownItem>
+                      <DropdownItem key="created-desc" className="text-xs border-t border-[#222222]">Date Created (Newest)</DropdownItem>
+                      <DropdownItem key="created-asc" className="text-xs">Date Created (Oldest)</DropdownItem>
+                      <DropdownItem key="updated-desc" className="text-xs border-t border-[#222222]">Date Updated (Newest)</DropdownItem>
+                      <DropdownItem key="updated-asc" className="text-xs">Date Updated (Oldest)</DropdownItem>
+                    </DropdownMenu>
+                  </Dropdown>
+                  <button
+                    onClick={createPage}
+                    className="rounded p-1 text-[#888888] transition-colors hover:bg-[#1A1A1A] hover:text-white"
+                    title="New page"
+                  >
+                    <FilePlus size={14} strokeWidth={1.5} />
+                  </button>
+                  <button
+                    onClick={() => { setCreatingFolder(true); setNewFolderName(""); }}
+                    className="rounded p-1 text-[#888888] transition-colors hover:bg-[#1A1A1A] hover:text-white"
+                    title="New folder"
+                  >
+                    <FolderPlus size={14} strokeWidth={1.5} />
+                  </button>
+                  <button onClick={() => setShowMobileTree(false)} className="rounded p-1 text-[#888888] hover:text-white">
+                    <X size={16} strokeWidth={1.5} />
+                  </button>
+                </div>
+              </div>
+              <div className="border-b border-[#222222] p-2">
+                <Input
+                  size="sm"
+                  placeholder="Search docs..."
+                  value={searchQuery}
+                  onValueChange={setSearchQuery}
+                  onKeyDown={(e) => e.key === "Enter" && doSearch()}
+                  variant="bordered"
+                  classNames={{ inputWrapper: "border-[#222222] bg-[#080808] h-7 min-h-7" }}
+                  startContent={<Search size={12} strokeWidth={1.5} className="text-[#888888]" />}
+                  endContent={
+                    searchQuery ? (
+                      <button onClick={clearSearch} className="text-[#888888] hover:text-white">
+                        <X size={12} strokeWidth={1.5} />
+                      </button>
+                    ) : null
+                  }
+                />
+              </div>
+              {folderCreationInput}
+              <div
+                className="flex-1 overflow-y-auto p-1"
+                onClick={(e) => {
+                  if ((e.target as HTMLElement).closest("[data-file]")) {
+                    setShowMobileTree(false);
+                  }
+                }}
+              >
+                {treeLoading ? (
+                  <div className="space-y-1 px-2 py-2">
+                    <div className="skeleton h-4 w-24" />
+                    <div className="skeleton ml-3 h-4 w-32" />
+                    <div className="skeleton ml-3 h-4 w-28" />
+                  </div>
+                ) : tree.length === 0 ? (
+                  <p className="py-4 text-center text-xs text-[#555555]">No docs found</p>
+                ) : (
+                  renderTree(sortedTree, 0, true)
+                )}
               </div>
             </div>
-            <div className="border-b border-[#222222] p-2">
-              <Input
-                size="sm"
-                placeholder="Search docs..."
-                value={searchQuery}
-                onValueChange={setSearchQuery}
-                onKeyDown={(e) => e.key === "Enter" && doSearch()}
-                variant="bordered"
-                classNames={{ inputWrapper: "border-[#222222] bg-[#080808] h-7 min-h-7" }}
-                startContent={<Search size={12} strokeWidth={1.5} className="text-[#888888]" />}
-                endContent={
-                  searchQuery ? (
-                    <button onClick={clearSearch} className="text-[#888888] hover:text-white">
-                      <X size={12} strokeWidth={1.5} />
-                    </button>
-                  ) : null
-                }
-              />
-            </div>
-            {folderCreationInput}
-            <div
-              className="flex-1 overflow-y-auto p-1"
-              onClick={(e) => {
-                if ((e.target as HTMLElement).closest("[data-file]")) {
-                  setShowMobileTree(false);
-                }
-              }}
-            >
-              {treeLoading ? (
-                <div className="space-y-1 px-2 py-2">
-                  <div className="skeleton h-4 w-24" />
-                  <div className="skeleton ml-3 h-4 w-32" />
-                  <div className="skeleton ml-3 h-4 w-28" />
-                </div>
-              ) : tree.length === 0 ? (
-                <p className="py-4 text-center text-xs text-[#555555]">No docs found</p>
+          </>
+        )}
+
+        <DragOverlay dropAnimation={{
+          sideEffects: defaultDropAnimationSideEffects({
+            styles: {
+              active: {
+                opacity: "0.5",
+              },
+            },
+          }),
+        }}>
+          {activeNode ? (
+            <div className="flex items-center gap-1.5 rounded bg-[#1A1A1A] px-2 py-1.5 text-xs text-white shadow-xl ring-1 ring-[#8b5cf6]/50">
+              {activeNode.type === "directory" ? (
+                <Folder size={14} className="text-[#888888]" />
               ) : (
-                renderTree(tree, 0, true)
+                <FileText size={14} className="text-[#888888]" />
               )}
+              <span className="truncate">{activeNode.name}</span>
             </div>
-          </div>
-        </>
-      )}
+          ) : null}
+        </DragOverlay>
+      </DndContext>
 
       {/* Content pane */}
       <div className="flex-1 overflow-y-auto rounded border border-[#222222] bg-[#0A0A0A] p-4 md:p-6">
@@ -829,7 +1335,11 @@ export function DocsBrowser() {
             {searchResults.map((result, i) => (
               <button
                 key={i}
-                onClick={() => openFileWithUnsavedGuard(result.path)}
+                onClick={() => {
+                  setSelectedPaths(new Set([result.path]));
+                  setSelectionAnchor(result.path);
+                  openFileWithUnsavedGuard(result.path);
+                }}
                 className="block w-full rounded border border-[#222222] bg-[#121212] p-3 text-left transition-colors hover:bg-[#1A1A1A]"
               >
                 <div className="flex items-center justify-between">
@@ -845,9 +1355,23 @@ export function DocsBrowser() {
         ) : fileContent !== null ? (
           <div className="px-4 py-8 md:px-8 md:py-12">
             <div className="mx-auto max-w-[720px]">
+              {/* Breadcrumbs */}
+              <div className="mb-2 flex items-center gap-1 text-[10px] font-mono text-[#555555]">
+                <Folder size={10} strokeWidth={1.5} />
+                <span>Root</span>
+                {selectedFile?.split("/").slice(0, -1).map((part, i, arr) => (
+                  <React.Fragment key={i}>
+                    <span>/</span>
+                    <span className="truncate max-w-[100px]">{part}</span>
+                  </React.Fragment>
+                ))}
+              </div>
+
               {/* Document header */}
               <div className="mb-6 flex items-center justify-between border-b border-[#222222] pb-3">
-                <span className="text-xs font-mono text-[#888888]">{selectedFile}</span>
+                <h1 className="text-sm font-semibold text-white truncate mr-4">
+                  {selectedFile?.split("/").pop()}
+                </h1>
                 <div className="flex items-center gap-2">
                   {editing ? (
                     <>
@@ -911,6 +1435,20 @@ export function DocsBrowser() {
           </div>
         )}
       </div>
+
+      {moveToast && (
+        <div className="fixed bottom-4 right-4 z-[100] flex items-center gap-3 rounded border border-[#333333] bg-[#0A0A0A] px-3 py-2 text-xs text-[#CCCCCC] shadow-xl">
+          <span>
+            Moved {moveToast.count} item{moveToast.count === 1 ? "" : "s"}
+          </span>
+          <button
+            onClick={undoLastMove}
+            className="rounded px-2 py-0.5 text-[#8b5cf6] hover:bg-[#1A1A1A] hover:text-[#a78bfa]"
+          >
+            Undo
+          </button>
+        </div>
+      )}
 
       <Modal
         isOpen={!!deleteTarget}
