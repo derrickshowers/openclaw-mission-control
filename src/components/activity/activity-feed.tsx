@@ -19,6 +19,10 @@ const eventTypeColors: Record<string, "default" | "primary" | "success" | "warni
   "task.updated": "default",
   "task.deleted": "danger",
   "task.moved": "warning",
+  "task.dispatched": "success",
+  "task.run.started": "success",
+  "task.run.completed": "primary",
+  "task.run.stalled": "danger",
   "agent.session.start": "success",
   "agent.session.end": "default",
   "agent.tool.call": "default",
@@ -188,6 +192,14 @@ export function ActivityFeed() {
 
 function formatPayload(payload: Record<string, any>): string {
   if (payload.task?.title) return payload.task.title;
+  // Task run events
+  if (payload.taskId && payload.sessionKey) {
+    const parts = [`Task ${payload.taskId.slice(0, 8)}`];
+    if (payload.agent) parts.push(`→ ${payload.agent}`);
+    if (payload.runSeq) parts.push(`run #${payload.runSeq}`);
+    if (payload.status) parts.push(`[${payload.status}]`);
+    return parts.join(" ");
+  }
   if (payload.message) return payload.message;
   if (payload.summary) return payload.summary;
   if (payload.tool) return `${payload.tool}(${payload.target || ""})`;

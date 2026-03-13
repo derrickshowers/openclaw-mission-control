@@ -5,10 +5,10 @@ import { useSession } from "next-auth/react";
 import { useSSE } from "@/hooks/use-sse";
 import { Button, Input, Textarea, Select, SelectItem, Chip, Card, CardBody, Modal, ModalContent, ModalHeader, ModalBody, ModalFooter } from "@heroui/react";
 import { MentionTextarea } from "@/components/shared/mention-textarea";
-import { X, Trash2, Send, Paperclip, ImagePlus, Folder, Copy, Check } from "lucide-react";
+import { X, Trash2, Send, Paperclip, ImagePlus, Folder, Copy, Check, Play, Clock, AlertTriangle } from "lucide-react";
 import { api } from "@/lib/api";
-import type { Task, TaskComment, TaskAttachment, Project } from "@/lib/api";
-import { formatLocal, parseUTC } from "@/lib/dates";
+import type { Task, TaskComment, TaskAttachment, Project, TaskRun } from "@/lib/api";
+import { formatLocal, parseUTC, timeAgo } from "@/lib/dates";
 import { KNOWN_AGENT_IDS, resolveAgentAvatarUrl } from "@/lib/agents";
 import ReactMarkdown from "react-markdown";
 import remarkGfm from "remark-gfm";
@@ -83,6 +83,8 @@ export function TaskDrawer({ task, isOpen, onClose, onUpdate }: TaskDrawerProps)
   const [uploadError, setUploadError] = useState<string | null>(null);
   const [lightboxUrl, setLightboxUrl] = useState<string | null>(null);
   const [dragOver, setDragOver] = useState(false);
+  const [taskRuns, setTaskRuns] = useState<TaskRun[]>([]);
+  const [dispatching, setDispatching] = useState(false);
   const [confirmDelete, setConfirmDelete] = useState(false);
   const [copiedTaskId, setCopiedTaskId] = useState(false);
   const copyResetTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
@@ -93,6 +95,7 @@ export function TaskDrawer({ task, isOpen, onClose, onUpdate }: TaskDrawerProps)
       api.getComments(task.id).then((rows) => setComments(sortCommentsDesc(rows))).catch(console.error);
       api.getAttachments(task.id).then(setAttachments).catch(console.error);
       api.getProjects().then(setProjects).catch(console.error);
+      api.getTaskRuns(task.id).then(setTaskRuns).catch(console.error);
     }
   }, [isOpen, task.id]);
 
@@ -118,7 +121,7 @@ export function TaskDrawer({ task, isOpen, onClose, onUpdate }: TaskDrawerProps)
   }, []);
 
   // Live updates for comments and attachments
-  const drawerEvents = ["comment.created", "attachment.created", "attachment.deleted"];
+  const drawerEvents = ["comment.created", "attachment.created", "attachment.deleted", "task.dispatched", "task.run.completed"];
   const { lastEvent: drawerEvent } = useSSE(drawerEvents);
 
   useEffect(() => {
@@ -141,6 +144,14 @@ export function TaskDrawer({ task, isOpen, onClose, onUpdate }: TaskDrawerProps)
 
     if (event === "attachment.deleted" && data.task_id === task.id) {
       setAttachments((prev) => prev.filter((a) => a.id !== data.id));
+    }
+
+    // Refresh task runs on dispatch/completion events
+    if (
+      (event === "task.dispatched" || event === "task.run.completed") &&
+      data.taskId === task.id
+    ) {
+      api.getTaskRuns(task.id).then(setTaskRuns).catch(console.error);
     }
   }, [drawerEvent, isOpen, task.id]);
 
@@ -201,6 +212,21 @@ export function TaskDrawer({ task, isOpen, onClose, onUpdate }: TaskDrawerProps)
       onUpdate(updated);
     } catch (err) {
       console.error("Failed to update:", err);
+    }
+  };
+
+  const dispatchTask = async () => {
+    if (!task.assignee) return;
+    setDispatching(true);
+    try {
+      const result = await api.dispatchTask(task.id, { assignee: task.assignee });
+      if (result.run) {
+        setTaskRuns((prev) => [result.run, ...prev.filter((r) => r.id !== result.run.id)]);
+      }
+    } catch (err) {
+      console.error("Failed to dispatch:", err);
+    } finally {
+      setDispatching(false);
     }
   };
 
@@ -541,6 +567,121 @@ export function TaskDrawer({ task, isOpen, onClose, onUpdate }: TaskDrawerProps)
             <p>Created: {formatLocal(task.created_at)}</p>
             <p>Updated: {formatLocal(task.updated_at)}</p>
             <p>Created by: {task.created_by}</p>
+          </div>
+
+          {/* Task Runs / Sessions */}
+          <div className="space-y-3 border-t border-gray-200 dark:border-[#222222] pt-4">
+            <div className="flex items-center justify-between">
+              <span className="text-xs font-medium text-gray-500 dark:text-[#888888] uppercase tracking-wider flex items-center gap-1">
+                <Play size={12} strokeWidth={1.5} />
+                Worker Sessions
+                {taskRuns.length > 0 && (
+                  <span className="text-[10px] text-gray-400 dark:text-[#555555]">({taskRuns.length})</span>
+                )}
+              </span>
+              {task.assignee && task.status !== "done" && (
+                <Button
+                  size="sm"
+                  variant="flat"
+                  color="primary"
+                  isLoading={dispatching}
+                  onPress={dispatchTask}
+                  className="h-7 text-xs"
+                  startContent={!dispatching && <Play size={12} strokeWidth={1.5} />}
+                >
+                  Dispatch
+                </Button>
+              )}
+            </div>
+
+            {taskRuns.length === 0 && (
+              <p className="text-xs text-gray-400 dark:text-[#555555]">
+                No worker sessions dispatched yet.
+              </p>
+            )}
+
+            {taskRuns.length > 0 && (
+              <div className="space-y-2">
+                {taskRuns.map((run) => {
+                  const isActive = run.status === "dispatched" || run.status === "active";
+                  const isStalled = run.status === "stalled";
+                  const isTerminal = ["done", "blocked", "handoff", "superseded", "failed"].includes(run.status);
+                  return (
+                    <div
+                      key={run.id}
+                      className={`rounded-md border px-3 py-2 text-xs ${
+                        isActive
+                          ? "border-primary-500/30 bg-primary-500/5"
+                          : isStalled
+                          ? "border-warning-500/30 bg-warning-500/5"
+                          : "border-gray-200 dark:border-[#1a1a1a] bg-gray-50 dark:bg-[#111111]"
+                      }`}
+                    >
+                      <div className="flex items-center justify-between mb-1">
+                        <div className="flex items-center gap-2">
+                          <span className="font-medium text-gray-900 dark:text-white capitalize">
+                            {run.agent}
+                          </span>
+                          <span className="text-gray-400 dark:text-[#555555]">
+                            Run #{run.run_seq}
+                          </span>
+                        </div>
+                        <Chip
+                          size="sm"
+                          variant="flat"
+                          color={
+                            run.status === "active"
+                              ? "primary"
+                              : run.status === "dispatched"
+                              ? "secondary"
+                              : run.status === "done"
+                              ? "success"
+                              : run.status === "stalled" || run.status === "failed"
+                              ? "danger"
+                              : run.status === "blocked"
+                              ? "warning"
+                              : "default"
+                          }
+                          className="h-5 text-[10px]"
+                        >
+                          {run.status}
+                        </Chip>
+                      </div>
+                      <div className="flex items-center gap-3 text-[10px] text-gray-400 dark:text-[#555555]">
+                        <span className="flex items-center gap-0.5">
+                          <Clock size={10} strokeWidth={1.5} />
+                          {timeAgo(run.dispatched_at)}
+                        </span>
+                        {run.last_activity_at && isActive && (
+                          <span>
+                            Active {timeAgo(run.last_activity_at)}
+                          </span>
+                        )}
+                        {run.ended_at && (
+                          <span>
+                            Ended {timeAgo(run.ended_at)}
+                          </span>
+                        )}
+                        {isStalled && (
+                          <span className="flex items-center gap-0.5 text-warning-600 dark:text-warning-400">
+                            <AlertTriangle size={10} strokeWidth={1.5} />
+                            Stalled
+                          </span>
+                        )}
+                        {run.final_cost_usd != null && (
+                          <span>${run.final_cost_usd.toFixed(4)}</span>
+                        )}
+                      </div>
+                      {run.session_key && (
+                        <div className="mt-1 text-[10px] font-mono text-gray-400 dark:text-[#444444] truncate" title={run.session_key}>
+                          {run.session_key}
+                        </div>
+                      )}
+                    </div>
+                  );
+                })}
+              </div>
+            )}
           </div>
 
           {/* Comments */}

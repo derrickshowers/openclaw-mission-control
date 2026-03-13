@@ -222,6 +222,28 @@ export interface TaskComment {
   created_at: string;
 }
 
+export interface TaskRun {
+  id: string;
+  task_id: string;
+  agent: string;
+  run_seq: number;
+  session_key: string;
+  session_id: string | null;
+  status: "dispatched" | "active" | "handoff" | "done" | "blocked" | "stalled" | "superseded" | "failed";
+  dispatch_message: string | null;
+  checkpoint_summary: string | null;
+  handoff_file: string | null;
+  dispatched_at: string;
+  started_at: string | null;
+  last_activity_at: string | null;
+  ended_at: string | null;
+  end_reason: string | null;
+  final_tokens: number | null;
+  final_cost_usd: number | null;
+  created_at: string;
+  updated_at: string;
+}
+
 type TaskUpdate = Partial<Pick<Task, "title" | "description" | "status" | "assignee" | "priority" | "position" | "project_id">> & {
   tags?: string[] | null;
 };
@@ -387,6 +409,22 @@ export const api = {
   // Activity
   getActivity: (params?: { agent?: string; type?: string; limit?: string }) =>
     apiFetch<any[]>("/activity", { params: params as Record<string, string> }),
+
+  // Task Runs
+  getTaskRuns: (taskId: string, params?: { agent?: string; status?: string; limit?: number }) =>
+    apiFetch<TaskRun[]>(`/tasks/${taskId}/runs`, {
+      params: {
+        agent: params?.agent || "",
+        status: params?.status || "",
+        limit: params?.limit !== undefined ? String(params.limit) : "",
+      },
+    }),
+
+  dispatchTask: (taskId: string, data?: { assignee?: string; message?: string; dry_run?: boolean }) =>
+    apiFetch<{ ok: boolean; run: TaskRun; sessionKey: string; sent: boolean }>(`/tasks/${taskId}/dispatch`, {
+      method: "POST",
+      body: JSON.stringify(data || {}),
+    }),
 
   // System
   getHealth: () => apiFetch<any>("/health"),
