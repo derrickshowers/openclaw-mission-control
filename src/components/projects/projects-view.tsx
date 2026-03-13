@@ -164,7 +164,7 @@ export function ProjectsView({ initialProjects }: ProjectsViewProps) {
               onValueChange={setNewName}
               variant="bordered"
               size="sm"
-              classNames={{ inputWrapper: "border-divider bg-white dark:bg-[#080808]" }}
+              classNames={{ inputWrapper: "border-divider bg-white dark:bg-[#080808] data-[focus=true]:border-primary data-[focus-visible=true]:border-primary" }}
               autoFocus
             />
             <Textarea
@@ -174,7 +174,7 @@ export function ProjectsView({ initialProjects }: ProjectsViewProps) {
               onValueChange={setNewDescription}
               variant="bordered"
               size="sm"
-              classNames={{ inputWrapper: "border-divider bg-white dark:bg-[#080808]" }}
+              classNames={{ inputWrapper: "border-divider bg-white dark:bg-[#080808] data-[focus=true]:border-primary data-[focus-visible=true]:border-primary" }}
             />
             <Input
               label="Owner"
@@ -183,7 +183,7 @@ export function ProjectsView({ initialProjects }: ProjectsViewProps) {
               onValueChange={setNewOwner}
               variant="bordered"
               size="sm"
-              classNames={{ inputWrapper: "border-divider bg-white dark:bg-[#080808]" }}
+              classNames={{ inputWrapper: "border-divider bg-white dark:bg-[#080808] data-[focus=true]:border-primary data-[focus-visible=true]:border-primary" }}
             />
           </ModalBody>
           <ModalFooter className="border-t border-divider">

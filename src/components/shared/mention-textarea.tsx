@@ -346,9 +346,12 @@ export function MentionTextarea({
           suppressContentEditableWarning
           role="textbox"
           aria-multiline="true"
-          className={`w-full min-h-[36px] max-h-[96px] overflow-y-auto rounded-lg border border-divider bg-white dark:bg-[#080808] px-3 py-2 text-base md:text-sm text-foreground dark:text-[#CCCCCC] outline-none focus:border-foreground-300 transition-colors ${
+          className={`w-full min-h-[36px] max-h-[96px] overflow-y-auto rounded-lg border border-divider bg-white dark:bg-[#080808] px-3 py-2 text-base md:text-sm text-foreground dark:text-[#CCCCCC] outline-none focus:border-primary transition-colors ${
             classNames?.inputWrapper || ""
           } ${disabled ? "opacity-50 cursor-not-allowed" : ""}`}
+          spellCheck={false}
+          autoCorrect="off"
+          autoCapitalize="off"
           onInput={handleInput}
           onKeyDown={handleKeyDown}
           onPaste={handlePaste}

@@ -490,7 +490,7 @@ export function TaskDrawer({ task, isOpen, onClose, onUpdate }: TaskDrawerProps)
                 variant="bordered"
                 size="sm"
                 className="max-w-[160px]"
-                classNames={{ trigger: "border-gray-200 dark:border-[#222222] bg-white dark:bg-[#080808] h-8 min-h-8" }}
+                classNames={{ trigger: "border-gray-200 dark:border-[#222222] bg-white dark:bg-[#080808] h-8 min-h-8 data-[focus=true]:border-primary data-[focus-visible=true]:border-primary data-[open=true]:border-primary" }}
                 startContent={<Folder size={12} strokeWidth={1.5} className="text-gray-400 dark:text-[#555555]" />}
               >
                 {(item) => <SelectItem key={item.id}>{item.name}</SelectItem>}
@@ -759,10 +759,10 @@ export function TaskDrawer({ task, isOpen, onClose, onUpdate }: TaskDrawerProps)
                             />
                           ),
                           ul: ({ node, ...props }) => (
-                            <ul className="pl-5 space-y-1 my-2" {...props} />
+                            <ul className="list-disc pl-5 space-y-1 my-2" {...props} />
                           ),
                           ol: ({ node, ...props }) => (
-                            <ol className="pl-5 space-y-1 my-2" {...props} />
+                            <ol className="list-decimal pl-5 space-y-1 my-2" {...props} />
                           ),
                           li: ({ node, children, ...props }) => {
                             const processedChildren = processChildrenForMentions(children);

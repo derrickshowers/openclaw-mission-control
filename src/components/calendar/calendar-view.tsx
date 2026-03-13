@@ -503,7 +503,7 @@ export function CalendarView() {
           <Button
             size="sm"
             variant="flat"
-            className="border border-[#222222] bg-[#080808] text-xs"
+            className="border border-gray-200 bg-white text-xs text-foreground-700 hover:bg-gray-50 dark:border-[#222222] dark:bg-[#080808] dark:text-[#EDEDED] dark:hover:bg-[#111111]"
             onPress={goToday}
           >
             Today
@@ -514,7 +514,7 @@ export function CalendarView() {
               size="sm"
               variant="flat"
               isIconOnly
-              className="rounded-r-none border border-[#222222] bg-[#080808]"
+              className="rounded-r-none border border-gray-200 bg-white text-foreground-600 hover:bg-gray-50 dark:border-[#222222] dark:bg-[#080808] dark:text-[#CCCCCC] dark:hover:bg-[#111111]"
               onPress={() => navigate("prev")}
             >
               <ChevronLeft size={14} strokeWidth={1.5} />
@@ -523,7 +523,7 @@ export function CalendarView() {
               size="sm"
               variant="flat"
               isIconOnly
-              className="rounded-l-none border border-[#222222] border-l-0 bg-[#080808]"
+              className="rounded-l-none border border-gray-200 border-l-0 bg-white text-foreground-600 hover:bg-gray-50 dark:border-[#222222] dark:bg-[#080808] dark:text-[#CCCCCC] dark:hover:bg-[#111111]"
               onPress={() => navigate("next")}
             >
               <ChevronRight size={14} strokeWidth={1.5} />
@@ -534,8 +534,10 @@ export function CalendarView() {
             <Button
               size="sm"
               variant="flat"
-              className={`rounded-r-none border border-[#222222] text-xs ${
-                viewMode === "month" ? "bg-[#1A1A1A] text-white" : "bg-[#080808] text-[#888888]"
+              className={`rounded-r-none border border-gray-200 text-xs dark:border-[#222222] ${
+                viewMode === "month"
+                  ? "bg-primary/10 text-primary border-primary/40 dark:bg-[#1A1A1A] dark:text-white dark:border-[#333333]"
+                  : "bg-white text-foreground-500 hover:bg-gray-50 dark:bg-[#080808] dark:text-[#888888] dark:hover:bg-[#111111]"
               }`}
               onPress={() => setViewMode("month")}
             >
@@ -544,8 +546,10 @@ export function CalendarView() {
             <Button
               size="sm"
               variant="flat"
-              className={`rounded-l-none border border-[#222222] border-l-0 text-xs ${
-                viewMode === "week" ? "bg-[#1A1A1A] text-white" : "bg-[#080808] text-[#888888]"
+              className={`rounded-l-none border border-gray-200 border-l-0 text-xs dark:border-[#222222] ${
+                viewMode === "week"
+                  ? "bg-primary/10 text-primary border-primary/40 dark:bg-[#1A1A1A] dark:text-white dark:border-[#333333]"
+                  : "bg-white text-foreground-500 hover:bg-gray-50 dark:bg-[#080808] dark:text-[#888888] dark:hover:bg-[#111111]"
               }`}
               onPress={() => setViewMode("week")}
             >

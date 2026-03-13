@@ -171,9 +171,44 @@ button:not(.rounded-full) {
   padding-left: 1.25rem;
 }
 
+.markdown-prose :where(ul) {
+  list-style-type: disc;
+  list-style-position: outside;
+}
+
+.markdown-prose :where(ol) {
+  list-style-type: decimal;
+  list-style-position: outside;
+}
+
+.markdown-prose :where(ul ul) {
+  list-style-type: circle;
+}
+
+.markdown-prose :where(ol ol) {
+  list-style-type: lower-alpha;
+}
+
 .markdown-prose :where(li) {
   margin-top: 0.25rem;
   margin-bottom: 0.25rem;
+}
+
+.comment-markdown ul {
+  list-style-type: disc;
+  list-style-position: outside;
+  padding-left: 1.25rem;
+}
+
+.comment-markdown ol {
+  list-style-type: decimal;
+  list-style-position: outside;
+  padding-left: 1.25rem;
+}
+
+.comment-markdown li > ul,
+.comment-markdown li > ol {
+  margin-top: 0.375rem;
 }
 
 .markdown-prose li > ul,
