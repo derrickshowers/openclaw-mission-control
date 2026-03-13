@@ -31,6 +31,17 @@ Repo-specific instructions for agents working in the Mission Control frontend re
 - Check `/data/.openclaw/shared/how-we-work/pr-standards.md` for review-readiness and evidence requirements.
 - If Derrick explicitly asks for final review on a given PR, or if the change materially affects auth, security boundaries, or deploy behavior, escalate instead of merging on your own.
 
+## UI quality standards
+
+Before marking UI work done or opening a PR:
+
+1. Complete the checklist in `/data/.openclaw/shared/how-we-work/ui-quality-checklist.md`
+2. Test in **both light and dark modes**
+3. Verify **no regressions** to existing features (avatars, mentions, interactive elements)
+4. Include screenshots in PR (light mode, dark mode, mobile if applicable)
+
+These are **mandatory** for any UI changes. We've had multiple regressions from skipping these checks.
+
 ## Notes for agents
 
 - No push = no deploy. Vercel only sees what is pushed to GitHub.
