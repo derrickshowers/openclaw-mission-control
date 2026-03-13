@@ -29,8 +29,10 @@ import {
   Bot,
   User,
   Folder,
-  History
+  History,
+  ArrowUpRight
 } from "lucide-react";
+import { useRouter } from "next/navigation";
 import { api, type PersonalTaskDetail, type Project } from "@/lib/api";
 import { formatLocal, timeAgo } from "@/lib/dates";
 import { KNOWN_AGENT_IDS } from "@/lib/agents";
@@ -52,6 +54,7 @@ const PRIORITIES = [
 ];
 
 export function PersonalTaskDrawer({ taskId, isOpen, onClose, onPromoted }: PersonalTaskDrawerProps) {
+  const router = useRouter();
   const [task, setTask] = useState<PersonalTaskDetail | null>(null);
   const [loading, setLoading] = useState(true);
   const [promoting, setPromoting] = useState(false);
@@ -228,7 +231,22 @@ export function PersonalTaskDrawer({ taskId, isOpen, onClose, onPromoted }: Pers
                                 )}
                               </div>
                             </div>
-                            <Chip size="sm" variant="flat" className="text-[10px] uppercase">{link.relation}</Chip>
+                            <div className="flex flex-col gap-2">
+                               <Chip size="sm" variant="flat" className="text-[10px] uppercase">{link.relation}</Chip>
+                               {link.team_task && (
+                                 <Button 
+                                   isIconOnly 
+                                   size="sm" 
+                                   variant="light" 
+                                   onPress={() => {
+                                     onClose();
+                                     router.push(`/tasks?scope=team&task=${link.team_task_id}`);
+                                   }}
+                                 >
+                                   <ArrowUpRight size={14} />
+                                 </Button>
+                               )}
+                            </div>
                           </div>
                         </CardBody>
                       </Card>

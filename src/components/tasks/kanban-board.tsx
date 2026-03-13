@@ -10,6 +10,8 @@ import { KNOWN_AGENT_IDS } from "@/lib/agents";
 import { TaskCard } from "./task-card";
 import { TaskDrawer } from "./task-drawer";
 
+import { useRouter, useSearchParams } from "next/navigation";
+
 const COLUMNS = [
   { id: "backlog", label: "Backlog", color: "#888888" },
   { id: "in_progress", label: "In Progress", color: "#8b5cf6" },
@@ -33,12 +35,45 @@ interface KanbanBoardProps {
 }
 
 export function KanbanBoard({ initialTasks, initialProjectId, projects: initialProjects }: KanbanBoardProps) {
+  const router = useRouter();
+  const searchParams = useSearchParams();
   const [tasks, setTasks] = useState<Task[]>(initialTasks);
   const [selectedTask, setSelectedTask] = useState<Task | null>(null);
   const [projects, setProjects] = useState<Project[]>(initialProjects || []);
   const [projectId, setProjectId] = useState<string | null>(initialProjectId || null);
   const [drawerOpen, setDrawerOpen] = useState(false);
   const { isOpen, onOpen, onClose } = useDisclosure();
+
+  // Handle opening task from URL
+  useEffect(() => {
+    const taskId = searchParams.get("task");
+    if (taskId) {
+      const task = tasks.find((t) => t.id === taskId);
+      if (task) {
+        setSelectedTask(task);
+        setDrawerOpen(true);
+      } else {
+        // Fetch if not in list (e.g. archived or different project)
+        api.getTask(taskId).then((t) => {
+          setSelectedTask(t);
+          setDrawerOpen(true);
+        }).catch(() => {
+          // Clear param if not found
+          const params = new URLSearchParams(searchParams.toString());
+          params.delete("task");
+          router.replace(`/tasks?${params.toString()}`);
+        });
+      }
+    }
+  }, [searchParams, tasks, router]);
+
+  const closeTaskDrawer = useCallback(() => {
+    setDrawerOpen(false);
+    // Clear param from URL
+    const params = new URLSearchParams(searchParams.toString());
+    params.delete("task");
+    router.replace(`/tasks?${params.toString()}`);
+  }, [router, searchParams]);
 
   // New task form state
   const [newTitle, setNewTitle] = useState("");
@@ -484,7 +519,7 @@ export function KanbanBoard({ initialTasks, initialProjectId, projects: initialP
         <TaskDrawer
           task={selectedTask}
           isOpen={drawerOpen}
-          onClose={() => setDrawerOpen(false)}
+          onClose={closeTaskDrawer}
           onUpdate={(updated) => {
             setTasks((prev) => prev.map((t) => (t.id === updated.id ? updated : t)));
             setSelectedTask(updated);

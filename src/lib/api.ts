@@ -117,6 +117,13 @@ export interface PersonalTask {
   updated_at: string;
   link_count: number;
   open_link_count: number;
+  delegation?: {
+    task_id: string;
+    title: string;
+    status: string;
+    assignee: string | null;
+    delegated_at: string;
+  } | null;
 }
 
 export interface PersonalTaskDetail extends PersonalTask {

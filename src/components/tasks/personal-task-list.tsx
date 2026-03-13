@@ -174,18 +174,29 @@ export function PersonalTaskList({ initialTasks }: PersonalTaskListProps) {
             )}
           </div>
         );
-      case "links":
-        if (task.link_count === 0) return null;
+      case "delegation":
+        if (!task.delegation) return null;
+        const teamStatus = task.delegation.status;
+        const isTeamDone = teamStatus === "done";
         return (
-          <Tooltip content={`${task.link_count} linked team tasks (${task.open_link_count} open)`}>
-            <div className={`flex items-center gap-1 ${task.open_link_count > 0 ? "text-primary" : "text-success"}`}>
-              {task.open_link_count > 0 ? <LinkIcon size={14} /> : <ClipboardCheck size={14} />}
-              <span className="text-xs font-medium">{task.link_count}</span>
-              {task.open_link_count > 0 && (
-                 <span className="flex h-1.5 w-1.5 rounded-full bg-primary animate-pulse" />
+          <div className="flex flex-col gap-1">
+            <div className="flex items-center gap-2">
+              <Chip
+                size="sm"
+                variant="flat"
+                color={isTeamDone ? "success" : "primary"}
+                className="h-5 text-[10px] uppercase font-bold"
+              >
+                {teamStatus.replace("_", " ")}
+              </Chip>
+              {task.delegation.assignee && (
+                 <span className="text-[10px] text-foreground-400">@{task.delegation.assignee}</span>
               )}
             </div>
-          </Tooltip>
+            <span className="text-[10px] text-foreground-500 truncate max-w-[150px]">
+              {task.delegation.title}
+            </span>
+          </div>
         );
       case "actions":
         return (
@@ -295,7 +306,7 @@ export function PersonalTaskList({ initialTasks }: PersonalTaskListProps) {
             <TableColumn key="status" width={140}>Status</TableColumn>
             <TableColumn key="priority" width={100}>Priority</TableColumn>
             <TableColumn key="due" width={140}>Date</TableColumn>
-            <TableColumn key="links" width={60}>Links</TableColumn>
+            <TableColumn key="delegation" width={200}>Team Progress</TableColumn>
             <TableColumn key="actions" width={120} align="end">Actions</TableColumn>
           </TableHeader>
           <TableBody 
