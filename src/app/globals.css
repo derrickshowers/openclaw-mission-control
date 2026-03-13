@@ -31,8 +31,16 @@ body::before {
   z-index: 0;
 }
 
-[data-theme="light"] body::before {
+.light body::before {
   background: radial-gradient(circle at 50% -20%, rgba(139, 92, 246, 0.04) 0%, transparent 70%);
+}
+
+.light .text-foreground-400 {
+  color: #71717a !important; /* zinc-500 for better contrast than default 400 */
+}
+
+.light .text-foreground-300 {
+  color: #a1a1aa !important; /* zinc-400 */
 }
 
 /* HeroUI focus ring overrides — Linear aesthetic */
@@ -41,6 +49,11 @@ body::before {
   --tw-ring-shadow: none !important;
   box-shadow: none !important;
   border-color: #444 !important;
+}
+
+.light [data-slot="input-wrapper"][data-focus="true"],
+.light [data-slot="inner-wrapper"][data-focus="true"] {
+  border-color: #8b5cf6 !important;
 }
 
 /* Kill native browser focus outline on inner input/textarea elements */
@@ -53,6 +66,11 @@ body::before {
 [data-slot="input-wrapper"]:hover,
 [data-slot="trigger"]:hover {
   border-color: #333 !important;
+}
+
+.light [data-slot="input-wrapper"]:hover,
+.light [data-slot="trigger"]:hover {
+  border-color: #e5e7eb !important;
 }
 
 [data-slot="input-wrapper"],
@@ -80,8 +98,16 @@ input, textarea, select, button {
   border-radius: 3px;
 }
 
+.light ::-webkit-scrollbar-thumb {
+  background: #d1d5db;
+}
+
 ::-webkit-scrollbar-thumb:hover {
   background: #555;
+}
+
+.light ::-webkit-scrollbar-thumb:hover {
+  background: #9ca3af;
 }
 
 /* Skeleton animation for loading states */
@@ -94,6 +120,10 @@ input, textarea, select, button {
   animation: skeleton-pulse 1.5s ease-in-out infinite;
   background: #1A1A1A;
   border-radius: 4px;
+}
+
+.light .skeleton {
+  background: #f3f4f6;
 }
 
 /* Linear-style radius/density refinements */
@@ -157,6 +187,10 @@ button:not(.rounded-full) {
   margin-bottom: 2rem;
   border: 0;
   border-top: 1px solid #222222;
+}
+
+.light .markdown-prose hr {
+  border-top: 1px solid #e5e7eb;
 }
 
 .markdown-prose table {

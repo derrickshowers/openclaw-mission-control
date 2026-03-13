@@ -18,7 +18,7 @@ export default function ActivityPage() {
   return (
     <div className="flex h-full flex-col">
       {/* Tab bar */}
-      <div className="flex items-center gap-1 border-b border-[#222222] px-4">
+      <div className="flex items-center gap-1 border-b border-gray-200 dark:border-[#222222] px-4">
         {TABS.map((tab) => {
           const Icon = tab.icon;
           const active = activeTab === tab.id;
@@ -28,8 +28,8 @@ export default function ActivityPage() {
               onClick={() => setActiveTab(tab.id)}
               className={`flex items-center gap-1.5 px-3 py-2.5 text-xs font-medium transition-colors border-b-2 -mb-px ${
                 active
-                  ? "border-white text-white"
-                  : "border-transparent text-[#555555] hover:text-[#888888]"
+                  ? "border-gray-900 text-gray-900 dark:border-white dark:text-white"
+                  : "border-transparent text-gray-400 dark:text-[#555555] hover:text-gray-500 dark:hover:text-[#888888]"
               }`}
             >
               <Icon size={13} strokeWidth={1.5} />

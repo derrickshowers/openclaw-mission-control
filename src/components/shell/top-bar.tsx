@@ -1,7 +1,7 @@
 "use client";
 
 import { usePathname } from "next/navigation";
-import { Umbrella, Search } from "lucide-react";
+import { Umbrella } from "lucide-react";
 import { useSSEStatus } from "@/hooks/use-sse";
 
 const pageTitles: Record<string, string> = {

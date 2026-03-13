@@ -44,7 +44,7 @@ const processChildrenForMentions = (children: any): any => {
       const parts = child.split(/(@\w+)/g);
       return parts.map((part: string, i: number) =>
         /^@\w+$/.test(part) ? (
-          <span key={`${index}-${i}`} className="inline-block rounded px-1 py-0.5 bg-[#8b5cf6]/15 text-[#8b5cf6] font-medium text-xs">
+          <span key={`${index}-${i}`} className="inline-block rounded px-1 py-0.5 bg-primary-500/15 text-primary-600 dark:text-primary-400 font-medium text-xs">
             {part}
           </span>
         ) : (
@@ -245,21 +245,21 @@ export function TaskDrawer({ task, isOpen, onClose, onUpdate }: TaskDrawerProps)
     <>
       {/* Backdrop */}
       <div
-        className="fixed inset-0 z-40 bg-black/50"
+        className="fixed inset-0 z-40 bg-black/20 dark:bg-black/60"
         onClick={onClose}
       />
 
       {/* Drawer */}
-      <div className="fixed right-0 top-0 z-50 flex h-[100dvh] w-full max-w-md flex-col border-l border-[#222222] bg-[#0A0A0A]">
+      <div className="fixed right-0 top-0 z-50 flex h-[100dvh] w-full max-w-md flex-col border-l border-gray-200 dark:border-[#222222] bg-white dark:bg-[#0A0A0A]">
         {/* Header — shrink-0 */}
-        <div className="flex shrink-0 items-center justify-between border-b border-[#222222] px-4 py-3">
+        <div className="flex shrink-0 items-center justify-between border-b border-gray-200 dark:border-[#222222] px-4 py-3">
           <div className="flex items-center gap-2">
             <Chip size="sm" variant="flat" color={statusColors[task.status]}>
               {task.status.replace("_", " ")}
             </Chip>
-            <span className="text-xs text-[#888888] font-mono">{task.id.slice(0, 8)}</span>
+            <span className="text-xs text-gray-500 dark:text-[#888888] font-mono">{task.id.slice(0, 8)}</span>
           </div>
-          <button onClick={onClose} className="text-[#888888] hover:text-white">
+          <button onClick={onClose} className="text-gray-500 dark:text-[#888888] hover:text-gray-900 dark:hover:text-white">
             <X size={16} strokeWidth={1.5} />
           </button>
         </div>
@@ -273,7 +273,7 @@ export function TaskDrawer({ task, isOpen, onClose, onUpdate }: TaskDrawerProps)
                 onValueChange={setTitle}
                 variant="bordered"
                 size="sm"
-                classNames={{ inputWrapper: "border-[#222222] bg-[#080808]" }}
+                classNames={{ inputWrapper: "border-gray-200 dark:border-[#222222] bg-white dark:bg-[#080808]" }}
               />
               <Textarea
                 value={description}
@@ -281,7 +281,7 @@ export function TaskDrawer({ task, isOpen, onClose, onUpdate }: TaskDrawerProps)
                 variant="bordered"
                 size="sm"
                 minRows={3}
-                classNames={{ inputWrapper: "border-[#222222] bg-[#080808]" }}
+                classNames={{ inputWrapper: "border-gray-200 dark:border-[#222222] bg-white dark:bg-[#080808]" }}
               />
               <div className="flex gap-2">
                 <Button size="sm" color="primary" onPress={saveEdits}>Save</Button>
@@ -292,19 +292,19 @@ export function TaskDrawer({ task, isOpen, onClose, onUpdate }: TaskDrawerProps)
             <>
               <div>
                 <h2
-                  className="text-lg font-medium cursor-pointer hover:text-[#888888]"
+                  className="text-lg font-medium cursor-pointer hover:text-gray-500 dark:hover:text-[#888888]"
                   onClick={() => setEditing(true)}
                 >
                   {task.title}
                 </h2>
                 {task.description && (
-                  <p className="mt-2 text-sm text-[#888888] whitespace-pre-wrap">
+                  <p className="mt-2 text-sm text-gray-500 dark:text-[#888888] whitespace-pre-wrap">
                     {task.description}
                   </p>
                 )}
                 {!task.description && (
                   <p
-                    className="mt-2 text-sm text-[#555555] cursor-pointer hover:text-[#888888]"
+                    className="mt-2 text-sm text-gray-400 dark:text-[#555555] cursor-pointer hover:text-gray-500 dark:hover:text-[#888888]"
                     onClick={() => setEditing(true)}
                   >
                     Add description...
@@ -316,18 +316,18 @@ export function TaskDrawer({ task, isOpen, onClose, onUpdate }: TaskDrawerProps)
 
           {/* Attachments */}
           <div
-            className={`space-y-3 border-t border-[#222222] pt-4 ${dragOver ? "ring-1 ring-blue-500/50 rounded-lg" : ""}`}
+            className={`space-y-3 border-t border-gray-200 dark:border-[#222222] pt-4 ${dragOver ? "ring-1 ring-blue-500/50 rounded-lg" : ""}`}
             onDragOver={(e) => { e.preventDefault(); setDragOver(true); }}
             onDragLeave={() => setDragOver(false)}
             onDrop={handleDrop}
             onPaste={handlePaste}
           >
             <div className="flex items-center justify-between">
-              <span className="text-xs font-medium text-[#888888] uppercase tracking-wider flex items-center gap-1">
+              <span className="text-xs font-medium text-gray-500 dark:text-[#888888] uppercase tracking-wider flex items-center gap-1">
                 <Paperclip size={12} strokeWidth={1.5} />
                 Attachments
                 {attachments.length > 0 && (
-                  <span className="text-[10px] text-[#555555]">({attachments.length})</span>
+                  <span className="text-[10px] text-gray-400 dark:text-[#555555]">({attachments.length})</span>
                 )}
               </span>
               <input
@@ -354,7 +354,7 @@ export function TaskDrawer({ task, isOpen, onClose, onUpdate }: TaskDrawerProps)
             </div>
 
             {attachments.length === 0 && !dragOver && (
-              <p className="text-xs text-[#555555]">
+              <p className="text-xs text-gray-400 dark:text-[#555555]">
                 No attachments. Drag & drop, paste, or click Attach.
               </p>
             )}
@@ -370,7 +370,7 @@ export function TaskDrawer({ task, isOpen, onClose, onUpdate }: TaskDrawerProps)
                 {attachments.map((a) => (
                   <div
                     key={a.id}
-                    className="group relative rounded-md border border-[#222222] bg-[#111111] overflow-hidden cursor-pointer"
+                    className="group relative rounded-md border border-gray-200 dark:border-[#222222] bg-gray-50 dark:bg-[#111111] overflow-hidden cursor-pointer"
                     onClick={() => setLightboxUrl(`/api/mc${a.url.replace(/^\/api/, "")}`)}
                   >
                     <img
@@ -390,8 +390,8 @@ export function TaskDrawer({ task, isOpen, onClose, onUpdate }: TaskDrawerProps)
                       <X size={12} strokeWidth={2} />
                     </button>
                     <div className="px-1.5 py-1">
-                      <p className="text-[10px] text-[#888888] truncate">{a.filename}</p>
-                      <p className="text-[10px] text-[#555555]">{formatFileSize(a.size)}</p>
+                      <p className="text-[10px] text-gray-500 dark:text-[#888888] truncate">{a.filename}</p>
+                      <p className="text-[10px] text-gray-400 dark:text-[#555555]">{formatFileSize(a.size)}</p>
                     </div>
                   </div>
                 ))}
@@ -400,9 +400,9 @@ export function TaskDrawer({ task, isOpen, onClose, onUpdate }: TaskDrawerProps)
           </div>
 
           {/* Fields */}
-          <div className="space-y-3 border-t border-[#222222] pt-4">
+          <div className="space-y-3 border-t border-gray-200 dark:border-[#222222] pt-4">
             <div className="flex items-center justify-between">
-              <span className="text-xs text-[#888888]">Project</span>
+              <span className="text-xs text-gray-500 dark:text-[#888888]">Project</span>
               <Select
                 items={[{ id: "__none", name: "No project" }, ...projects.map((p) => ({ id: p.id, name: p.name }))]}
                 selectedKeys={task.project_id ? [task.project_id] : ["__none"]}
@@ -417,15 +417,15 @@ export function TaskDrawer({ task, isOpen, onClose, onUpdate }: TaskDrawerProps)
                 variant="bordered"
                 size="sm"
                 className="max-w-[160px]"
-                classNames={{ trigger: "border-[#222222] bg-[#080808] h-8 min-h-8" }}
-                startContent={<Folder size={12} strokeWidth={1.5} className="text-[#555555]" />}
+                classNames={{ trigger: "border-gray-200 dark:border-[#222222] bg-white dark:bg-[#080808] h-8 min-h-8" }}
+                startContent={<Folder size={12} strokeWidth={1.5} className="text-gray-400 dark:text-[#555555]" />}
               >
                 {(item) => <SelectItem key={item.id}>{item.name}</SelectItem>}
               </Select>
             </div>
 
             <div className="flex items-center justify-between">
-              <span className="text-xs text-[#888888]">Status</span>
+              <span className="text-xs text-gray-500 dark:text-[#888888]">Status</span>
               <Select
                 selectedKeys={[task.status]}
                 onSelectionChange={(keys) => {
@@ -435,7 +435,7 @@ export function TaskDrawer({ task, isOpen, onClose, onUpdate }: TaskDrawerProps)
                 variant="bordered"
                 size="sm"
                 className="max-w-[160px]"
-                classNames={{ trigger: "border-[#222222] bg-[#080808] h-8 min-h-8" }}
+                classNames={{ trigger: "border-gray-200 dark:border-[#222222] bg-white dark:bg-[#080808] h-8 min-h-8" }}
               >
                 {COLUMNS.map((c) => (
                   <SelectItem key={c.id}>{c.label}</SelectItem>
@@ -444,7 +444,7 @@ export function TaskDrawer({ task, isOpen, onClose, onUpdate }: TaskDrawerProps)
             </div>
 
             <div className="flex items-center justify-between">
-              <span className="text-xs text-[#888888]">Assignee</span>
+              <span className="text-xs text-gray-500 dark:text-[#888888]">Assignee</span>
               <Select
                 selectedKeys={task.assignee ? [task.assignee] : []}
                 onSelectionChange={(keys) => {
@@ -455,7 +455,7 @@ export function TaskDrawer({ task, isOpen, onClose, onUpdate }: TaskDrawerProps)
                 size="sm"
                 placeholder="Unassigned"
                 className="max-w-[160px]"
-                classNames={{ trigger: "border-[#222222] bg-[#080808] h-8 min-h-8 capitalize" }}
+                classNames={{ trigger: "border-gray-200 dark:border-[#222222] bg-white dark:bg-[#080808] h-8 min-h-8 capitalize" }}
               >
                 {AGENTS.map((a) => (
                   <SelectItem key={a} className="capitalize">{a}</SelectItem>
@@ -464,7 +464,7 @@ export function TaskDrawer({ task, isOpen, onClose, onUpdate }: TaskDrawerProps)
             </div>
 
             <div className="flex items-center justify-between">
-              <span className="text-xs text-[#888888]">Priority</span>
+              <span className="text-xs text-gray-500 dark:text-[#888888]">Priority</span>
               <Select
                 selectedKeys={[String(task.priority)]}
                 onSelectionChange={(keys) => {
@@ -474,7 +474,7 @@ export function TaskDrawer({ task, isOpen, onClose, onUpdate }: TaskDrawerProps)
                 variant="bordered"
                 size="sm"
                 className="max-w-[160px]"
-                classNames={{ trigger: "border-[#222222] bg-[#080808] h-8 min-h-8" }}
+                classNames={{ trigger: "border-gray-200 dark:border-[#222222] bg-white dark:bg-[#080808] h-8 min-h-8" }}
               >
                 {[
                   { value: "0", label: "None" },
@@ -490,36 +490,36 @@ export function TaskDrawer({ task, isOpen, onClose, onUpdate }: TaskDrawerProps)
           </div>
 
           {/* Metadata */}
-          <div className="space-y-2 border-t border-[#222222] pt-4 text-xs text-[#555555]">
+          <div className="space-y-2 border-t border-gray-200 dark:border-[#222222] pt-4 text-xs text-gray-400 dark:text-[#555555]">
             <p>Created: {formatLocal(task.created_at)}</p>
             <p>Updated: {formatLocal(task.updated_at)}</p>
             <p>Created by: {task.created_by}</p>
           </div>
 
           {/* Comments */}
-          <div className="space-y-3 border-t border-[#222222] pt-4">
-            <span className="text-xs font-medium text-[#888888] uppercase tracking-wider">Comments</span>
+          <div className="space-y-3 border-t border-gray-200 dark:border-[#222222] pt-4">
+            <span className="text-xs font-medium text-gray-500 dark:text-[#888888] uppercase tracking-wider">Comments</span>
 
             {comments.length === 0 && (
-              <p className="text-xs text-[#555555]">No comments yet.</p>
+              <p className="text-xs text-gray-400 dark:text-[#555555]">No comments yet.</p>
             )}
 
             <div className="space-y-3 max-h-64 overflow-y-auto">
               {comments.map((c) => (
-                <Card key={c.id} className="border border-[#1a1a1a] bg-[#111111]" shadow="none" radius="sm">
+                <Card key={c.id} className="border border-gray-100 dark:border-[#1a1a1a] bg-gray-50 dark:bg-[#111111]" shadow="none" radius="sm">
                   <CardBody className="px-4 py-3">
                     <div className="flex items-center justify-between mb-1.5">
-                      <span className="text-xs font-medium text-white capitalize flex items-center gap-1.5">
+                      <span className="text-xs font-medium text-gray-900 dark:text-white capitalize flex items-center gap-1.5">
                         {resolveAgentAvatarUrl(c.author) ? (
                           <img src={resolveAgentAvatarUrl(c.author)!} alt={c.author} className="h-5 w-5 rounded-full object-cover" />
                         ) : null}
                         {c.author}
                       </span>
-                      <span className="text-[10px] text-[#555555]">
+                      <span className="text-[10px] text-gray-400 dark:text-[#555555]">
                         {formatLocal(c.created_at)}
                       </span>
                     </div>
-                    <div className="comment-markdown text-sm text-[#EDEDED] leading-[1.5]">
+                    <div className="comment-markdown text-sm text-gray-700 dark:text-[#EDEDED] leading-[1.5]">
                       <ReactMarkdown
                         remarkPlugins={[remarkGfm]}
                         components={{
@@ -530,16 +530,16 @@ export function TaskDrawer({ task, isOpen, onClose, onUpdate }: TaskDrawerProps)
                             <h2 className="text-[14px] font-semibold mt-4 mb-2 first:mt-0" {...props} />
                           ),
                           h3: ({ node, ...props }) => (
-                            <h3 className="text-[13px] font-semibold mt-4 mb-2 text-[#A3A3A3] first:mt-0" {...props} />
+                            <h3 className="text-[13px] font-semibold mt-4 mb-2 text-gray-500 dark:text-[#A3A3A3] first:mt-0" {...props} />
                           ),
                           h4: ({ node, ...props }) => (
-                            <h4 className="text-[13px] font-semibold mt-4 mb-2 text-[#A3A3A3] first:mt-0" {...props} />
+                            <h4 className="text-[13px] font-semibold mt-4 mb-2 text-gray-500 dark:text-[#A3A3A3] first:mt-0" {...props} />
                           ),
                           h5: ({ node, ...props }) => (
-                            <h5 className="text-[13px] font-semibold mt-4 mb-2 text-[#A3A3A3] first:mt-0" {...props} />
+                            <h5 className="text-[13px] font-semibold mt-4 mb-2 text-gray-500 dark:text-[#A3A3A3] first:mt-0" {...props} />
                           ),
                           h6: ({ node, ...props }) => (
-                            <h6 className="text-[13px] font-semibold mt-4 mb-2 text-[#A3A3A3] first:mt-0" {...props} />
+                            <h6 className="text-[13px] font-semibold mt-4 mb-2 text-gray-500 dark:text-[#A3A3A3] first:mt-0" {...props} />
                           ),
                           p: ({ node, children, ...props }) => {
                             // Handle @mentions in paragraph text
@@ -550,8 +550,8 @@ export function TaskDrawer({ task, isOpen, onClose, onUpdate }: TaskDrawerProps)
                             // Inline code if no language class (not in a pre block)
                             const isInline = !className;
                             return isInline ? (
-                              <code 
-                                className="font-mono text-[12px] bg-[#1A1A1A] border border-[#2A2A2A] rounded px-1 py-0.5 text-[#EFEFEF]" 
+                              <code
+                                className="font-mono text-[12px] bg-gray-100 dark:bg-[#1A1A1A] border border-gray-200 dark:border-[#2A2A2A] rounded px-1 py-0.5 text-gray-700 dark:text-[#EFEFEF]"
                                 {...props} 
                               />
                             ) : (
@@ -560,13 +560,13 @@ export function TaskDrawer({ task, isOpen, onClose, onUpdate }: TaskDrawerProps)
                           },
                           pre: ({ node, ...props }) => (
                             <pre 
-                              className="font-mono text-[12px] leading-[1.4] bg-[#121212] border border-[#2A2A2A] rounded-md p-3 mt-2 mb-3 overflow-x-auto" 
+                              className="font-mono text-[12px] leading-[1.4] bg-gray-50 dark:bg-[#121212] border border-gray-200 dark:border-[#2A2A2A] rounded-md p-3 mt-2 mb-3 overflow-x-auto"
                               {...props} 
                             />
                           ),
                           blockquote: ({ node, ...props }) => (
                             <blockquote 
-                              className="border-l-2 border-[#333333] pl-3 ml-0 text-[#888888] my-3" 
+                              className="border-l-2 border-gray-300 dark:border-[#333333] pl-3 ml-0 text-gray-500 dark:text-[#888888] my-3"
                               {...props} 
                             />
                           ),
@@ -582,7 +582,7 @@ export function TaskDrawer({ task, isOpen, onClose, onUpdate }: TaskDrawerProps)
                           },
                           a: ({ node, ...props }) => (
                             <a 
-                              className="text-[#EDEDED] underline decoration-[#555555] hover:decoration-white transition-colors" 
+                              className="text-gray-700 dark:text-[#EDEDED] underline decoration-gray-300 dark:decoration-[#555555] hover:decoration-gray-700 dark:hover:decoration-white transition-colors"
                               target="_blank"
                               rel="noopener noreferrer"
                               {...props} 
@@ -601,7 +601,7 @@ export function TaskDrawer({ task, isOpen, onClose, onUpdate }: TaskDrawerProps)
           </div>
 
           {/* Delete */}
-          <div className="border-t border-[#222222] pt-4">
+          <div className="border-t border-gray-200 dark:border-[#222222] pt-4">
             {confirmDelete ? (
               <div className="flex items-center gap-2">
                 <Button size="sm" color="danger" onPress={deleteTask}>
@@ -626,13 +626,13 @@ export function TaskDrawer({ task, isOpen, onClose, onUpdate }: TaskDrawerProps)
         </div>
 
         {/* Comment input — pinned footer */}
-        <div className="shrink-0 border-t border-[#222222] bg-[#080808] p-3 pb-safe">
+        <div className="shrink-0 border-t border-gray-200 dark:border-[#222222] bg-white dark:bg-[#080808] p-3 pb-safe">
           <div className="flex gap-2">
             <MentionTextarea
               value={newComment}
               onValueChange={setNewComment}
               placeholder="Add a comment... (type @ to mention)"
-              classNames={{ inputWrapper: "border-[#222222] bg-[#080808]" }}
+              classNames={{ inputWrapper: "border-gray-200 dark:border-[#222222] bg-white dark:bg-[#080808]" }}
               onKeyDown={(e) => {
                 if (e.key === "Enter" && e.shiftKey) {
                   e.preventDefault();
@@ -659,14 +659,18 @@ export function TaskDrawer({ task, isOpen, onClose, onUpdate }: TaskDrawerProps)
       <Modal
         isOpen={!!uploadError}
         onClose={() => setUploadError(null)}
-        className="dark bg-[#121212] text-white"
+        className="bg-white dark:bg-[#121212] text-gray-900 dark:text-white"
+        backdrop="opaque"
+        classNames={{
+          backdrop: "bg-black/20 dark:bg-black/60"
+        }}
       >
         <ModalContent>
-          <ModalHeader className="border-b border-[#222222] text-sm">Upload failed</ModalHeader>
+          <ModalHeader className="border-b border-gray-200 dark:border-[#222222] text-sm">Upload failed</ModalHeader>
           <ModalBody className="py-4">
-            <p className="text-sm text-[#CCCCCC]">{uploadError}</p>
+            <p className="text-sm text-gray-600 dark:text-[#CCCCCC]">{uploadError}</p>
           </ModalBody>
-          <ModalFooter className="border-t border-[#222222]">
+          <ModalFooter className="border-t border-gray-200 dark:border-[#222222]">
             <Button size="sm" color="primary" onPress={() => setUploadError(null)}>
               OK
             </Button>

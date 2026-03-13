@@ -27,7 +27,7 @@ export function Sidebar() {
   const userImage = session?.user?.image || undefined;
 
   return (
-    <aside className="m-3 flex h-[calc(100vh-1.5rem)] w-sidebar flex-col rounded-2xl border border-divider bg-content1/50 backdrop-blur-xl shadow-[0_12px_40px_rgba(0,0,0,0.15)] dark:shadow-[0_12px_40px_rgba(0,0,0,0.45)]">
+    <aside className="m-3 flex h-[calc(100vh-1.5rem)] w-sidebar flex-col rounded-2xl border border-divider bg-content1/50 backdrop-blur-xl shadow-[0_8px_30px_rgba(0,0,0,0.04)] dark:shadow-[0_12px_40px_rgba(0,0,0,0.45)]">
       {/* Logo */}
       <div className="flex h-14 items-center justify-between border-b border-divider px-4">
         <span className="flex items-center gap-2">
@@ -82,6 +82,10 @@ export function Sidebar() {
               name={userName}
               size="sm"
               className="h-6 w-6 text-[10px]"
+              classNames={{
+                base: "bg-gray-100 dark:bg-[#1A1A1A]",
+                name: "text-gray-600 dark:text-[#CCCCCC]"
+              }}
             />
             <span className="text-xs text-foreground-400">{userName}</span>
           </div>

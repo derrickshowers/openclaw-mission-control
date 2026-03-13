@@ -146,22 +146,22 @@ function DocNodeItem({
           <div
             {...attributes}
             {...listeners}
-            className="opacity-0 group-hover:opacity-100 cursor-grab active:cursor-grabbing p-1 text-[#444444] hover:text-[#888888] absolute left-0 z-10"
+            className="opacity-0 group-hover:opacity-100 cursor-grab active:cursor-grabbing p-1 text-foreground-300 hover:text-foreground-400 absolute left-0 z-10"
             style={{ left: `${depth * 12}px` }}
           >
             <GripVertical size={12} />
           </div>
           <button
             onClick={() => onToggleDir(node.path)}
-            className={`flex w-full items-center gap-1.5 rounded px-2 py-1.5 text-left text-xs text-[#CCCCCC] transition-colors hover:bg-[#1A1A1A] ${isOver ? "bg-[#1A1A1A]" : ""}`}
+            className={`flex w-full items-center gap-1.5 rounded px-2 py-1.5 text-left text-xs text-foreground-500 transition-colors hover:bg-gray-100 dark:hover:bg-[#1A1A1A] ${isOver ? "bg-gray-100 dark:bg-[#1A1A1A]" : ""}`}
             style={{ paddingLeft: `${18 + depth * 12}px` }}
           >
             {isExpanded ? (
-              <ChevronDown size={12} strokeWidth={1.5} className="flex-shrink-0 text-[#888888]" />
+              <ChevronDown size={12} strokeWidth={1.5} className="flex-shrink-0 text-foreground-400" />
             ) : (
-              <ChevronRight size={12} strokeWidth={1.5} className="flex-shrink-0 text-[#888888]" />
+              <ChevronRight size={12} strokeWidth={1.5} className="flex-shrink-0 text-foreground-400" />
             )}
-            <Folder size={14} strokeWidth={1.5} className="flex-shrink-0 text-[#888888]" />
+            <Folder size={14} strokeWidth={1.5} className="flex-shrink-0 text-foreground-400" />
             <span className="truncate">{node.name}</span>
           </button>
         </div>
@@ -176,15 +176,15 @@ function DocNodeItem({
     <div key={node.path} className="group relative" data-file>
       <div
         ref={setNodeRef}
-        className={`flex w-full items-center rounded px-2 py-1.5 text-left text-xs transition-colors hover:bg-[#1A1A1A] focus-within:bg-[#1A1A1A] ${
-          isSelected || isMultiSelected ? "bg-[#1A1A1A] text-white" : "text-[#CCCCCC]"
+        className={`flex w-full items-center rounded px-2 py-1.5 text-left text-xs transition-colors hover:bg-gray-100 dark:hover:bg-[#1A1A1A] focus-within:bg-gray-100 dark:focus-within:bg-[#1A1A1A] ${
+          isSelected || isMultiSelected ? "bg-gray-100 dark:bg-[#1A1A1A] text-foreground dark:text-white" : "text-foreground-500"
         }`}
         style={{ ...style, paddingLeft: `${depth * 12}px` }}
       >
         <div
           {...attributes}
           {...listeners}
-          className="opacity-0 group-hover:opacity-100 cursor-grab active:cursor-grabbing p-1 text-[#444444] hover:text-[#888888] flex-shrink-0"
+          className="opacity-0 group-hover:opacity-100 cursor-grab active:cursor-grabbing p-1 text-foreground-300 hover:text-foreground-400 flex-shrink-0"
         >
           <GripVertical size={12} />
         </div>
@@ -203,7 +203,7 @@ function DocNodeItem({
           className="flex min-w-0 flex-1 items-center gap-1.5 rounded text-left outline-none"
           aria-label={`Open ${node.name}`}
         >
-          <FileText size={14} strokeWidth={1.5} className="flex-shrink-0 text-[#888888]" />
+          <FileText size={14} strokeWidth={1.5} className="flex-shrink-0 text-foreground-400" />
           {isRenaming ? (
             <input
               ref={renameInputRef}
@@ -228,7 +228,7 @@ function DocNodeItem({
                 }
                 onSubmitRename(node.path);
               }}
-              className="h-5 flex-1 rounded border border-[#333333] bg-[#080808] px-1.5 font-mono text-[12px] text-[#CCCCCC] outline-none focus:border-[#555555]"
+              className="h-5 flex-1 rounded border border-divider bg-white dark:bg-[#080808] px-1.5 font-mono text-[12px] text-foreground outline-none focus:border-foreground-400"
               aria-label="Rename document"
             />
           ) : (
@@ -243,7 +243,7 @@ function DocNodeItem({
               e.stopPropagation();
               onMenuToggle(isMenuOpen ? null : node.path);
             }}
-            className={`ml-1 rounded p-1 text-[#888888] transition-colors hover:bg-[#1F1F1F] hover:text-white focus:bg-[#1F1F1F] focus:text-white ${
+            className={`ml-1 rounded p-1 text-foreground-400 transition-colors hover:bg-gray-200 dark:hover:bg-[#1F1F1F] hover:text-foreground dark:hover:text-white focus:bg-gray-200 dark:focus:bg-[#1F1F1F] focus:text-foreground dark:focus:text-white ${
               isMenuOpen ? "opacity-100" : "opacity-0 group-hover:opacity-100 group-focus-within:opacity-100"
             }`}
             aria-label={`Actions for ${node.name}`}
@@ -256,18 +256,18 @@ function DocNodeItem({
       {isMenuOpen && !isRenaming && (
         <div
           data-doc-menu
-          className="absolute right-2 z-20 mt-1 w-36 rounded border border-neutral-800 bg-[#080808] p-1 shadow-lg"
+          className="absolute right-2 z-20 mt-1 w-36 rounded border border-divider bg-white dark:bg-[#080808] p-1 shadow-lg"
         >
           <button
             onClick={() => onStartRename(node.path, node.name)}
-            className="flex w-full items-center justify-between rounded px-2 py-1.5 text-left text-[12px] text-[#CCCCCC] hover:bg-[#141414]"
+            className="flex w-full items-center justify-between rounded px-2 py-1.5 text-left text-[12px] text-foreground-600 hover:bg-gray-50 dark:hover:bg-[#141414]"
           >
             <span>Rename</span>
-            <span className="font-mono text-[10px] text-[#666666]">F2</span>
+            <span className="font-mono text-[10px] text-foreground-400">F2</span>
           </button>
           <button
             onClick={() => onRequestDelete(node.path, node.name)}
-            className="mt-0.5 flex w-full items-center justify-between rounded px-2 py-1.5 text-left text-[12px] text-[#CCCCCC] hover:bg-[#1b1111] hover:text-red-500"
+            className="mt-0.5 flex w-full items-center justify-between rounded px-2 py-1.5 text-left text-[12px] text-foreground-600 hover:bg-red-50 dark:hover:bg-[#1b1111] hover:text-red-500"
           >
             <span>Delete</span>
             <Trash2 size={12} strokeWidth={1.5} />
@@ -1052,13 +1052,13 @@ export function DocsBrowser() {
   const activeSortLabel = sortKey === "name" ? "Name" : sortKey === "created" ? "Created" : "Updated";
 
   const sidebarHeader = (
-    <div className="flex items-center justify-between border-b border-[#222222] px-3 py-2">
-      <span className="text-xs font-medium text-[#888888] uppercase tracking-wider">Docs</span>
+    <div className="flex items-center justify-between border-b border-divider px-3 py-2">
+      <span className="text-xs font-medium text-foreground-400 uppercase tracking-wider">Docs</span>
       <div className="flex items-center gap-1">
-        <Dropdown className="dark bg-[#080808] border border-[#222222]">
+        <Dropdown className="bg-white dark:bg-[#080808] border border-divider">
           <DropdownTrigger>
             <button
-              className="flex items-center gap-1 rounded px-1.5 py-1 text-[11px] text-[#888888] transition-colors hover:bg-[#1A1A1A] hover:text-white"
+              className="flex items-center gap-1 rounded px-1.5 py-1 text-[11px] text-foreground-400 transition-colors hover:bg-gray-100 dark:hover:bg-[#1A1A1A] hover:text-foreground dark:hover:text-white"
               title="Sort docs"
             >
               <ArrowUpDown size={12} strokeWidth={1.5} />
@@ -1076,24 +1076,24 @@ export function DocsBrowser() {
               setSortOrder(o as any);
             }}
           >
-            <DropdownItem key="name-asc" className="text-xs">Name (A-Z)</DropdownItem>
-            <DropdownItem key="name-desc" className="text-xs">Name (Z-A)</DropdownItem>
-            <DropdownItem key="created-desc" className="text-xs border-t border-[#222222]">Date Created (Newest)</DropdownItem>
-            <DropdownItem key="created-asc" className="text-xs">Date Created (Oldest)</DropdownItem>
-            <DropdownItem key="updated-desc" className="text-xs border-t border-[#222222]">Date Updated (Newest)</DropdownItem>
-            <DropdownItem key="updated-asc" className="text-xs">Date Updated (Oldest)</DropdownItem>
+            <DropdownItem key="name-asc" className="text-xs text-foreground">Name (A-Z)</DropdownItem>
+            <DropdownItem key="name-desc" className="text-xs text-foreground">Name (Z-A)</DropdownItem>
+            <DropdownItem key="created-desc" className="text-xs border-t border-divider text-foreground">Date Created (Newest)</DropdownItem>
+            <DropdownItem key="created-asc" className="text-xs text-foreground">Date Created (Oldest)</DropdownItem>
+            <DropdownItem key="updated-desc" className="text-xs border-t border-divider text-foreground">Date Updated (Newest)</DropdownItem>
+            <DropdownItem key="updated-asc" className="text-xs text-foreground">Date Updated (Oldest)</DropdownItem>
           </DropdownMenu>
         </Dropdown>
         <button
           onClick={createPage}
-          className="rounded p-1 text-[#888888] transition-colors hover:bg-[#1A1A1A] hover:text-white"
+          className="rounded p-1 text-foreground-400 transition-colors hover:bg-gray-100 dark:hover:bg-[#1A1A1A] hover:text-foreground dark:hover:text-white"
           title="New page"
         >
           <FilePlus size={14} strokeWidth={1.5} />
         </button>
         <button
           onClick={() => { setCreatingFolder(true); setNewFolderName(""); }}
-          className="rounded p-1 text-[#888888] transition-colors hover:bg-[#1A1A1A] hover:text-white"
+          className="rounded p-1 text-foreground-400 transition-colors hover:bg-gray-100 dark:hover:bg-[#1A1A1A] hover:text-foreground dark:hover:text-white"
           title="New folder"
         >
           <FolderPlus size={14} strokeWidth={1.5} />
@@ -1103,9 +1103,9 @@ export function DocsBrowser() {
   );
 
   const folderCreationInput = creatingFolder ? (
-    <div className="border-b border-[#222222] px-3 py-2">
+    <div className="border-b border-divider px-3 py-2">
       <div className="flex items-center gap-1.5">
-        <Folder size={14} strokeWidth={1.5} className="flex-shrink-0 text-[#888888]" />
+        <Folder size={14} strokeWidth={1.5} className="flex-shrink-0 text-foreground-400" />
         <input
           ref={folderInputRef}
           type="text"
@@ -1117,7 +1117,7 @@ export function DocsBrowser() {
           }}
           onBlur={() => createFolder(newFolderName)}
           placeholder="Folder name..."
-          className="flex-1 bg-transparent text-xs text-[#CCCCCC] outline-none placeholder:text-[#555555]"
+          className="flex-1 bg-transparent text-xs text-foreground outline-none placeholder:text-foreground-300"
         />
       </div>
     </div>
@@ -1133,10 +1133,10 @@ export function DocsBrowser() {
         onDragEnd={handleDragEnd}
       >
         {/* Desktop sidebar */}
-        <div className="hidden md:flex md:flex-col w-64 flex-shrink-0 overflow-hidden rounded border border-[#222222] bg-[#0A0A0A]">
+        <div className="hidden md:flex md:flex-col w-64 flex-shrink-0 overflow-hidden rounded border border-divider bg-gray-50 dark:bg-[#0A0A0A]">
           {sidebarHeader}
           {/* Search */}
-          <div className="border-b border-[#222222] p-2">
+          <div className="border-b border-divider p-2">
             <Input
               size="sm"
               placeholder="Search docs..."
@@ -1144,11 +1144,11 @@ export function DocsBrowser() {
               onValueChange={setSearchQuery}
               onKeyDown={(e) => e.key === "Enter" && doSearch()}
               variant="bordered"
-              classNames={{ inputWrapper: "border-[#222222] bg-[#080808] h-7 min-h-7" }}
-              startContent={<Search size={12} strokeWidth={1.5} className="text-[#888888]" />}
+              classNames={{ inputWrapper: "border-divider bg-white dark:bg-[#080808] h-7 min-h-7" }}
+              startContent={<Search size={12} strokeWidth={1.5} className="text-foreground-400" />}
               endContent={
                 searchQuery ? (
-                  <button onClick={clearSearch} className="text-[#888888] hover:text-white">
+                  <button onClick={clearSearch} className="text-foreground-400 hover:text-foreground">
                     <X size={12} strokeWidth={1.5} />
                   </button>
                 ) : null
@@ -1168,7 +1168,7 @@ export function DocsBrowser() {
                 <div className="skeleton ml-3 h-4 w-24" />
               </div>
             ) : tree.length === 0 ? (
-              <p className="py-4 text-center text-xs text-[#555555]">No docs found</p>
+              <p className="py-4 text-center text-xs text-foreground-300">No docs found</p>
             ) : (
               renderTree(sortedTree)
             )}
@@ -1179,17 +1179,17 @@ export function DocsBrowser() {
         {showMobileTree && (
           <>
             <div
-              className="fixed inset-0 z-40 bg-black/50 md:hidden"
+              className="fixed inset-0 z-40 bg-black/20 dark:bg-black/60 md:hidden"
               onClick={() => setShowMobileTree(false)}
             />
-            <div className="fixed inset-y-0 left-0 z-50 w-72 flex flex-col overflow-hidden border-r border-[#222222] bg-[#0A0A0A] md:hidden">
-              <div className="flex items-center justify-between border-b border-[#222222] p-3">
-                <span className="text-xs font-medium text-[#888888] uppercase tracking-wider">Browse Docs</span>
+            <div className="fixed inset-y-0 left-0 z-50 w-72 flex flex-col overflow-hidden border-r border-divider bg-gray-50 dark:bg-[#0A0A0A] md:hidden">
+              <div className="flex items-center justify-between border-b border-divider p-3">
+                <span className="text-xs font-medium text-foreground-400 uppercase tracking-wider">Browse Docs</span>
                 <div className="flex items-center gap-1">
-                  <Dropdown className="dark bg-[#080808] border border-[#222222]">
+                  <Dropdown className="bg-white dark:bg-[#080808] border border-divider">
                     <DropdownTrigger>
                       <button
-                        className="flex items-center gap-1 rounded px-1.5 py-1 text-[11px] text-[#888888] transition-colors hover:bg-[#1A1A1A] hover:text-white"
+                        className="flex items-center gap-1 rounded px-1.5 py-1 text-[11px] text-foreground-400 transition-colors hover:bg-gray-100 dark:hover:bg-[#1A1A1A] hover:text-foreground dark:hover:text-white"
                         title="Sort docs"
                       >
                         <ArrowUpDown size={12} strokeWidth={1.5} />
@@ -1207,34 +1207,34 @@ export function DocsBrowser() {
                         setSortOrder(o as any);
                       }}
                     >
-                      <DropdownItem key="name-asc" className="text-xs">Name (A-Z)</DropdownItem>
-                      <DropdownItem key="name-desc" className="text-xs">Name (Z-A)</DropdownItem>
-                      <DropdownItem key="created-desc" className="text-xs border-t border-[#222222]">Date Created (Newest)</DropdownItem>
-                      <DropdownItem key="created-asc" className="text-xs">Date Created (Oldest)</DropdownItem>
-                      <DropdownItem key="updated-desc" className="text-xs border-t border-[#222222]">Date Updated (Newest)</DropdownItem>
-                      <DropdownItem key="updated-asc" className="text-xs">Date Updated (Oldest)</DropdownItem>
+                      <DropdownItem key="name-asc" className="text-xs text-foreground">Name (A-Z)</DropdownItem>
+                      <DropdownItem key="name-desc" className="text-xs text-foreground">Name (Z-A)</DropdownItem>
+                      <DropdownItem key="created-desc" className="text-xs border-t border-divider text-foreground">Date Created (Newest)</DropdownItem>
+                      <DropdownItem key="created-asc" className="text-xs text-foreground">Date Created (Oldest)</DropdownItem>
+                      <DropdownItem key="updated-desc" className="text-xs border-t border-divider text-foreground">Date Updated (Newest)</DropdownItem>
+                      <DropdownItem key="updated-asc" className="text-xs text-foreground">Date Updated (Oldest)</DropdownItem>
                     </DropdownMenu>
                   </Dropdown>
                   <button
                     onClick={createPage}
-                    className="rounded p-1 text-[#888888] transition-colors hover:bg-[#1A1A1A] hover:text-white"
+                    className="rounded p-1 text-foreground-400 transition-colors hover:bg-gray-100 dark:hover:bg-[#1A1A1A] hover:text-foreground dark:hover:text-white"
                     title="New page"
                   >
                     <FilePlus size={14} strokeWidth={1.5} />
                   </button>
                   <button
                     onClick={() => { setCreatingFolder(true); setNewFolderName(""); }}
-                    className="rounded p-1 text-[#888888] transition-colors hover:bg-[#1A1A1A] hover:text-white"
+                    className="rounded p-1 text-foreground-400 transition-colors hover:bg-gray-100 dark:hover:bg-[#1A1A1A] hover:text-foreground dark:hover:text-white"
                     title="New folder"
                   >
                     <FolderPlus size={14} strokeWidth={1.5} />
                   </button>
-                  <button onClick={() => setShowMobileTree(false)} className="rounded p-1 text-[#888888] hover:text-white">
+                  <button onClick={() => setShowMobileTree(false)} className="rounded p-1 text-foreground-400 hover:text-foreground">
                     <X size={16} strokeWidth={1.5} />
                   </button>
                 </div>
               </div>
-              <div className="border-b border-[#222222] p-2">
+              <div className="border-b border-divider p-2">
                 <Input
                   size="sm"
                   placeholder="Search docs..."
@@ -1242,11 +1242,11 @@ export function DocsBrowser() {
                   onValueChange={setSearchQuery}
                   onKeyDown={(e) => e.key === "Enter" && doSearch()}
                   variant="bordered"
-                  classNames={{ inputWrapper: "border-[#222222] bg-[#080808] h-7 min-h-7" }}
-                  startContent={<Search size={12} strokeWidth={1.5} className="text-[#888888]" />}
+                  classNames={{ inputWrapper: "border-divider bg-gray-50 dark:bg-[#080808] h-7 min-h-7" }}
+                  startContent={<Search size={12} strokeWidth={1.5} className="text-foreground-400" />}
                   endContent={
                     searchQuery ? (
-                      <button onClick={clearSearch} className="text-[#888888] hover:text-white">
+                      <button onClick={clearSearch} className="text-foreground-400 hover:text-foreground">
                         <X size={12} strokeWidth={1.5} />
                       </button>
                     ) : null
@@ -1269,7 +1269,7 @@ export function DocsBrowser() {
                     <div className="skeleton ml-3 h-4 w-28" />
                   </div>
                 ) : tree.length === 0 ? (
-                  <p className="py-4 text-center text-xs text-[#555555]">No docs found</p>
+                  <p className="py-4 text-center text-xs text-foreground-300">No docs found</p>
                 ) : (
                   renderTree(sortedTree, 0, true)
                 )}
@@ -1288,11 +1288,11 @@ export function DocsBrowser() {
           }),
         }}>
           {activeNode ? (
-            <div className="flex items-center gap-1.5 rounded bg-[#1A1A1A] px-2 py-1.5 text-xs text-white shadow-xl ring-1 ring-[#8b5cf6]/50">
+            <div className="flex items-center gap-1.5 rounded bg-white dark:bg-[#1A1A1A] px-2 py-1.5 text-xs text-foreground dark:text-white shadow-xl ring-1 ring-[#8b5cf6]/50">
               {activeNode.type === "directory" ? (
-                <Folder size={14} className="text-[#888888]" />
+                <Folder size={14} className="text-foreground-400" />
               ) : (
-                <FileText size={14} className="text-[#888888]" />
+                <FileText size={14} className="text-foreground-400" />
               )}
               <span className="truncate">{activeNode.name}</span>
             </div>
@@ -1301,14 +1301,14 @@ export function DocsBrowser() {
       </DndContext>
 
       {/* Content pane */}
-      <div className="flex-1 overflow-y-auto rounded border border-[#222222] bg-[#0A0A0A] p-4 md:p-6">
+      <div className="flex-1 overflow-y-auto rounded border border-divider bg-gray-50 dark:bg-[#0A0A0A] p-4 md:p-6">
         {/* Mobile browse button */}
         <div className="md:hidden mb-3">
           <button
             onClick={() => setShowMobileTree(true)}
-            className="flex items-center gap-2 rounded-lg border border-[#222222] bg-[#121212] px-3 py-2 text-xs text-[#CCCCCC] hover:bg-[#1A1A1A] transition-colors"
+            className="flex items-center gap-2 rounded-lg border border-divider bg-white dark:bg-[#121212] px-3 py-2 text-xs text-foreground-500 hover:bg-gray-100 dark:hover:bg-[#1A1A1A] transition-colors"
           >
-            <Folder size={14} strokeWidth={1.5} className="text-[#888888]" />
+            <Folder size={14} strokeWidth={1.5} className="text-foreground-400" />
             Browse Docs
           </button>
         </div>
@@ -1322,15 +1322,15 @@ export function DocsBrowser() {
         ) : searchResults ? (
           <div className="space-y-3">
             <div className="flex items-center justify-between">
-              <p className="text-xs text-[#888888]">
+              <p className="text-xs text-foreground-400">
                 {searchResults.length} result{searchResults.length !== 1 ? "s" : ""} for &quot;{searchQuery}&quot;
               </p>
-              <button onClick={clearSearch} className="text-xs text-[#888888] hover:text-white">
+              <button onClick={clearSearch} className="text-xs text-foreground-400 hover:text-foreground">
                 Clear search
               </button>
             </div>
             {searchResults.length === 0 && (
-              <p className="py-8 text-center text-sm text-[#555555]">No matches found</p>
+              <p className="py-8 text-center text-sm text-foreground-300">No matches found</p>
             )}
             {searchResults.map((result, i) => (
               <button
@@ -1340,15 +1340,15 @@ export function DocsBrowser() {
                   setSelectionAnchor(result.path);
                   openFileWithUnsavedGuard(result.path);
                 }}
-                className="block w-full rounded border border-[#222222] bg-[#121212] p-3 text-left transition-colors hover:bg-[#1A1A1A]"
+                className="block w-full rounded border border-divider bg-white dark:bg-[#121212] p-3 text-left transition-colors hover:bg-gray-50 dark:hover:bg-[#1A1A1A]"
               >
                 <div className="flex items-center justify-between">
-                  <p className="text-xs font-mono text-[#888888]">{result.path}</p>
-                  <span className="text-[10px] text-[#555555]">
+                  <p className="text-xs font-mono text-foreground-400">{result.path}</p>
+                  <span className="text-[10px] text-foreground-300">
                     {result.matches} match{result.matches !== 1 ? "es" : ""}
                   </span>
                 </div>
-                <p className="mt-1 text-sm text-[#CCCCCC] line-clamp-2">{result.snippet}</p>
+                <p className="mt-1 text-sm text-foreground-500 dark:text-[#CCCCCC] line-clamp-2">{result.snippet}</p>
               </button>
             ))}
           </div>
@@ -1356,7 +1356,7 @@ export function DocsBrowser() {
           <div className="px-4 py-8 md:px-8 md:py-12">
             <div className="mx-auto max-w-[720px]">
               {/* Breadcrumbs */}
-              <div className="mb-2 flex items-center gap-1 text-[10px] font-mono text-[#555555]">
+              <div className="mb-2 flex items-center gap-1 text-[10px] font-mono text-foreground-300">
                 <Folder size={10} strokeWidth={1.5} />
                 <span>Root</span>
                 {selectedFile?.split("/").slice(0, -1).map((part, i, arr) => (
@@ -1368,8 +1368,8 @@ export function DocsBrowser() {
               </div>
 
               {/* Document header */}
-              <div className="mb-6 flex items-center justify-between border-b border-[#222222] pb-3">
-                <h1 className="text-sm font-semibold text-white truncate mr-4">
+              <div className="mb-6 flex items-center justify-between border-b border-divider pb-3">
+                <h1 className="text-sm font-semibold text-foreground dark:text-white truncate mr-4">
                   {selectedFile?.split("/").pop()}
                 </h1>
                 <div className="flex items-center gap-2">
@@ -1379,7 +1379,7 @@ export function DocsBrowser() {
                         size="sm"
                         variant="light"
                         onPress={cancelEdit}
-                        className="h-7 text-xs text-[#888888] hover:text-white"
+                        className="h-7 text-xs text-foreground-400 hover:text-foreground dark:hover:text-white"
                       >
                         Cancel
                       </Button>
@@ -1400,7 +1400,7 @@ export function DocsBrowser() {
                       variant="bordered"
                       onPress={enterEditMode}
                       startContent={<Pencil size={12} strokeWidth={1.5} />}
-                      className="h-7 text-xs border-[#222222] text-[#888888] hover:text-white"
+                      className="h-7 text-xs border-divider text-foreground-400 hover:text-foreground dark:hover:text-white"
                     >
                       Edit
                     </Button>
@@ -1417,11 +1417,12 @@ export function DocsBrowser() {
                     setEditContent(e.target.value);
                     setDirty(true);
                   }}
-                  className="w-full min-h-[60vh] resize-y rounded-md border border-[#222222] bg-[#080808] p-4 font-mono text-sm text-[#CCCCCC] leading-relaxed outline-none focus:border-[#333333] transition-colors"
+                  className="w-full min-h-[60vh] resize-y rounded-md border border-divider bg-gray-50 dark:bg-[#080808] p-4 font-mono text-sm text-foreground dark:text-[#CCCCCC] leading-relaxed outline-none focus:border-foreground-300 transition-colors"
                   spellCheck={false}
                 />
               ) : (
-                <article className="markdown-prose prose prose-invert prose-sm max-w-none prose-p:text-[#D4D4D8] prose-p:text-[13px] prose-p:leading-[1.6] prose-p:mb-4 prose-headings:text-white prose-h1:text-xl prose-h1:font-semibold prose-h1:mt-8 prose-h1:mb-4 prose-h2:text-base prose-h2:font-semibold prose-h2:mt-6 prose-h2:mb-3 prose-h3:text-xs prose-h3:font-bold prose-h3:mt-4 prose-h3:mb-2 prose-strong:text-white prose-a:text-[#8b5cf6] prose-a:no-underline hover:prose-a:underline prose-code:text-[#CCCCCC] prose-code:bg-[#1a1a1a] prose-code:border prose-code:border-[#333333] prose-code:px-1 prose-code:py-0.5 prose-code:rounded-sm prose-code:text-xs prose-code:font-mono prose-pre:bg-[#111111] prose-pre:border prose-pre:border-[#333333] prose-pre:rounded-md prose-pre:p-4 prose-pre:text-xs prose-pre:my-4 prose-ul:my-4 prose-ul:ml-0 prose-ul:pl-5 prose-ul:list-disc prose-ul:space-y-1.5 prose-ol:my-4 prose-ol:ml-0 prose-ol:pl-5 prose-ol:list-decimal prose-ol:space-y-1.5 prose-li:text-[#D4D4D8] prose-li:leading-[1.6] prose-li:my-1 prose-li:pl-1 prose-table:border-collapse prose-table:my-6 prose-table:w-full prose-th:border prose-th:border-[#333333] prose-th:bg-[#111111] prose-th:px-3 prose-th:py-1.5 prose-th:text-left prose-th:text-xs prose-th:font-medium prose-td:border prose-td:border-[#333333] prose-td:px-3 prose-td:py-1.5 prose-td:text-xs prose-blockquote:my-4 prose-blockquote:pl-4 prose-blockquote:py-1 prose-blockquote:border-l-2 prose-blockquote:border-[#555555] prose-blockquote:text-[#888888] prose-blockquote:italic prose-hr:my-8 prose-hr:border-0 prose-hr:border-t prose-hr:border-[#222222]">
+
+                <article className="markdown-prose prose prose-sm max-w-none dark:prose-invert prose-p:text-foreground-600 dark:prose-p:text-[#D4D4D8] prose-p:text-[13px] prose-p:leading-[1.6] prose-p:mb-4 prose-headings:text-foreground dark:prose-headings:text-white prose-h1:text-xl prose-h1:font-semibold prose-h1:mt-8 prose-h1:mb-4 prose-h2:text-base prose-h2:font-semibold prose-h2:mt-6 prose-h2:mb-3 prose-h3:text-xs prose-h3:font-bold prose-h3:mt-4 prose-h3:mb-2 prose-strong:text-foreground dark:prose-strong:text-white prose-a:text-primary-500 dark:prose-a:text-[#8b5cf6] prose-a:no-underline hover:prose-a:underline prose-code:text-foreground dark:prose-code:text-[#CCCCCC] prose-code:bg-gray-100 dark:prose-code:bg-[#1a1a1a] prose-code:border prose-code:border-divider dark:prose-code:border-[#333333] prose-code:px-1 prose-code:py-0.5 prose-code:rounded-sm prose-code:text-xs prose-code:font-mono prose-pre:bg-gray-50 dark:prose-pre:bg-[#111111] prose-pre:border prose-pre:border-divider dark:prose-pre:border-[#333333] prose-pre:rounded-md prose-pre:p-4 prose-pre:text-xs prose-pre:my-4 prose-ul:my-4 prose-ul:ml-0 prose-ul:pl-5 prose-ul:list-disc prose-ul:space-y-1.5 prose-ol:my-4 prose-ol:ml-0 prose-ol:pl-5 prose-ol:list-decimal prose-ol:space-y-1.5 prose-li:text-foreground-600 dark:prose-li:text-[#D4D4D8] prose-li:leading-[1.6] prose-li:my-1 prose-li:pl-1 prose-table:border-collapse prose-table:my-6 prose-table:w-full prose-th:border prose-th:border-divider dark:prose-th:border-[#333333] prose-th:bg-gray-100 dark:prose-th:bg-[#111111] prose-th:px-3 prose-th:py-1.5 prose-th:text-left prose-th:text-xs prose-th:font-medium prose-td:border prose-td:border-divider dark:prose-td:border-[#333333] prose-td:px-3 prose-td:py-1.5 prose-td:text-xs prose-blockquote:my-4 prose-blockquote:pl-4 prose-blockquote:py-1 prose-blockquote:border-l-2 prose-blockquote:border-foreground-200 dark:prose-blockquote:border-[#555555] prose-blockquote:text-foreground-500 dark:prose-blockquote:text-[#888888] prose-blockquote:italic prose-hr:my-8 prose-hr:border-0 prose-hr:border-t prose-hr:border-divider dark:prose-hr:border-[#222222]">
                   <ReactMarkdown remarkPlugins={[remarkGfm]}>{fileContent}</ReactMarkdown>
                 </article>
               )}
@@ -1429,21 +1430,21 @@ export function DocsBrowser() {
           </div>
         ) : (
           <div className="flex h-full flex-col items-center justify-center gap-2">
-            <FileText size={32} strokeWidth={1} className="text-[#333333]" />
-            <p className="text-sm text-[#555555]">Select a doc to view</p>
-            <p className="text-xs text-[#444444]">or search across all docs</p>
+            <FileText size={32} strokeWidth={1} className="text-foreground-200" />
+            <p className="text-sm text-foreground-400">Select a doc to view</p>
+            <p className="text-xs text-foreground-300">or search across all docs</p>
           </div>
         )}
       </div>
 
       {moveToast && (
-        <div className="fixed bottom-4 right-4 z-[100] flex items-center gap-3 rounded border border-[#333333] bg-[#0A0A0A] px-3 py-2 text-xs text-[#CCCCCC] shadow-xl">
+        <div className="fixed bottom-4 right-4 z-[100] flex items-center gap-3 rounded border border-divider bg-white dark:bg-[#0A0A0A] px-3 py-2 text-xs text-foreground dark:text-[#CCCCCC] shadow-xl">
           <span>
             Moved {moveToast.count} item{moveToast.count === 1 ? "" : "s"}
           </span>
           <button
             onClick={undoLastMove}
-            className="rounded px-2 py-0.5 text-[#8b5cf6] hover:bg-[#1A1A1A] hover:text-[#a78bfa]"
+            className="rounded px-2 py-0.5 text-primary-500 dark:text-[#8b5cf6] hover:bg-gray-100 dark:hover:bg-[#1A1A1A] hover:text-primary-600 dark:hover:text-[#a78bfa]"
           >
             Undo
           </button>
@@ -1453,16 +1454,20 @@ export function DocsBrowser() {
       <Modal
         isOpen={!!deleteTarget}
         onClose={() => !deleting && setDeleteTarget(null)}
-        className="dark bg-[#080808] text-white border border-neutral-800"
+        className="bg-white dark:bg-[#080808] text-gray-900 dark:text-white border border-divider"
+        backdrop="opaque"
+        classNames={{
+          backdrop: "bg-black/20 dark:bg-black/60"
+        }}
       >
         <ModalContent>
-          <ModalHeader className="border-b border-[#222222] text-sm">Delete document?</ModalHeader>
+          <ModalHeader className="border-b border-divider text-sm">Delete document?</ModalHeader>
           <ModalBody className="py-4">
-            <p className="text-sm text-[#CCCCCC]">
+            <p className="text-sm text-foreground-500 dark:text-[#CCCCCC]">
               Are you sure you want to delete &quot;{deleteTarget?.name}&quot;? This cannot be undone.
             </p>
           </ModalBody>
-          <ModalFooter className="border-t border-[#222222]">
+          <ModalFooter className="border-t border-divider">
             <Button
               size="sm"
               variant="flat"
@@ -1487,16 +1492,20 @@ export function DocsBrowser() {
       <Modal
         isOpen={!!confirmModal}
         onClose={() => setConfirmModal(null)}
-        className="dark bg-[#080808] text-white border border-neutral-800"
+        className="bg-white dark:bg-[#080808] text-gray-900 dark:text-white border border-divider"
+        backdrop="opaque"
+        classNames={{
+          backdrop: "bg-black/20 dark:bg-black/60"
+        }}
       >
         <ModalContent>
-          <ModalHeader className="border-b border-[#222222] text-sm">
+          <ModalHeader className="border-b border-divider text-sm">
             {confirmModal?.title}
           </ModalHeader>
           <ModalBody className="py-4">
-            <p className="text-sm text-[#CCCCCC]">{confirmModal?.message}</p>
+            <p className="text-sm text-foreground-500 dark:text-[#CCCCCC]">{confirmModal?.message}</p>
           </ModalBody>
-          <ModalFooter className="border-t border-[#222222]">
+          <ModalFooter className="border-t border-divider">
             <Button size="sm" variant="flat" onPress={() => setConfirmModal(null)}>
               Cancel
             </Button>
@@ -1518,16 +1527,20 @@ export function DocsBrowser() {
       <Modal
         isOpen={!!alertModal}
         onClose={() => setAlertModal(null)}
-        className="dark bg-[#080808] text-white border border-neutral-800"
+        className="bg-white dark:bg-[#080808] text-gray-900 dark:text-white border border-divider"
+        backdrop="opaque"
+        classNames={{
+          backdrop: "bg-black/20 dark:bg-black/60"
+        }}
       >
         <ModalContent>
-          <ModalHeader className="border-b border-[#222222] text-sm">
+          <ModalHeader className="border-b border-divider text-sm">
             {alertModal?.title}
           </ModalHeader>
           <ModalBody className="py-4">
-            <p className="text-sm text-[#CCCCCC]">{alertModal?.message}</p>
+            <p className="text-sm text-foreground-500 dark:text-[#CCCCCC]">{alertModal?.message}</p>
           </ModalBody>
-          <ModalFooter className="border-t border-[#222222]">
+          <ModalFooter className="border-t border-divider">
             <Button size="sm" color="primary" onPress={() => setAlertModal(null)}>
               OK
             </Button>

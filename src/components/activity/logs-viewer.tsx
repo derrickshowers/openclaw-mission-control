@@ -16,19 +16,19 @@ const LEVELS = ["debug", "info", "warn", "error"] as const;
 type Level = (typeof LEVELS)[number];
 
 const LEVEL_COLORS: Record<string, string> = {
-  debug: "text-[#888888]",
-  info: "text-[#8BE9FD]",
-  warn: "text-[#FFB86C]",
-  error: "text-[#FF5555]",
-  fatal: "text-[#FF5555]",
+  debug: "text-foreground-400",
+  info: "text-blue-500 dark:text-[#8BE9FD]",
+  warn: "text-warning-500 dark:text-[#FFB86C]",
+  error: "text-danger-500 dark:text-[#FF5555]",
+  fatal: "text-danger-600 dark:text-[#FF5555]",
 };
 
 const LEVEL_BG: Record<string, string> = {
-  debug: "bg-[#888888]/10",
-  info: "bg-[#8BE9FD]/10",
-  warn: "bg-[#FFB86C]/10",
-  error: "bg-[#FF5555]/10",
-  fatal: "bg-[#FF5555]/10",
+  debug: "bg-gray-100 dark:bg-[#888888]/10",
+  info: "bg-blue-500/10 dark:bg-[#8BE9FD]/10",
+  warn: "bg-warning-500/10 dark:bg-[#FFB86C]/10",
+  error: "bg-danger-500/10 dark:bg-[#FF5555]/10",
+  fatal: "bg-danger-600/10 dark:bg-[#FF5555]/10",
 };
 
 function formatLogTime(isoStr: string): string {
@@ -110,7 +110,7 @@ export function LogsViewer() {
   return (
     <div className="flex h-full flex-col gap-0">
       {/* Sticky filter bar */}
-      <div className="sticky top-0 z-10 flex flex-wrap items-center gap-3 border-b border-[#222222] bg-[#080808] px-4 py-3">
+      <div className="sticky top-0 z-10 flex flex-wrap items-center gap-3 border-b border-divider bg-white dark:bg-[#080808] px-4 py-3">
         {/* Search */}
         <div className="flex-1 min-w-[200px] max-w-[400px]">
           <Input
@@ -119,9 +119,9 @@ export function LogsViewer() {
             onValueChange={setSearch}
             size="sm"
             variant="bordered"
-            startContent={<Search size={14} className="text-[#555555]" />}
+            startContent={<Search size={14} className="text-foreground-300" />}
             classNames={{
-              inputWrapper: "border-[#222222] bg-[#0A0A0A] h-8 min-h-8",
+              inputWrapper: "border-divider bg-gray-50 dark:bg-[#0A0A0A] h-8 min-h-8",
               input: "text-xs",
             }}
           />
@@ -136,7 +136,7 @@ export function LogsViewer() {
               className={`rounded px-2.5 py-1 text-[10px] font-medium uppercase tracking-wider transition-colors ${
                 minLevel === level
                   ? `${LEVEL_COLORS[level]} ${LEVEL_BG[level]} ring-1 ring-current/20`
-                  : "text-[#555555] hover:text-[#888888]"
+                  : "text-foreground-400 hover:text-foreground-500"
               }`}
             >
               {level}
@@ -151,7 +151,7 @@ export function LogsViewer() {
             size="sm"
             variant="light"
             onPress={fetchLogs}
-            className="text-[#555555] hover:text-white h-7 w-7 min-w-0"
+            className="text-foreground-400 hover:text-foreground h-7 w-7 min-w-0"
           >
             <RefreshCw size={13} />
           </Button>
@@ -161,7 +161,7 @@ export function LogsViewer() {
               size="sm"
               variant="light"
               onPress={scrollToBottom}
-              className="text-[#555555] hover:text-white h-7 w-7 min-w-0"
+              className="text-foreground-400 hover:text-foreground h-7 w-7 min-w-0"
             >
               <ArrowDown size={13} />
             </Button>
@@ -173,45 +173,45 @@ export function LogsViewer() {
       <div
         ref={containerRef}
         onScroll={handleScroll}
-        className="flex-1 overflow-y-auto bg-[#080808] font-mono text-xs"
+        className="flex-1 overflow-y-auto bg-white dark:bg-[#080808] font-mono text-xs"
         style={{ fontFamily: "'JetBrains Mono', 'Fira Code', 'Cascadia Code', monospace" }}
       >
         {loading && logs.length === 0 ? (
           <div className="flex h-full items-center justify-center">
-            <p className="text-[#555555]">Loading logs...</p>
+            <p className="text-foreground-300">Loading logs...</p>
           </div>
         ) : logs.length === 0 ? (
           <div className="flex h-full items-center justify-center">
-            <p className="text-[#555555]">No logs matching filters</p>
+            <p className="text-foreground-300">No logs matching filters</p>
           </div>
         ) : (
-          <div className="divide-y divide-[#111111]">
+          <div className="divide-y divide-divider dark:divide-[#111111]">
             {logs.map((entry, i) => (
               <div
                 key={`${entry.time}-${i}`}
-                className="flex items-start gap-3 px-4 py-1.5 hover:bg-[#1A1A1A] transition-colors"
+                className="flex items-start gap-3 px-4 py-1.5 hover:bg-gray-50 dark:hover:bg-[#1A1A1A] transition-colors"
               >
                 {/* Timestamp */}
-                <span className="flex-shrink-0 text-[#555555] w-[72px] select-all">
+                <span className="flex-shrink-0 text-foreground-300 w-[72px] select-all">
                   {formatLogTime(entry.time)}
                 </span>
 
                 {/* Level badge */}
                 <span
-                  className={`flex-shrink-0 w-[44px] text-center uppercase font-semibold ${LEVEL_COLORS[entry.level] || "text-[#888888]"}`}
+                  className={`flex-shrink-0 w-[44px] text-center uppercase font-semibold ${LEVEL_COLORS[entry.level] || "text-foreground-400"}`}
                 >
                   {entry.level === "error" ? "ERR" : entry.level === "warning" ? "WARN" : entry.level.slice(0, 4).toUpperCase()}
                 </span>
 
                 {/* Source */}
                 {entry.source && (
-                  <span className="flex-shrink-0 text-[#6366f1] max-w-[160px] truncate">
+                  <span className="flex-shrink-0 text-primary-500 dark:text-[#6366f1] max-w-[160px] truncate">
                     [{entry.source}]
                   </span>
                 )}
 
                 {/* Message */}
-                <span className="text-[#D4D4D8] break-words min-w-0 whitespace-pre-wrap">
+                <span className="text-foreground-600 dark:text-[#D4D4D8] break-words min-w-0 whitespace-pre-wrap">
                   {entry.message}
                 </span>
               </div>

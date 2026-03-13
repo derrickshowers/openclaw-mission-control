@@ -254,13 +254,13 @@ export function KanbanBoard({ initialTasks, initialProjectId, projects: initialP
       {/* Header */}
       <div className="mb-4 flex items-center justify-between">
         <div className="flex items-center gap-3">
-          <span className="text-sm text-[#888888]">{tasks.length} tasks</span>
+          <span className="text-sm text-foreground-400">{tasks.length} tasks</span>
           {projectId && (
             <Chip
               size="sm"
               variant="flat"
               onClose={() => setProjectId(null)}
-              className="h-6 border border-[#222222] bg-[#1A1A1A] text-[10px] text-[#CCCCCC]"
+              className="h-6 border border-divider bg-gray-100 dark:bg-[#1A1A1A] text-[10px] text-foreground-500 dark:text-[#CCCCCC]"
             >
               Project: {projects.find((p) => p.id === projectId)?.name || "Loading..."}
             </Chip>
@@ -270,7 +270,7 @@ export function KanbanBoard({ initialTasks, initialProjectId, projects: initialP
           size="sm"
           variant="flat"
           onPress={onOpen}
-          className="border border-[#222222] bg-[#121212] text-sm"
+          className="border border-divider bg-white dark:bg-[#121212] text-sm text-foreground"
           startContent={<Plus size={16} strokeWidth={1.5} />}
         >
           New Task
@@ -292,16 +292,16 @@ export function KanbanBoard({ initialTasks, initialProjectId, projects: initialP
           return (
             <div
               key={column.id}
-              className="flex w-72 flex-shrink-0 flex-col rounded border border-[#222222] bg-[#0A0A0A]"
+              className="flex w-72 flex-shrink-0 flex-col rounded border border-divider bg-gray-50/50 dark:bg-[#0A0A0A]"
             >
               {/* Column Header */}
-              <div className="flex items-center gap-2 border-b border-[#222222] px-3 py-2">
+              <div className="flex items-center gap-2 border-b border-divider px-3 py-2">
                 <div
                   className="h-2 w-2 rounded-full"
                   style={{ backgroundColor: column.color }}
                 />
-                <span className="text-[10px] font-medium uppercase tracking-wider text-[#888888]">{column.label}</span>
-                <span className="ml-auto text-xs text-[#888888]">
+                <span className="text-[10px] font-medium uppercase tracking-wider text-foreground-400">{column.label}</span>
+                <span className="ml-auto text-xs text-foreground-400">
                   {columnTasks.length}
                 </span>
               </div>
@@ -317,7 +317,7 @@ export function KanbanBoard({ initialTasks, initialProjectId, projects: initialP
                   />
                 ))}
                 {columnTasks.length === 0 && (
-                  <p className="py-6 text-center text-xs text-[#555555]">
+                  <p className="py-6 text-center text-xs text-foreground-300">
                     No tasks
                   </p>
                 )}
@@ -331,12 +331,16 @@ export function KanbanBoard({ initialTasks, initialProjectId, projects: initialP
       <Modal 
         isOpen={isOpen} 
         onClose={onClose} 
-        className="dark bg-[#121212] text-white max-h-[85dvh]"
+        className="bg-white dark:bg-[#121212] text-foreground dark:text-white max-h-[85dvh]"
         placement="top-center"
         scrollBehavior="inside"
+        backdrop="opaque"
+        classNames={{
+          backdrop: "bg-black/20 dark:bg-black/60"
+        }}
       >
         <ModalContent>
-          <ModalHeader className="border-b border-[#222222] text-sm">
+          <ModalHeader className="border-b border-divider text-sm">
             New Task
           </ModalHeader>
           <ModalBody className="gap-3 py-4">
@@ -347,7 +351,7 @@ export function KanbanBoard({ initialTasks, initialProjectId, projects: initialP
               onValueChange={setNewTitle}
               variant="bordered"
               size="sm"
-              classNames={{ inputWrapper: "border-[#222222] bg-[#080808]" }}
+              classNames={{ inputWrapper: "border-divider bg-white dark:bg-[#080808]" }}
               onKeyDown={(e) => {
                 if (e.key === "Enter" && e.shiftKey && newTitle.trim()) {
                   e.preventDefault();
@@ -363,8 +367,8 @@ export function KanbanBoard({ initialTasks, initialProjectId, projects: initialP
               onSelectionChange={(keys) => setNewProject(Array.from(keys)[0] as string || "")}
               variant="bordered"
               size="sm"
-              classNames={{ trigger: "border-[#222222] bg-[#080808]" }}
-              startContent={<Folder size={14} strokeWidth={1.5} className="text-[#888888]" />}
+              classNames={{ trigger: "border-divider bg-white dark:bg-[#080808]" }}
+              startContent={<Folder size={14} strokeWidth={1.5} className="text-foreground-400" />}
             >
               {projects.map((p) => (
                 <SelectItem key={p.id}>{p.name}</SelectItem>
@@ -377,7 +381,7 @@ export function KanbanBoard({ initialTasks, initialProjectId, projects: initialP
               onValueChange={setNewDescription}
               variant="bordered"
               size="sm"
-              classNames={{ inputWrapper: "border-[#222222] bg-[#080808]" }}
+              classNames={{ inputWrapper: "border-divider bg-white dark:bg-[#080808]" }}
               onKeyDown={(e) => {
                 if (e.key === "Enter" && e.shiftKey && newTitle.trim()) {
                   e.preventDefault();
@@ -393,7 +397,7 @@ export function KanbanBoard({ initialTasks, initialProjectId, projects: initialP
                 onSelectionChange={(keys) => setNewAssignee(Array.from(keys)[0] as string || "")}
                 variant="bordered"
                 size="sm"
-                classNames={{ trigger: "border-[#222222] bg-[#080808] capitalize" }}
+                classNames={{ trigger: "border-divider bg-white dark:bg-[#080808] capitalize" }}
               >
                 {AGENTS.map((a) => (
                   <SelectItem key={a} className="capitalize">{a}</SelectItem>
@@ -405,7 +409,7 @@ export function KanbanBoard({ initialTasks, initialProjectId, projects: initialP
                 onSelectionChange={(keys) => setNewPriority(Array.from(keys)[0] as string || "0")}
                 variant="bordered"
                 size="sm"
-                classNames={{ trigger: "border-[#222222] bg-[#080808]" }}
+                classNames={{ trigger: "border-divider bg-white dark:bg-[#080808]" }}
               >
                 {PRIORITIES.map((p) => (
                   <SelectItem key={p.value}>{p.label}</SelectItem>
@@ -418,7 +422,7 @@ export function KanbanBoard({ initialTasks, initialProjectId, projects: initialP
               onSelectionChange={(keys) => setNewStatus(Array.from(keys)[0] as string || "backlog")}
               variant="bordered"
               size="sm"
-              classNames={{ trigger: "border-[#222222] bg-[#080808]" }}
+              classNames={{ trigger: "border-divider bg-white dark:bg-[#080808]" }}
             >
               {COLUMNS.map((c) => (
                 <SelectItem key={c.id}>{c.label}</SelectItem>
@@ -428,11 +432,11 @@ export function KanbanBoard({ initialTasks, initialProjectId, projects: initialP
             {/* Attachments UI */}
             <div className="space-y-2 pt-2">
               <div className="flex items-center justify-between">
-                <span className="text-[10px] font-medium text-[#888888] uppercase tracking-wider flex items-center gap-1">
+                <span className="text-[10px] font-medium text-foreground-400 uppercase tracking-wider flex items-center gap-1">
                   <Paperclip size={10} strokeWidth={1.5} />
                   Attachments
                   {pendingAttachments.length > 0 && (
-                    <span className="text-[#555555]">({pendingAttachments.length}/10)</span>
+                    <span className="text-foreground-300">({pendingAttachments.length}/10)</span>
                   )}
                 </span>
                 <input
@@ -448,7 +452,7 @@ export function KanbanBoard({ initialTasks, initialProjectId, projects: initialP
                   variant="flat"
                   onPress={() => fileInputRef.current?.click()}
                   startContent={<ImagePlus size={14} strokeWidth={1.5} />}
-                  className="h-7 text-xs bg-[#080808] border border-[#222222]"
+                  className="h-7 text-xs bg-white dark:bg-[#080808] border border-divider"
                 >
                   Attach
                 </Button>
@@ -459,7 +463,7 @@ export function KanbanBoard({ initialTasks, initialProjectId, projects: initialP
                   {pendingAttachments.map((file, i) => (
                     <div
                       key={i}
-                      className="group relative h-12 w-12 rounded border border-[#222222] bg-[#0A0A0A] overflow-hidden"
+                      className="group relative h-12 w-12 rounded border border-divider bg-gray-50 dark:bg-[#0A0A0A] overflow-hidden"
                     >
                       <img
                         src={URL.createObjectURL(file)}
@@ -478,8 +482,8 @@ export function KanbanBoard({ initialTasks, initialProjectId, projects: initialP
               )}
             </div>
           </ModalBody>
-          <ModalFooter className="border-t border-[#222222] flex items-center">
-            <span className="text-[10px] text-[#555555] mr-auto">⇧ Enter to submit</span>
+          <ModalFooter className="border-t border-divider flex items-center">
+            <span className="text-[10px] text-foreground-300 mr-auto">⇧ Enter to submit</span>
             <Button variant="flat" onPress={onClose} size="sm">
               Cancel
             </Button>
@@ -499,14 +503,18 @@ export function KanbanBoard({ initialTasks, initialProjectId, projects: initialP
       <Modal
         isOpen={!!attachmentError}
         onClose={() => setAttachmentError(null)}
-        className="dark bg-[#121212] text-white"
+        className="bg-white dark:bg-[#121212] text-foreground dark:text-white"
+        backdrop="opaque"
+        classNames={{
+          backdrop: "bg-black/20 dark:bg-black/60"
+        }}
       >
         <ModalContent>
-          <ModalHeader className="border-b border-[#222222] text-sm">Attachment validation</ModalHeader>
+          <ModalHeader className="border-b border-divider text-sm">Attachment validation</ModalHeader>
           <ModalBody className="py-4">
-            <p className="whitespace-pre-line text-sm text-[#CCCCCC]">{attachmentError}</p>
+            <p className="whitespace-pre-line text-sm text-foreground-500 dark:text-[#CCCCCC]">{attachmentError}</p>
           </ModalBody>
-          <ModalFooter className="border-t border-[#222222]">
+          <ModalFooter className="border-t border-divider">
             <Button size="sm" color="primary" onPress={() => setAttachmentError(null)}>
               OK
             </Button>
