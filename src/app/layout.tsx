@@ -6,6 +6,7 @@ import { Sidebar } from "@/components/shell/sidebar";
 import { MobileNav } from "@/components/shell/mobile-nav";
 import { TopBar } from "@/components/shell/top-bar";
 import { CommandPalette } from "@/components/command-palette";
+import { PwaBootstrap } from "@/components/pwa/pwa-bootstrap";
 
 const plusJakarta = Plus_Jakarta_Sans({
   subsets: ["latin"],
@@ -16,6 +17,25 @@ const plusJakarta = Plus_Jakarta_Sans({
 export const metadata: Metadata = {
   title: "Mission Control",
   description: "Raincheck Mission Control Dashboard",
+  applicationName: "Mission Control",
+  manifest: "/manifest.webmanifest",
+  formatDetection: {
+    telephone: false,
+    email: false,
+    address: false,
+  },
+  appleWebApp: {
+    capable: true,
+    title: "Mission Control",
+    statusBarStyle: "black-translucent",
+  },
+  icons: {
+    icon: [
+      { url: "/favicon.ico" },
+      { url: "/pwa/icon-192.png", type: "image/png", sizes: "192x192" },
+    ],
+    apple: [{ url: "/pwa/apple-touch-icon.png", type: "image/png", sizes: "180x180" }],
+  },
 };
 
 export const viewport: Viewport = {
@@ -25,6 +45,11 @@ export const viewport: Viewport = {
   userScalable: false,
   viewportFit: "cover",
   interactiveWidget: "resizes-content",
+  themeColor: [
+    { media: "(prefers-color-scheme: light)", color: "#ffffff" },
+    { media: "(prefers-color-scheme: dark)", color: "#080808" },
+  ],
+  colorScheme: "dark light",
 };
 
 export default function RootLayout({
@@ -62,7 +87,8 @@ export default function RootLayout({
       </head>
       <body className="antialiased font-sans">
         <Providers>
-          <div className="flex h-screen overflow-hidden">
+          <PwaBootstrap />
+          <div className="standalone-shell flex h-screen overflow-hidden">
             {/* Desktop Sidebar */}
             <div className="hidden lg:block">
               <Sidebar />
@@ -71,7 +97,7 @@ export default function RootLayout({
             {/* Main Content */}
             <div className="flex flex-1 flex-col overflow-hidden">
               <TopBar />
-              <main className="flex-1 overflow-y-auto px-2 pb-20 pt-3 lg:px-5 lg:pb-6 lg:pt-4">
+              <main className="standalone-main flex-1 overflow-y-auto px-2 pb-20 pt-3 lg:px-5 lg:pb-6 lg:pt-4">
                 {children}
               </main>
             </div>

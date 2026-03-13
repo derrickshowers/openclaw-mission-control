@@ -259,3 +259,24 @@ select,
     font-size: 16px !important;
   }
 }
+
+html.standalone-mode,
+html.standalone-mode body {
+  overscroll-behavior: none;
+}
+
+html.standalone-mode .standalone-shell {
+  padding-top: env(safe-area-inset-top, 0px);
+  padding-right: env(safe-area-inset-right, 0px);
+  padding-left: env(safe-area-inset-left, 0px);
+}
+
+html.standalone-mode .standalone-topbar {
+  margin-top: 0;
+  border-top-left-radius: 0 !important;
+  border-top-right-radius: 0 !important;
+}
+
+html.standalone-mode .standalone-main {
+  padding-bottom: calc(5rem + env(safe-area-inset-bottom, 0px));
+}

@@ -30,7 +30,7 @@ export function TopBar() {
   };
 
   return (
-    <header className="mx-2 mt-2 flex h-14 items-center justify-between rounded-xl border border-divider bg-content1/50 px-4 backdrop-blur-xl lg:mx-3 lg:px-5">
+    <header className="standalone-topbar mx-2 mt-2 flex h-14 items-center justify-between rounded-xl border border-divider bg-content1/50 px-4 backdrop-blur-xl lg:mx-3 lg:px-5">
       <div className="flex items-center gap-3">
         <Umbrella size={16} strokeWidth={1.5} className="lg:hidden text-foreground-400" />
         <h1 className="text-sm font-medium">{title}</h1>
