@@ -259,9 +259,9 @@ export function PersonalTaskList({ initialTasks }: PersonalTaskListProps) {
       case "title": {
         const titleTone =
           meta.emphasis === "today"
-            ? "text-zinc-100"
+            ? "text-zinc-900 dark:text-zinc-100"
             : meta.emphasis === "next7"
-              ? "text-zinc-200"
+              ? "text-zinc-800 dark:text-zinc-200"
               : meta.emphasis === "overdue"
                 ? "text-rose-300"
                 : "text-zinc-500";
@@ -270,7 +270,7 @@ export function PersonalTaskList({ initialTasks }: PersonalTaskListProps) {
           meta.emphasis === "today"
             ? "border-[#5e6ad2]"
             : meta.emphasis === "next7"
-              ? "border-white/20"
+              ? "border-zinc-300 dark:border-white/20"
               : meta.emphasis === "overdue"
                 ? "border-rose-500/70"
                 : "border-transparent";
@@ -294,7 +294,7 @@ export function PersonalTaskList({ initialTasks }: PersonalTaskListProps) {
             variant="flat"
             color={config.color}
             size="sm"
-            className="h-6 border border-white/10 bg-white/5 font-mono text-[11px] capitalize"
+            className="h-6 border border-zinc-200 dark:border-white/10 bg-zinc-100 dark:bg-white/5 font-mono text-[11px] capitalize"
           >
             {task.source_status || task.status.replace("_", " ")}
           </Chip>
@@ -308,7 +308,7 @@ export function PersonalTaskList({ initialTasks }: PersonalTaskListProps) {
             variant="dot"
             color={pConfig.color}
             size="sm"
-            className="h-6 border border-white/10 bg-white/5 font-mono text-[11px]"
+            className="h-6 border border-zinc-200 dark:border-white/10 bg-zinc-100 dark:bg-white/5 font-mono text-[11px]"
           >
             {pConfig.label}
           </Chip>
@@ -325,7 +325,7 @@ export function PersonalTaskList({ initialTasks }: PersonalTaskListProps) {
             {task.due_at && (
               <div
                 className={`flex items-center gap-1.5 ${
-                  meta.overdue ? "text-rose-400" : meta.dueSoonUnscheduled ? "text-amber-500/90" : "text-zinc-400"
+                  meta.overdue ? "text-rose-400" : meta.dueSoonUnscheduled ? "text-amber-500/90" : "text-zinc-600 dark:text-zinc-400"
                 }`}
               >
                 <Calendar size={11} />
@@ -335,7 +335,7 @@ export function PersonalTaskList({ initialTasks }: PersonalTaskListProps) {
             {task.scheduled_at && (
               <div
                 className={`flex items-center gap-1.5 ${
-                  meta.scheduledToday ? "text-[#8f98e8]" : "text-zinc-400"
+                  meta.scheduledToday ? "text-[#5e6ad2] dark:text-[#8f98e8]" : "text-zinc-600 dark:text-zinc-400"
                 }`}
               >
                 <Clock size={11} />
@@ -359,7 +359,7 @@ export function PersonalTaskList({ initialTasks }: PersonalTaskListProps) {
                 size="sm"
                 variant="flat"
                 color={isTeamDone ? "success" : "primary"}
-                className="h-5 border border-white/10 bg-white/5 font-mono text-[10px] uppercase"
+                className="h-5 border border-zinc-200 dark:border-white/10 bg-zinc-100 dark:bg-white/5 font-mono text-[10px] uppercase"
               >
                 {teamStatus.replace("_", " ")}
               </Chip>
@@ -382,7 +382,7 @@ export function PersonalTaskList({ initialTasks }: PersonalTaskListProps) {
                 href={task.source_url}
                 target="_blank"
                 rel="noopener noreferrer"
-                className="h-7 w-7 min-w-0 rounded-sm border border-white/10 bg-white/5 text-zinc-300 hover:bg-white/10"
+                className="h-7 w-7 min-w-0 rounded-sm border border-zinc-200 dark:border-white/10 bg-zinc-100 dark:bg-white/5 text-zinc-700 dark:text-zinc-300 hover:bg-zinc-200 dark:bg-white/10"
               >
                 <ExternalLink size={13} />
               </Button>
@@ -390,7 +390,7 @@ export function PersonalTaskList({ initialTasks }: PersonalTaskListProps) {
             <Button
               size="sm"
               variant="flat"
-              className="h-7 rounded-sm border border-white/10 bg-white/10 px-2 font-mono text-[10px] uppercase tracking-wide text-zinc-100"
+              className="h-7 rounded-sm border border-zinc-200 dark:border-white/10 bg-zinc-200 dark:bg-white/10 px-2 font-mono text-[10px] uppercase tracking-wide text-zinc-900 dark:text-zinc-100"
               onPress={() => setSelectedTaskId(task.id)}
             >
               Details
@@ -413,7 +413,7 @@ export function PersonalTaskList({ initialTasks }: PersonalTaskListProps) {
   return (
     <div className="space-y-4 font-sans">
       <div className="flex flex-col gap-3 px-1 lg:flex-row lg:items-center lg:justify-between">
-        <div className="flex flex-wrap items-center gap-2 rounded-md border border-white/10 bg-[#080808] p-1">
+        <div className="flex flex-wrap items-center gap-2 rounded-md border border-zinc-200 dark:border-white/10 bg-white dark:bg-[#080808] p-1">
           {filterButtons.map((option) => {
             const isActive = filter === option.key;
             return (
@@ -423,12 +423,12 @@ export function PersonalTaskList({ initialTasks }: PersonalTaskListProps) {
                 onClick={() => setFilter(option.key)}
                 className={
                   isActive
-                    ? "rounded-sm border border-white/10 bg-white/10 px-3 py-1 text-[12px] text-zinc-100"
-                    : "rounded-sm px-3 py-1 text-[12px] text-zinc-500 hover:bg-white/5 hover:text-zinc-300"
+                    ? "rounded-sm border border-zinc-200 dark:border-white/10 bg-zinc-200 dark:bg-white/10 px-3 py-1 text-[12px] text-zinc-900 dark:text-zinc-100"
+                    : "rounded-sm px-3 py-1 text-[12px] text-zinc-500 hover:bg-zinc-100 dark:bg-white/5 hover:text-zinc-700 dark:text-zinc-300"
                 }
               >
                 {option.label}
-                <span className="ml-1.5 font-mono text-[10px] text-zinc-400">
+                <span className="ml-1.5 font-mono text-[10px] text-zinc-600 dark:text-zinc-400">
                   {filterCounts[option.key]}
                 </span>
               </button>
@@ -449,7 +449,7 @@ export function PersonalTaskList({ initialTasks }: PersonalTaskListProps) {
               onPress={() => handleSync("incremental")}
               isLoading={isSyncing}
               startContent={!isSyncing && <RefreshCw size={13} />}
-              className="h-7 rounded-sm border border-white/10 bg-white/5 px-3 font-mono text-[11px] text-zinc-200"
+              className="h-7 rounded-sm border border-zinc-200 dark:border-white/10 bg-zinc-100 dark:bg-white/5 px-3 font-mono text-[11px] text-zinc-800 dark:text-zinc-200"
             >
               {isSyncing ? "Syncing..." : "Sync"}
             </Button>
@@ -460,24 +460,24 @@ export function PersonalTaskList({ initialTasks }: PersonalTaskListProps) {
                 variant="flat"
                 onPress={() => handleSync("full")}
                 isLoading={isSyncing}
-                className="h-7 w-7 min-w-0 rounded-sm border border-white/10 bg-white/5"
+                className="h-7 w-7 min-w-0 rounded-sm border border-zinc-200 dark:border-white/10 bg-zinc-100 dark:bg-white/5"
               >
-                <ArrowUpCircle size={13} className="rotate-180 text-zinc-300" />
+                <ArrowUpCircle size={13} className="rotate-180 text-zinc-700 dark:text-zinc-300" />
               </Button>
             </Tooltip>
           </div>
         </div>
       </div>
 
-      <Card className="rounded-md border border-white/10 bg-[#080808] shadow-none">
+      <Card className="rounded-md border border-zinc-200 dark:border-white/10 bg-white dark:bg-[#080808] shadow-none">
         <Table
           aria-label="Personal tasks table"
           classNames={{
             base: "max-h-[70vh] overflow-y-auto",
             table: "min-w-[880px]",
-            thead: "bg-white/[0.03]",
-            th: "border-b border-white/10 text-[10px] font-semibold uppercase tracking-[0.12em] text-zinc-500",
-            td: "border-b border-white/5 py-2.5",
+            thead: "bg-zinc-50 dark:bg-white/[0.03]",
+            th: "border-b border-zinc-200 dark:border-white/10 text-[10px] font-semibold uppercase tracking-[0.12em] text-zinc-500",
+            td: "border-b border-zinc-100 dark:border-white/5 py-2.5",
           }}
           removeWrapper
         >
@@ -519,7 +519,7 @@ export function PersonalTaskList({ initialTasks }: PersonalTaskListProps) {
               return (
                 <TableRow
                   key={item.id}
-                  className={`cursor-pointer transition-colors hover:bg-white/5 ${rowTone}`}
+                  className={`cursor-pointer transition-colors hover:bg-zinc-100 dark:bg-white/5 ${rowTone}`}
                   onClick={() => setSelectedTaskId(item.id)}
                 >
                   {(columnKey) => <TableCell>{renderCell(item, columnKey)}</TableCell>}

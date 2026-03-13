@@ -307,19 +307,19 @@ export function PersonalTaskDrawer({ taskId, isOpen, onClose, onPromoted, onTask
     <>
       <div className="fixed inset-0 z-40 bg-black/60 backdrop-blur-sm transition-opacity" onClick={onClose} />
 
-      <div className="fixed right-0 top-0 z-50 flex h-[100dvh] w-full max-w-lg flex-col border-l border-white/10 bg-[#080808] font-sans shadow-none">
+      <div className="fixed right-0 top-0 z-50 flex h-[100dvh] w-full max-w-lg flex-col border-l border-zinc-200 dark:border-white/10 bg-white dark:bg-[#080808] font-sans shadow-none">
         {/* Header */}
-        <div className="flex shrink-0 items-center justify-between border-b border-white/10 px-5 py-4">
+        <div className="flex shrink-0 items-center justify-between border-b border-zinc-200 dark:border-white/10 px-5 py-4">
           <div className="flex items-center gap-3">
-            <div className="flex h-8 w-8 items-center justify-center rounded-sm border border-white/10 bg-white/5">
-              <User size={16} className="text-zinc-400" />
+            <div className="flex h-8 w-8 items-center justify-center rounded-sm border border-zinc-200 dark:border-white/10 bg-zinc-100 dark:bg-white/5">
+              <User size={16} className="text-zinc-600 dark:text-zinc-400" />
             </div>
             <div>
-              <h2 className="text-sm font-semibold text-zinc-100">Personal Task</h2>
+              <h2 className="text-sm font-semibold text-zinc-900 dark:text-zinc-100">Personal Task</h2>
               <p className="text-[10px] font-mono uppercase tracking-[0.14em] text-zinc-500">Notion Sync</p>
             </div>
           </div>
-          <button onClick={onClose} className="rounded-sm border border-transparent p-1.5 text-zinc-400 hover:border-white/10 hover:bg-white/5 hover:text-zinc-200">
+          <button onClick={onClose} className="rounded-sm border border-transparent p-1.5 text-zinc-600 dark:text-zinc-400 hover:border-zinc-200 dark:border-white/10 hover:bg-zinc-100 dark:bg-white/5 hover:text-zinc-800 dark:text-zinc-200">
             <X size={18} />
           </button>
         </div>
@@ -335,7 +335,7 @@ export function PersonalTaskDrawer({ taskId, isOpen, onClose, onPromoted, onTask
               {/* Main Info */}
               <div className="space-y-5">
                 <div className="flex items-start justify-between gap-3">
-                  <h1 className="text-xl font-semibold leading-tight text-zinc-100">{task.title}</h1>
+                  <h1 className="text-xl font-semibold leading-tight text-zinc-900 dark:text-zinc-100">{task.title}</h1>
                   {task.source_url && (
                     <Button
                       isIconOnly
@@ -344,7 +344,7 @@ export function PersonalTaskDrawer({ taskId, isOpen, onClose, onPromoted, onTask
                       as="a"
                       href={task.source_url}
                       target="_blank"
-                      className="h-7 w-7 min-w-0 rounded-sm border border-white/10 bg-white/5 text-zinc-300"
+                      className="h-7 w-7 min-w-0 rounded-sm border border-zinc-200 dark:border-white/10 bg-zinc-100 dark:bg-white/5 text-zinc-700 dark:text-zinc-300"
                     >
                       <ExternalLink size={14} />
                     </Button>
@@ -384,9 +384,9 @@ export function PersonalTaskDrawer({ taskId, isOpen, onClose, onPromoted, onTask
                       className="max-w-xs"
                       classNames={{
                         trigger:
-                          "-ml-2 h-8 min-h-8 rounded-sm border border-transparent bg-transparent px-2 py-1 shadow-none hover:border-white/10 hover:bg-white/5 data-[hover=true]:bg-white/5 data-[open=true]:border-white/10",
-                        value: "text-sm text-zinc-200",
-                        popoverContent: "border border-white/10 bg-[#0d0d0d]",
+                          "-ml-2 h-8 min-h-8 rounded-sm border border-transparent bg-transparent px-2 py-1 shadow-none hover:border-zinc-200 dark:border-white/10 hover:bg-zinc-100 dark:bg-white/5 data-[hover=true]:bg-zinc-100 dark:bg-white/5 data-[open=true]:border-zinc-200 dark:border-white/10",
+                        value: "text-sm text-zinc-800 dark:text-zinc-200",
+                        popoverContent: "border border-zinc-200 dark:border-white/10 bg-white dark:bg-[#0d0d0d]",
                       }}
                     >
                       {statusOptions.map((option) => (
@@ -405,14 +405,14 @@ export function PersonalTaskDrawer({ taskId, isOpen, onClose, onPromoted, onTask
                         onChange={(e) => {
                           void handleDateChange("due_at", e.target.value);
                         }}
-                        className="-ml-2 h-8 rounded-sm px-2 py-1 font-mono text-sm text-zinc-200 bg-transparent hover:bg-white/5 focus:bg-white/5 focus:outline-none"
+                        className="-ml-2 h-8 rounded-sm px-2 py-1 font-mono text-sm text-zinc-800 dark:text-zinc-200 bg-transparent hover:bg-zinc-100 dark:bg-white/5 focus:bg-zinc-100 dark:bg-white/5 focus:outline-none"
                         disabled={syncingToNotion}
                       />
                     ) : (
                       <>
                         <button
                           type="button"
-                          className="-ml-2 h-8 rounded-sm px-2 py-1 font-mono text-sm text-zinc-500 transition-colors hover:bg-white/5 hover:text-zinc-300"
+                          className="-ml-2 h-8 rounded-sm px-2 py-1 font-mono text-sm text-zinc-500 transition-colors hover:bg-zinc-100 dark:bg-white/5 hover:text-zinc-700 dark:text-zinc-300"
                           onClick={() => {
                             const input = dueInputRef.current;
                             if (!input) return;
@@ -441,7 +441,7 @@ export function PersonalTaskDrawer({ taskId, isOpen, onClose, onPromoted, onTask
                       <Button
                         size="sm"
                         variant="light"
-                        className="h-6 min-w-0 rounded-sm border border-white/10 px-2 font-mono text-[10px] text-zinc-400"
+                        className="h-6 min-w-0 rounded-sm border border-zinc-200 dark:border-white/10 px-2 font-mono text-[10px] text-zinc-600 dark:text-zinc-400"
                         onPress={() => {
                           void handleDateChange("due_at", "");
                         }}
@@ -462,14 +462,14 @@ export function PersonalTaskDrawer({ taskId, isOpen, onClose, onPromoted, onTask
                         onChange={(e) => {
                           void handleDateChange("scheduled_at", e.target.value);
                         }}
-                        className="-ml-2 h-8 rounded-sm px-2 py-1 font-mono text-sm text-zinc-200 bg-transparent hover:bg-white/5 focus:bg-white/5 focus:outline-none"
+                        className="-ml-2 h-8 rounded-sm px-2 py-1 font-mono text-sm text-zinc-800 dark:text-zinc-200 bg-transparent hover:bg-zinc-100 dark:bg-white/5 focus:bg-zinc-100 dark:bg-white/5 focus:outline-none"
                         disabled={syncingToNotion}
                       />
                     ) : (
                       <>
                         <button
                           type="button"
-                          className="-ml-2 h-8 rounded-sm px-2 py-1 font-mono text-sm text-zinc-500 transition-colors hover:bg-white/5 hover:text-zinc-300"
+                          className="-ml-2 h-8 rounded-sm px-2 py-1 font-mono text-sm text-zinc-500 transition-colors hover:bg-zinc-100 dark:bg-white/5 hover:text-zinc-700 dark:text-zinc-300"
                           onClick={() => {
                             const input = scheduledInputRef.current;
                             if (!input) return;
@@ -498,7 +498,7 @@ export function PersonalTaskDrawer({ taskId, isOpen, onClose, onPromoted, onTask
                       <Button
                         size="sm"
                         variant="light"
-                        className="h-6 min-w-0 rounded-sm border border-white/10 px-2 font-mono text-[10px] text-zinc-400"
+                        className="h-6 min-w-0 rounded-sm border border-zinc-200 dark:border-white/10 px-2 font-mono text-[10px] text-zinc-600 dark:text-zinc-400"
                         onPress={() => {
                           void handleDateChange("scheduled_at", "");
                         }}
@@ -510,7 +510,7 @@ export function PersonalTaskDrawer({ taskId, isOpen, onClose, onPromoted, onTask
                   </div>
                 </div>
 
-                <div className="rounded-md border border-white/10 bg-white/5 p-3 focus-within:ring-1 focus-within:ring-white/20">
+                <div className="rounded-md border border-zinc-200 dark:border-white/10 bg-zinc-100 dark:bg-white/5 p-3 focus-within:ring-1 focus-within:ring-zinc-300 dark:focus-within:ring-white/20">
                   {isEditingDescription ? (
                     <>
                       <Textarea
@@ -521,7 +521,7 @@ export function PersonalTaskDrawer({ taskId, isOpen, onClose, onPromoted, onTask
                         autoFocus
                         classNames={{
                           inputWrapper: "bg-transparent px-1 shadow-none",
-                          input: "text-sm leading-relaxed text-zinc-300",
+                          input: "text-sm leading-relaxed text-zinc-700 dark:text-zinc-300",
                         }}
                         onKeyDown={(e) => {
                           if ((e.metaKey || e.ctrlKey) && e.key === "Enter") {
@@ -535,7 +535,7 @@ export function PersonalTaskDrawer({ taskId, isOpen, onClose, onPromoted, onTask
                         <Button
                           size="sm"
                           variant="flat"
-                          className="rounded-sm border border-white/10 bg-white/5 text-zinc-300"
+                          className="rounded-sm border border-zinc-200 dark:border-white/10 bg-zinc-100 dark:bg-white/5 text-zinc-700 dark:text-zinc-300"
                           onPress={() => {
                             setDraftDescription(task.description || "");
                             setIsEditingDescription(false);
@@ -560,14 +560,14 @@ export function PersonalTaskDrawer({ taskId, isOpen, onClose, onPromoted, onTask
                   ) : (
                     <button
                       type="button"
-                      className="w-full rounded-sm p-2 text-left transition-colors hover:bg-white/5"
+                      className="w-full rounded-sm p-2 text-left transition-colors hover:bg-zinc-100 dark:bg-white/5"
                       onClick={() => {
                         setDraftDescription(task.description || "");
                         setIsEditingDescription(true);
                       }}
                     >
                       {task.description ? (
-                        <p className="whitespace-pre-wrap text-sm leading-relaxed text-zinc-300">{task.description}</p>
+                        <p className="whitespace-pre-wrap text-sm leading-relaxed text-zinc-700 dark:text-zinc-300">{task.description}</p>
                       ) : (
                         <span className="text-sm text-zinc-500">Add description...</span>
                       )}
@@ -585,7 +585,7 @@ export function PersonalTaskDrawer({ taskId, isOpen, onClose, onPromoted, onTask
                       size="sm"
                       variant="dot"
                       color="primary"
-                      className="h-5 border border-white/10 bg-white/5 font-mono text-[10px]"
+                      className="h-5 border border-zinc-200 dark:border-white/10 bg-zinc-100 dark:bg-white/5 font-mono text-[10px]"
                     >
                       {task.link_count} Linked {task.link_count === 1 ? "Task" : "Tasks"}
                     </Chip>
@@ -595,11 +595,11 @@ export function PersonalTaskDrawer({ taskId, isOpen, onClose, onPromoted, onTask
                 {task.linked_team_tasks.length > 0 ? (
                   <div className="space-y-3">
                     {task.linked_team_tasks.map((link) => (
-                      <Card key={link.id} className="rounded-sm border border-white/10 bg-white/5 shadow-none">
+                      <Card key={link.id} className="rounded-sm border border-zinc-200 dark:border-white/10 bg-zinc-100 dark:bg-white/5 shadow-none">
                         <CardBody className="p-3">
                           <div className="flex items-start justify-between">
                             <div className="min-w-0">
-                              <p className="truncate text-sm font-medium text-zinc-100">
+                              <p className="truncate text-sm font-medium text-zinc-900 dark:text-zinc-100">
                                 {link.team_task?.title || "Deleted Team Task"}
                               </p>
                               <div className="mt-1 flex items-center gap-2 font-mono text-[10px] text-zinc-500">
@@ -618,7 +618,7 @@ export function PersonalTaskDrawer({ taskId, isOpen, onClose, onPromoted, onTask
                               <Chip
                                 size="sm"
                                 variant="flat"
-                                className="h-5 border border-white/10 bg-white/5 font-mono text-[10px] uppercase"
+                                className="h-5 border border-zinc-200 dark:border-white/10 bg-zinc-100 dark:bg-white/5 font-mono text-[10px] uppercase"
                               >
                                 {link.relation}
                               </Chip>
@@ -627,7 +627,7 @@ export function PersonalTaskDrawer({ taskId, isOpen, onClose, onPromoted, onTask
                                   isIconOnly
                                   size="sm"
                                   variant="light"
-                                  className="h-6 w-6 min-w-0 rounded-sm border border-white/10 bg-white/5 text-zinc-300"
+                                  className="h-6 w-6 min-w-0 rounded-sm border border-zinc-200 dark:border-white/10 bg-zinc-100 dark:bg-white/5 text-zinc-700 dark:text-zinc-300"
                                   onPress={() => {
                                     onClose();
                                     router.push(`/tasks?scope=team&task=${link.team_task_id}`);
@@ -646,7 +646,7 @@ export function PersonalTaskDrawer({ taskId, isOpen, onClose, onPromoted, onTask
                       fullWidth
                       variant="flat"
                       color="primary"
-                      className="rounded-sm border border-white/10"
+                      className="rounded-sm border border-zinc-200 dark:border-white/10"
                       startContent={<ArrowUpCircle size={18} />}
                       onPress={() => {
                         setPromoCreateAnother(true);
@@ -657,15 +657,15 @@ export function PersonalTaskDrawer({ taskId, isOpen, onClose, onPromoted, onTask
                     </Button>
                   </div>
                 ) : (
-                  <Card className="rounded-sm border border-dashed border-white/20 bg-white/[0.03] shadow-none">
+                  <Card className="rounded-sm border border-dashed border-zinc-300 dark:border-white/20 bg-zinc-50 dark:bg-white/[0.03] shadow-none">
                     <CardBody className="flex flex-col items-center justify-center py-8 text-center">
-                      <div className="mb-3 rounded-sm border border-white/10 bg-primary-500/10 p-3 text-primary-400">
+                      <div className="mb-3 rounded-sm border border-zinc-200 dark:border-white/10 bg-primary-500/10 p-3 text-primary-400">
                         <Bot size={22} />
                       </div>
-                      <p className="text-sm font-medium text-zinc-100">Needs follow-through?</p>
+                      <p className="text-sm font-medium text-zinc-900 dark:text-zinc-100">Needs follow-through?</p>
                       <p className="mt-1 text-xs text-zinc-500">Promote this to a team task to assign it to an agent.</p>
                       <Button
-                        className="mt-4 rounded-sm border border-white/10"
+                        className="mt-4 rounded-sm border border-zinc-200 dark:border-white/10"
                         color="primary"
                         startContent={<ArrowUpCircle size={18} />}
                         onPress={() => {
@@ -682,9 +682,9 @@ export function PersonalTaskDrawer({ taskId, isOpen, onClose, onPromoted, onTask
 
               {/* Links Table Metadata */}
               {task.raw_payload && (
-                <div className="space-y-4 border-t border-white/10 pt-4">
+                <div className="space-y-4 border-t border-zinc-200 dark:border-white/10 pt-4">
                   <h3 className="text-xs font-semibold uppercase tracking-[0.12em] text-zinc-500">Source Metadata</h3>
-                  <div className="overflow-x-auto rounded-sm border border-white/10 bg-white/[0.03] p-4 font-mono text-[10px] text-zinc-400">
+                  <div className="overflow-x-auto rounded-sm border border-zinc-200 dark:border-white/10 bg-zinc-50 dark:bg-white/[0.03] p-4 font-mono text-[10px] text-zinc-600 dark:text-zinc-400">
                     <pre>{JSON.stringify(task.raw_payload.properties, null, 2)}</pre>
                   </div>
                 </div>
@@ -700,15 +700,15 @@ export function PersonalTaskDrawer({ taskId, isOpen, onClose, onPromoted, onTask
       <Modal
         isOpen={isConfirmOpen}
         onClose={onConfirmClose}
-        className="border border-white/10 bg-[#080808] text-zinc-100"
+        className="border border-zinc-200 dark:border-white/10 bg-white dark:bg-[#080808] text-zinc-900 dark:text-zinc-100"
         placement="top-center"
         backdrop="opaque"
         classNames={{
           backdrop: "bg-black/70",
         }}
       >
-        <ModalContent className="rounded-sm border border-white/10 bg-[#080808] shadow-none">
-          <ModalHeader className="border-b border-white/10 text-sm">Delegate to Team</ModalHeader>
+        <ModalContent className="rounded-sm border border-zinc-200 dark:border-white/10 bg-white dark:bg-[#080808] shadow-none">
+          <ModalHeader className="border-b border-zinc-200 dark:border-white/10 text-sm">Delegate to Team</ModalHeader>
           <ModalBody className="gap-4 py-6">
             <Input
               label="Task Title"
@@ -716,7 +716,7 @@ export function PersonalTaskDrawer({ taskId, isOpen, onClose, onPromoted, onTask
               onValueChange={setPromoTitle}
               variant="bordered"
               size="sm"
-              classNames={{ inputWrapper: "border-white/10 bg-white/5" }}
+              classNames={{ inputWrapper: "border-zinc-200 dark:border-white/10 bg-zinc-100 dark:bg-white/5" }}
             />
             <Textarea
               label="Description"
@@ -726,7 +726,7 @@ export function PersonalTaskDrawer({ taskId, isOpen, onClose, onPromoted, onTask
               variant="bordered"
               size="sm"
               minRows={2}
-              classNames={{ inputWrapper: "border-white/10 bg-white/5" }}
+              classNames={{ inputWrapper: "border-zinc-200 dark:border-white/10 bg-zinc-100 dark:bg-white/5" }}
             />
             <div className="grid grid-cols-2 gap-3">
               <Select
@@ -736,7 +736,7 @@ export function PersonalTaskDrawer({ taskId, isOpen, onClose, onPromoted, onTask
                 onSelectionChange={(keys) => setPromoAssignee(Array.from(keys)[0] as string || "")}
                 variant="bordered"
                 size="sm"
-                classNames={{ trigger: "border-white/10 bg-white/5" }}
+                classNames={{ trigger: "border-zinc-200 dark:border-white/10 bg-zinc-100 dark:bg-white/5" }}
               >
                 {AGENTS.map((a) => (
                   <SelectItem key={a} className="capitalize">{a}</SelectItem>
@@ -748,7 +748,7 @@ export function PersonalTaskDrawer({ taskId, isOpen, onClose, onPromoted, onTask
                 onSelectionChange={(keys) => setPromoStatus(Array.from(keys)[0] as string || "backlog")}
                 variant="bordered"
                 size="sm"
-                classNames={{ trigger: "border-white/10 bg-white/5" }}
+                classNames={{ trigger: "border-zinc-200 dark:border-white/10 bg-zinc-100 dark:bg-white/5" }}
               >
                 <SelectItem key="backlog">Backlog</SelectItem>
                 <SelectItem key="in_progress">In Progress</SelectItem>
@@ -762,7 +762,7 @@ export function PersonalTaskDrawer({ taskId, isOpen, onClose, onPromoted, onTask
                 onSelectionChange={(keys) => setPromoPriority(Array.from(keys)[0] as string || "0")}
                 variant="bordered"
                 size="sm"
-                classNames={{ trigger: "border-white/10 bg-white/5" }}
+                classNames={{ trigger: "border-zinc-200 dark:border-white/10 bg-zinc-100 dark:bg-white/5" }}
               >
                 {PRIORITIES.map((p) => (
                   <SelectItem key={p.value}>{p.label}</SelectItem>
@@ -774,7 +774,7 @@ export function PersonalTaskDrawer({ taskId, isOpen, onClose, onPromoted, onTask
                 onSelectionChange={(keys) => setPromoRelation(Array.from(keys)[0] as string || "delegated")}
                 variant="bordered"
                 size="sm"
-                classNames={{ trigger: "border-white/10 bg-white/5" }}
+                classNames={{ trigger: "border-zinc-200 dark:border-white/10 bg-zinc-100 dark:bg-white/5" }}
               >
                 <SelectItem key="delegated">Delegated</SelectItem>
                 <SelectItem key="related">Related</SelectItem>
@@ -787,7 +787,7 @@ export function PersonalTaskDrawer({ taskId, isOpen, onClose, onPromoted, onTask
               onSelectionChange={(keys) => setPromoProject(Array.from(keys)[0] as string || "")}
               variant="bordered"
               size="sm"
-              classNames={{ trigger: "border-white/10 bg-white/5" }}
+              classNames={{ trigger: "border-zinc-200 dark:border-white/10 bg-zinc-100 dark:bg-white/5" }}
             >
               {projects.map((p) => (
                 <SelectItem key={p.id}>{p.name}</SelectItem>
@@ -808,8 +808,8 @@ export function PersonalTaskDrawer({ taskId, isOpen, onClose, onPromoted, onTask
                </div>
             ) : null}
           </ModalBody>
-          <ModalFooter className="border-t border-white/10">
-            <Button variant="flat" onPress={onConfirmClose} size="sm" className="rounded-sm border border-white/10 bg-white/5 text-zinc-300">
+          <ModalFooter className="border-t border-zinc-200 dark:border-white/10">
+            <Button variant="flat" onPress={onConfirmClose} size="sm" className="rounded-sm border border-zinc-200 dark:border-white/10 bg-zinc-100 dark:bg-white/5 text-zinc-700 dark:text-zinc-300">
               Cancel
             </Button>
             <Button
@@ -817,7 +817,7 @@ export function PersonalTaskDrawer({ taskId, isOpen, onClose, onPromoted, onTask
               onPress={() => handlePromote(promoCreateAnother)}
               isLoading={promoting}
               size="sm"
-              className="rounded-sm border border-white/10"
+              className="rounded-sm border border-zinc-200 dark:border-white/10"
               startContent={!promoting && <ArrowUpCircle size={16} />}
             >
               {task?.link_count && !promoCreateAnother ? "Re-delegate" : (task?.link_count ? "Delegate Again" : "Delegate Task")}
