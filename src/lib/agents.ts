@@ -20,6 +20,10 @@ export function resolveAgentAvatarUrl(
   if (!normalized || !isKnownAgent(normalized)) return null;
 
   if (normalized === "derrick") return "/images/team/derrick.jpg";
+  if (normalized === "elena") return "/avatars/elena.jpg";
+  if (["frank", "joanna", "michael", "tom"].includes(normalized)) {
+    return `/avatars/${normalized}.png`;
+  }
 
   if (avatarUrl) {
     if (avatarUrl.startsWith("/api/agents/")) {
