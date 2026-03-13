@@ -127,21 +127,21 @@ export function PersonalTaskDrawer({ taskId, isOpen, onClose, onPromoted }: Pers
 
   return (
     <>
-      <div className="fixed inset-0 z-40 bg-black/50 backdrop-blur-sm transition-opacity" onClick={onClose} />
+      <div className="fixed inset-0 z-40 bg-black/20 dark:bg-black/60 backdrop-blur-sm transition-opacity" onClick={onClose} />
       
-      <div className="fixed right-0 top-0 z-50 flex h-[100dvh] w-full max-w-lg flex-col border-l border-divider bg-background shadow-2xl">
+      <div className="fixed right-0 top-0 z-50 flex h-[100dvh] w-full max-w-lg flex-col border-l border-divider bg-white dark:bg-background shadow-2xl">
         {/* Header */}
         <div className="flex shrink-0 items-center justify-between border-b border-divider px-6 py-4">
           <div className="flex items-center gap-3">
-            <div className="flex h-8 w-8 items-center justify-center rounded bg-content2">
-              <User size={18} className="text-foreground-500" />
+            <div className="flex h-8 w-8 items-center justify-center rounded bg-gray-50 dark:bg-content2">
+              <User size={18} className="text-foreground-400" />
             </div>
             <div>
               <h2 className="text-sm font-semibold text-foreground">Personal Task</h2>
-              <p className="text-[10px] font-mono uppercase tracking-widest text-foreground-400">Notion Sync</p>
+              <p className="text-[10px] font-mono uppercase tracking-widest text-foreground-300">Notion Sync</p>
             </div>
           </div>
-          <button onClick={onClose} className="rounded-full p-1.5 text-foreground-400 hover:bg-content2 hover:text-foreground">
+          <button onClick={onClose} className="rounded-full p-1.5 text-foreground-300 hover:bg-gray-100 dark:hover:bg-content2 hover:text-foreground">
             <X size={20} />
           </button>
         </div>
@@ -177,12 +177,12 @@ export function PersonalTaskDrawer({ taskId, isOpen, onClose, onPromoted }: Pers
                     {task.source_status || task.status}
                   </Chip>
                   {task.due_at && (
-                    <Chip size="sm" variant="flat" startContent={<Calendar size={12} />} className="text-foreground-500">
+                    <Chip size="sm" variant="flat" startContent={<Calendar size={12} />} className="text-foreground-400">
                       Due {formatLocal(task.due_at, { month: "short", day: "numeric", year: "numeric" })}
                     </Chip>
                   )}
                   {task.scheduled_at && (
-                    <Chip size="sm" variant="flat" startContent={<Clock size={12} />} className="text-primary-400">
+                    <Chip size="sm" variant="flat" startContent={<Clock size={12} />} className="text-primary-500 dark:text-primary-400">
                       Scheduled {formatLocal(task.scheduled_at, { month: "short", day: "numeric", year: "numeric" })}
                     </Chip>
                   )}
@@ -192,8 +192,8 @@ export function PersonalTaskDrawer({ taskId, isOpen, onClose, onPromoted }: Pers
                 </div>
 
                 {task.description && (
-                  <div className="rounded-xl border border-divider bg-content2/30 p-4">
-                    <p className="whitespace-pre-wrap text-sm text-foreground-400 leading-relaxed">
+                  <div className="rounded-xl border border-divider bg-gray-50/50 dark:bg-content2/30 p-4">
+                    <p className="whitespace-pre-wrap text-sm text-foreground-500 dark:text-foreground-400 leading-relaxed">
                       {task.description}
                     </p>
                   </div>
@@ -203,7 +203,7 @@ export function PersonalTaskDrawer({ taskId, isOpen, onClose, onPromoted }: Pers
               {/* Promotion / Delegation */}
               <div className="space-y-4">
                 <div className="flex items-center justify-between">
-                  <h3 className="text-xs font-semibold uppercase tracking-wider text-foreground-500">Delegation</h3>
+                  <h3 className="text-xs font-semibold uppercase tracking-wider text-foreground-400">Delegation</h3>
                   {task.link_count > 0 && (
                     <Chip size="sm" variant="dot" color="primary" className="border-none text-[10px]">
                       {task.link_count} Linked {task.link_count === 1 ? "Task" : "Tasks"}
@@ -214,14 +214,14 @@ export function PersonalTaskDrawer({ taskId, isOpen, onClose, onPromoted }: Pers
                 {task.linked_team_tasks.length > 0 ? (
                   <div className="space-y-3">
                     {task.linked_team_tasks.map((link) => (
-                      <Card key={link.id} className="border border-divider bg-content2/20 shadow-none">
+                      <Card key={link.id} className="border border-divider bg-gray-50/30 dark:bg-content2/20 shadow-none">
                         <CardBody className="p-3">
                           <div className="flex items-start justify-between">
                             <div className="min-w-0">
                               <p className="truncate text-sm font-medium text-foreground">
                                 {link.team_task?.title || "Deleted Team Task"}
                               </p>
-                              <div className="mt-1 flex items-center gap-2 text-[10px] text-foreground-500">
+                              <div className="mt-1 flex items-center gap-2 text-[10px] text-foreground-400">
                                 <span className="capitalize">{link.team_task?.status || "unknown"}</span>
                                 <span>•</span>
                                 <span>Assigned to {link.team_task?.assignee || "nobody"}</span>
@@ -268,13 +268,13 @@ export function PersonalTaskDrawer({ taskId, isOpen, onClose, onPromoted }: Pers
                     </Button>
                   </div>
                 ) : (
-                  <Card className="border border-dashed border-divider bg-content1 shadow-none">
+                  <Card className="border border-dashed border-divider bg-white dark:bg-content1 shadow-none">
                     <CardBody className="flex flex-col items-center justify-center py-8 text-center">
-                      <div className="mb-3 rounded-full bg-primary/10 p-3 text-primary">
+                      <div className="mb-3 rounded-full bg-primary-500/10 p-3 text-primary-500">
                         <Bot size={24} />
                       </div>
                       <p className="text-sm font-medium text-foreground">Needs follow-through?</p>
-                      <p className="mt-1 text-xs text-foreground-500">Promote this to a team task to assign it to an agent.</p>
+                      <p className="mt-1 text-xs text-foreground-400">Promote this to a team task to assign it to an agent.</p>
                       <Button 
                         className="mt-4" 
                         color="primary" 
@@ -294,15 +294,15 @@ export function PersonalTaskDrawer({ taskId, isOpen, onClose, onPromoted }: Pers
               {/* Links Table Metadata */}
               {task.raw_payload && (
                 <div className="space-y-4 pt-4 border-t border-divider">
-                  <h3 className="text-xs font-semibold uppercase tracking-wider text-foreground-500">Source Metadata</h3>
-                  <div className="rounded-lg bg-content2/50 p-4 font-mono text-[10px] text-foreground-400 overflow-x-auto">
+                  <h3 className="text-xs font-semibold uppercase tracking-wider text-foreground-400">Source Metadata</h3>
+                  <div className="rounded-lg bg-gray-50 dark:bg-content2/50 p-4 font-mono text-[10px] text-foreground-400 overflow-x-auto border border-divider">
                     <pre>{JSON.stringify(task.raw_payload.properties, null, 2)}</pre>
                   </div>
                 </div>
               )}
             </>
           ) : (
-            <div className="py-20 text-center text-foreground-500">Task not found.</div>
+            <div className="py-20 text-center text-foreground-300">Task not found.</div>
           )}
         </div>
       </div>
@@ -311,11 +311,15 @@ export function PersonalTaskDrawer({ taskId, isOpen, onClose, onPromoted }: Pers
       <Modal 
         isOpen={isConfirmOpen} 
         onClose={onConfirmClose}
-        className="dark bg-[#121212] text-white"
+        className="bg-white dark:bg-[#121212] text-gray-900 dark:text-white"
         placement="top-center"
+        backdrop="opaque"
+        classNames={{
+          backdrop: "bg-black/20 dark:bg-black/60"
+        }}
       >
         <ModalContent>
-          <ModalHeader className="border-b border-[#222222] text-sm">
+          <ModalHeader className="border-b border-gray-200 dark:border-[#222222] text-sm">
             Delegate to Team
           </ModalHeader>
           <ModalBody className="gap-4 py-6">
@@ -325,6 +329,7 @@ export function PersonalTaskDrawer({ taskId, isOpen, onClose, onPromoted }: Pers
               onValueChange={setPromoTitle}
               variant="bordered"
               size="sm"
+              classNames={{ inputWrapper: "border-divider bg-gray-50 dark:bg-[#080808]" }}
             />
             <Textarea
               label="Description"
@@ -334,6 +339,7 @@ export function PersonalTaskDrawer({ taskId, isOpen, onClose, onPromoted }: Pers
               variant="bordered"
               size="sm"
               minRows={2}
+              classNames={{ inputWrapper: "border-divider bg-gray-50 dark:bg-[#080808]" }}
             />
             <div className="grid grid-cols-2 gap-3">
               <Select
@@ -343,6 +349,7 @@ export function PersonalTaskDrawer({ taskId, isOpen, onClose, onPromoted }: Pers
                 onSelectionChange={(keys) => setPromoAssignee(Array.from(keys)[0] as string || "")}
                 variant="bordered"
                 size="sm"
+                classNames={{ trigger: "border-divider bg-gray-50 dark:bg-[#080808]" }}
               >
                 {AGENTS.map((a) => (
                   <SelectItem key={a} className="capitalize">{a}</SelectItem>
@@ -354,6 +361,7 @@ export function PersonalTaskDrawer({ taskId, isOpen, onClose, onPromoted }: Pers
                 onSelectionChange={(keys) => setPromoStatus(Array.from(keys)[0] as string || "backlog")}
                 variant="bordered"
                 size="sm"
+                classNames={{ trigger: "border-divider bg-gray-50 dark:bg-[#080808]" }}
               >
                 <SelectItem key="backlog">Backlog</SelectItem>
                 <SelectItem key="in_progress">In Progress</SelectItem>
@@ -367,6 +375,7 @@ export function PersonalTaskDrawer({ taskId, isOpen, onClose, onPromoted }: Pers
                 onSelectionChange={(keys) => setPromoPriority(Array.from(keys)[0] as string || "0")}
                 variant="bordered"
                 size="sm"
+                classNames={{ trigger: "border-divider bg-gray-50 dark:bg-[#080808]" }}
               >
                 {PRIORITIES.map((p) => (
                   <SelectItem key={p.value}>{p.label}</SelectItem>
@@ -378,6 +387,7 @@ export function PersonalTaskDrawer({ taskId, isOpen, onClose, onPromoted }: Pers
                 onSelectionChange={(keys) => setPromoRelation(Array.from(keys)[0] as string || "delegated")}
                 variant="bordered"
                 size="sm"
+                classNames={{ trigger: "border-divider bg-gray-50 dark:bg-[#080808]" }}
               >
                 <SelectItem key="delegated">Delegated</SelectItem>
                 <SelectItem key="related">Related</SelectItem>
@@ -390,6 +400,7 @@ export function PersonalTaskDrawer({ taskId, isOpen, onClose, onPromoted }: Pers
               onSelectionChange={(keys) => setPromoProject(Array.from(keys)[0] as string || "")}
               variant="bordered"
               size="sm"
+              classNames={{ trigger: "border-divider bg-gray-50 dark:bg-[#080808]" }}
             >
               {projects.map((p) => (
                 <SelectItem key={p.id}>{p.name}</SelectItem>
@@ -397,20 +408,20 @@ export function PersonalTaskDrawer({ taskId, isOpen, onClose, onPromoted }: Pers
             </Select>
 
             {task?.open_link_count && task.open_link_count > 0 ? (
-               <div className="mt-2 rounded-lg bg-warning-50 p-3 text-xs text-warning-700 space-y-2">
+               <div className="mt-2 rounded-lg bg-warning-50 dark:bg-warning-900/10 p-3 text-xs text-warning-700 dark:text-warning-400 space-y-2 border border-warning-100 dark:border-warning-900/20">
                  <p>Note: This personal task already has an active link to a team task.</p>
                  <Checkbox 
                    size="sm" 
                    isSelected={promoCreateAnother} 
                    onValueChange={setPromoCreateAnother}
-                   classNames={{ label: "text-[10px] text-warning-800 font-medium" }}
+                   classNames={{ label: "text-[10px] text-warning-800 dark:text-warning-300 font-medium" }}
                  >
                    Force create another team task
                  </Checkbox>
                </div>
             ) : null}
           </ModalBody>
-          <ModalFooter className="border-t border-[#222222]">
+          <ModalFooter className="border-t border-gray-200 dark:border-[#222222]">
             <Button variant="flat" onPress={onConfirmClose} size="sm">Cancel</Button>
             <Button 
               color="primary" 

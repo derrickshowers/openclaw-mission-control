@@ -49,13 +49,13 @@ export function ProjectsView({ initialProjects }: ProjectsViewProps) {
       <div className="mb-4 flex flex-col gap-3 sm:mb-6 sm:flex-row sm:items-center sm:justify-between">
         <div>
           <h1 className="text-xl font-semibold">Projects</h1>
-          <p className="text-sm text-[#888888]">Track high-level progress across workstreams</p>
+          <p className="text-sm text-foreground-400">Track high-level progress across workstreams</p>
         </div>
         <Button
           size="sm"
           variant="flat"
           onPress={onOpen}
-          className="w-full border border-[#222222] bg-[#121212] text-sm sm:w-auto"
+          className="w-full border border-divider bg-gray-50 dark:bg-[#121212] text-sm sm:w-auto"
           startContent={<Plus size={16} strokeWidth={1.5} />}
         >
           New Project
@@ -67,7 +67,7 @@ export function ProjectsView({ initialProjects }: ProjectsViewProps) {
         {projects.map((project) => (
           <Card
             key={project.id}
-            className="border border-[#222222] bg-[#0A0A0A] hover:border-[#333333] transition-colors"
+            className="border border-divider bg-white dark:bg-[#0A0A0A] hover:border-foreground-200 dark:hover:border-[#333333] transition-colors"
             shadow="none"
             radius="sm"
           >
@@ -75,24 +75,24 @@ export function ProjectsView({ initialProjects }: ProjectsViewProps) {
               {/* Left: Info */}
               <div className="flex flex-1 flex-col min-w-0">
                 <div className="flex items-center gap-2">
-                  <h3 className="font-medium text-white truncate">{project.name}</h3>
+                  <h3 className="font-medium text-foreground dark:text-white truncate">{project.name}</h3>
                   {project.task_summary?.blocked ? (
-                    <AlertTriangle size={14} className="text-[#EF4444]" />
+                    <AlertTriangle size={14} className="text-danger" />
                   ) : null}
                 </div>
-                <p className="text-xs text-[#888888] line-clamp-1 mt-0.5">
+                <p className="text-xs text-foreground-400 line-clamp-1 mt-0.5">
                   {project.description || "No description"}
                 </p>
               </div>
 
               {/* Center: Progress */}
               <div className="w-full lg:flex-[1.5] flex flex-col gap-2">
-                <div className="flex flex-col gap-1 text-[10px] text-[#888888] sm:flex-row sm:items-center sm:justify-between">
+                <div className="flex flex-col gap-1 text-[10px] text-foreground-400 sm:flex-row sm:items-center sm:justify-between">
                   <span>{project.task_summary?.progress || 0}% complete · {project.task_summary?.total || 0} tasks</span>
                   <div className="flex flex-wrap gap-2">
                     {project.task_summary?.backlog ? <span>{project.task_summary.backlog} Backlog</span> : null}
                     {project.task_summary?.in_progress ? <span>{project.task_summary.in_progress} In Progress</span> : null}
-                    {project.task_summary?.blocked ? <span className="text-[#EF4444] font-medium">{project.task_summary.blocked} Blocked</span> : null}
+                    {project.task_summary?.blocked ? <span className="text-danger font-medium">{project.task_summary.blocked} Blocked</span> : null}
                     {project.task_summary?.done ? <span>{project.task_summary.done} Done</span> : null}
                   </div>
                 </div>
@@ -103,14 +103,14 @@ export function ProjectsView({ initialProjects }: ProjectsViewProps) {
                   className="max-w-full"
                   classNames={{
                     base: "h-1",
-                    indicator: "bg-[#8b5cf6]",
-                    track: "bg-[#1A1A1A]"
+                    indicator: "bg-primary dark:bg-[#8b5cf6]",
+                    track: "bg-gray-100 dark:bg-[#1A1A1A]"
                   }}
                 />
               </div>
 
               {/* Right: Meta & CTA */}
-              <div className="flex w-full items-center justify-between gap-3 text-[11px] text-[#555555] lg:flex-1 lg:justify-end lg:gap-6">
+              <div className="flex w-full items-center justify-between gap-3 text-[11px] text-foreground-400 lg:flex-1 lg:justify-end lg:gap-6">
                 <div className="flex items-center gap-1.5 min-w-[70px]">
                   <User size={12} strokeWidth={1.5} />
                   <span className="capitalize">{project.owner || "derrick"}</span>
@@ -123,7 +123,7 @@ export function ProjectsView({ initialProjects }: ProjectsViewProps) {
                   href={`/tasks?project_id=${project.id}`}
                   size="sm"
                   variant="light"
-                  className="h-8 text-[#888888] hover:text-white hover:bg-[#1A1A1A]"
+                  className="h-8 text-foreground-400 hover:text-foreground hover:bg-gray-100 dark:hover:bg-[#1A1A1A]"
                   endContent={<ArrowRight size={14} strokeWidth={1.5} />}
                 >
                   View tasks
@@ -134,9 +134,9 @@ export function ProjectsView({ initialProjects }: ProjectsViewProps) {
         ))}
 
         {projects.length === 0 && (
-          <div className="flex flex-col items-center justify-center py-20 text-center border border-dashed border-[#222222] rounded-lg">
-            <Folder size={40} strokeWidth={1} className="text-[#222222] mb-4" />
-            <p className="text-[#888888]">No projects found</p>
+          <div className="flex flex-col items-center justify-center py-20 text-center border border-dashed border-divider rounded-lg">
+            <Folder size={40} strokeWidth={1} className="text-foreground-200 dark:text-[#222222] mb-4" />
+            <p className="text-foreground-400">No projects found</p>
             <Button size="sm" variant="flat" onPress={onOpen} className="mt-4">
               Create your first project
             </Button>
@@ -148,12 +148,12 @@ export function ProjectsView({ initialProjects }: ProjectsViewProps) {
       <Modal
         isOpen={isOpen}
         onClose={onClose}
-        className="dark bg-[#121212] text-white max-h-[85dvh]"
+        className="bg-white dark:bg-[#121212] text-foreground dark:text-white max-h-[85dvh]"
         placement="top-center"
         scrollBehavior="inside"
       >
         <ModalContent>
-          <ModalHeader className="border-b border-[#222222] text-sm">
+          <ModalHeader className="border-b border-divider text-sm">
             New Project
           </ModalHeader>
           <ModalBody className="gap-4 py-6">
@@ -164,7 +164,7 @@ export function ProjectsView({ initialProjects }: ProjectsViewProps) {
               onValueChange={setNewName}
               variant="bordered"
               size="sm"
-              classNames={{ inputWrapper: "border-[#222222] bg-[#080808]" }}
+              classNames={{ inputWrapper: "border-divider bg-white dark:bg-[#080808]" }}
               autoFocus
             />
             <Textarea
@@ -174,7 +174,7 @@ export function ProjectsView({ initialProjects }: ProjectsViewProps) {
               onValueChange={setNewDescription}
               variant="bordered"
               size="sm"
-              classNames={{ inputWrapper: "border-[#222222] bg-[#080808]" }}
+              classNames={{ inputWrapper: "border-divider bg-white dark:bg-[#080808]" }}
             />
             <Input
               label="Owner"
@@ -183,10 +183,10 @@ export function ProjectsView({ initialProjects }: ProjectsViewProps) {
               onValueChange={setNewOwner}
               variant="bordered"
               size="sm"
-              classNames={{ inputWrapper: "border-[#222222] bg-[#080808]" }}
+              classNames={{ inputWrapper: "border-divider bg-white dark:bg-[#080808]" }}
             />
           </ModalBody>
-          <ModalFooter className="border-t border-[#222222]">
+          <ModalFooter className="border-t border-divider">
             <Button variant="flat" onPress={onClose} size="sm">
               Cancel
             </Button>

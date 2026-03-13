@@ -296,7 +296,7 @@ export function TeamView({ agents }: TeamViewProps) {
     <div className="mx-auto max-w-[1200px]">
       {/* Hierarchy: Derrick at top, team below */}
       <div className="mb-6">
-        <p className="mb-4 text-xs text-[#888888] uppercase tracking-wider">
+        <p className="mb-4 text-xs text-foreground-400 uppercase tracking-wider">
           Founder
         </p>
         <AgentCard
@@ -306,13 +306,13 @@ export function TeamView({ agents }: TeamViewProps) {
       </div>
 
       <div className="mb-2 flex items-center gap-3">
-        <div className="h-px flex-1 bg-[#222222]" />
-        <span className="text-xs text-[#555555]">reports to</span>
-        <div className="h-px flex-1 bg-[#222222]" />
+        <div className="h-px flex-1 bg-divider" />
+        <span className="text-xs text-foreground-300">reports to</span>
+        <div className="h-px flex-1 bg-divider" />
       </div>
 
       <div className="mb-4">
-        <p className="mb-4 text-xs text-[#888888] uppercase tracking-wider">
+        <p className="mb-4 text-xs text-foreground-400 uppercase tracking-wider">
           Team
         </p>
         <div className="grid gap-4 md:grid-cols-3">
@@ -328,20 +328,20 @@ export function TeamView({ agents }: TeamViewProps) {
         </div>
       </div>
 
-      <div className="mb-6 rounded border border-[#222222] bg-[#0A0A0A]">
-        <div className="border-b border-[#222222] px-4 py-2.5">
-          <p className="text-xs uppercase tracking-wider text-[#888888]">Main Session Health</p>
-          <p className="mt-1 text-[11px] text-[#666666]">
+      <div className="mb-6 rounded border border-divider bg-white dark:bg-[#0A0A0A]">
+        <div className="border-b border-divider px-4 py-2.5">
+          <p className="text-xs uppercase tracking-wider text-foreground-400">Main Session Health</p>
+          <p className="mt-1 text-[11px] text-foreground-300">
             Forward-looking cost estimates based on current session occupancy and recent median output. For historical spend, see the Activity tab.
           </p>
         </div>
         {mainSessions.length === 0 ? (
-          <p className="px-4 py-5 text-xs text-[#666666]">No active main sessions.</p>
+          <p className="px-4 py-5 text-xs text-foreground-300">No active main sessions.</p>
         ) : (
           <div className="overflow-x-auto">
             <table className="w-full text-xs">
               <thead>
-                <tr className="border-b border-[#1A1A1A] text-[#777777] uppercase tracking-wider">
+                <tr className="border-b border-divider text-foreground-400 uppercase tracking-wider">
                   <th className="px-4 py-2 text-left">Agent</th>
                   <th className="px-4 py-2 text-left">Model</th>
                   <th
@@ -355,26 +355,26 @@ export function TeamView({ agents }: TeamViewProps) {
                   <th className="px-4 py-2 text-left">Actions</th>
                 </tr>
               </thead>
-              <tbody className="divide-y divide-[#161616]">
+              <tbody className="divide-y divide-divider dark:divide-[#161616]">
                 {mainSessions.map((s) => {
                   const contextTokens = Math.max(0, Number(s.contextTokens ?? s.totalTokens ?? 0));
                   const contextWindow = Math.max(1, Number(s.contextWindow ?? s.maxContext ?? 1));
                   const pct = Math.min((contextTokens / contextWindow) * 100, 100);
                   const bar = pct > 80 ? "#ef4444" : pct > 55 ? "#f59e0b" : "#22c55e";
                   return (
-                    <tr key={s.sessionKey}>
-                      <td className="px-4 py-2 capitalize text-white">{s.agent}</td>
-                      <td className="px-4 py-2 font-mono text-[#BBBBBB]">{s.model}</td>
+                    <tr key={s.sessionKey} className="hover:bg-gray-50 dark:hover:bg-[#0D0D0D] transition-colors">
+                      <td className="px-4 py-2 capitalize text-foreground dark:text-white">{s.agent}</td>
+                      <td className="px-4 py-2 font-mono text-foreground-500 dark:text-[#BBBBBB]">{s.model}</td>
                       <td className="px-4 py-2" title={`${contextTokens.toLocaleString()} / ${contextWindow.toLocaleString()} tokens`}>
                         <div className="flex items-center gap-2">
-                          <div className="h-2 w-32 overflow-hidden rounded-full bg-[#222222]">
+                          <div className="h-2 w-32 overflow-hidden rounded-full bg-gray-200 dark:bg-[#222222]">
                             <div className="h-full" style={{ width: `${pct}%`, backgroundColor: bar }} />
                           </div>
-                          <span className="font-mono text-[#BBBBBB]">{Math.round(pct)}%</span>
+                          <span className="font-mono text-foreground-500 dark:text-[#BBBBBB]">{Math.round(pct)}%</span>
                         </div>
                       </td>
-                      <td className="px-4 py-2 text-[#999999]">{formatLastActiveRelative(s.lastActiveAt)}</td>
-                      <td className="px-4 py-2 text-right font-mono text-white">${(s.estimatedNextTaskCostUsd || 0).toFixed(4)}</td>
+                      <td className="px-4 py-2 text-foreground-400 dark:text-[#999999]">{formatLastActiveRelative(s.lastActiveAt)}</td>
+                      <td className="px-4 py-2 text-right font-mono text-foreground dark:text-white">${(s.estimatedNextTaskCostUsd || 0).toFixed(4)}</td>
                       <td className="px-4 py-2">
                         <div className="flex flex-col gap-1">
                           <div className="flex items-center gap-2">
@@ -390,7 +390,7 @@ export function TeamView({ agents }: TeamViewProps) {
                             />
                           </div>
                           {sessionNotes[s.sessionKey] ? (
-                            <p className="max-w-[280px] text-[10px] text-[#8F8F8F]">{sessionNotes[s.sessionKey]}</p>
+                            <p className="max-w-[280px] text-[10px] text-foreground-400 dark:text-[#8F8F8F]">{sessionNotes[s.sessionKey]}</p>
                           ) : null}
                         </div>
                       </td>
@@ -406,14 +406,14 @@ export function TeamView({ agents }: TeamViewProps) {
       <Modal
         isOpen={!!resetConfirmSessionKey}
         onClose={() => setResetConfirmSessionKey(null)}
-        className="dark bg-[#121212] text-white"
+        className="bg-white dark:bg-[#121212] text-foreground dark:text-white"
       >
         <ModalContent>
-          <ModalHeader className="border-b border-[#222222] text-sm">Reset main session?</ModalHeader>
+          <ModalHeader className="border-b border-divider text-sm">Reset main session?</ModalHeader>
           <ModalBody className="py-4">
-            <p className="text-sm text-[#CCCCCC]">This clears the current context for this agent&apos;s main session.</p>
+            <p className="text-sm text-foreground-600 dark:text-[#CCCCCC]">This clears the current context for this agent&apos;s main session.</p>
           </ModalBody>
-          <ModalFooter className="border-t border-[#222222]">
+          <ModalFooter className="border-t border-divider">
             <Button size="sm" variant="flat" onPress={() => setResetConfirmSessionKey(null)}>
               Cancel
             </Button>
@@ -448,8 +448,8 @@ function SessionActionButton({
 }) {
   const baseStyles = "flex items-center justify-center gap-1.5 rounded px-2.5 py-1.5 text-[11px] font-medium transition-all duration-200 min-w-[92px]";
   const variantStyles = action === "compact"
-    ? "border border-[#333333] bg-[#111111] hover:bg-[#1a1a1a] text-white"
-    : "border border-[#4b1f1f] bg-[#1b0f0f] hover:bg-[#2a1515] text-[#fca5a5]";
+    ? "border border-divider bg-white dark:bg-[#111111] hover:bg-gray-100 dark:hover:bg-[#1a1a1a] text-foreground dark:text-white"
+    : "border border-danger-200 dark:border-danger-900/50 bg-danger-50 dark:bg-danger-900/10 hover:bg-danger-100 dark:hover:bg-danger-900/20 text-danger-600 dark:text-danger-400";
 
   if (action === "compact") {
     const isWorking = compactState === "starting" || compactState === "queued" || compactState === "running";
@@ -587,11 +587,11 @@ function AgentCard({
   const avatarUrl = resolveAgentAvatarUrl(agent.name, agent.avatarUrl) || undefined;
 
   return (
-    <Card className="border border-[#222222] bg-content1">
-      <CardBody className="p-4">
+    <Card className="border border-divider bg-white dark:bg-content1">
+      <CardBody className="p-4 text-foreground">
         <div className="flex items-start gap-3">
           {avatarUrl ? (
-            <div className="h-10 w-10 flex-shrink-0 overflow-hidden rounded">
+            <div className="h-10 w-10 flex-shrink-0 overflow-hidden rounded border border-divider">
               <img
                 src={avatarUrl}
                 alt={agent.name}
@@ -599,7 +599,7 @@ function AgentCard({
               />
             </div>
           ) : (
-            <div className="flex h-10 w-10 flex-shrink-0 items-center justify-center rounded bg-[#1A1A1A] text-muted-foreground">
+            <div className="flex h-10 w-10 flex-shrink-0 items-center justify-center rounded bg-gray-100 dark:bg-[#1A1A1A] text-muted-foreground">
               <IconComponent size={20} strokeWidth={1.5} />
             </div>
           )}
@@ -629,7 +629,7 @@ function AgentCard({
                       </div>
                     }
                   >
-                    <button className="text-[#666666] hover:text-[#bbbbbb]" aria-label="Team status help">
+                    <button className="text-foreground-300 hover:text-foreground-500" aria-label="Team status help">
                       <CircleHelp size={13} strokeWidth={1.75} />
                     </button>
                   </Tooltip>
@@ -646,27 +646,27 @@ function AgentCard({
                 </>
               )}
             </div>
-            <p className="text-xs text-[#888888] mt-0.5">
+            <p className="text-xs text-foreground-400 mt-0.5">
               {meta?.role || "Agent"}
             </p>
             {agent.model && (
-              <p className="text-[11px] text-[#555555] mt-0.5 font-mono">
+              <p className="text-[11px] text-foreground-300 mt-0.5 font-mono">
                 {formatModel(agent.model)}
               </p>
             )}
-            <p className="text-xs text-[#555555] mt-2 line-clamp-2">
+            <p className="text-xs text-foreground-300 mt-2 line-clamp-2">
               {meta?.description || ""}
             </p>
             {!isHuman && (
-              <div className="mt-2 border-t border-[#1c1c1c] pt-2">
-                <p className="text-[10px] uppercase tracking-wider text-[#777777]">
+              <div className="mt-2 border-t border-divider pt-2">
+                <p className="text-[10px] uppercase tracking-wider text-foreground-400">
                   {String(agent.status || "").toLowerCase() === "thinking"
                     ? "Processing"
                     : agent.activityState === "active"
                       ? "Processing"
                       : "Last active"}
                 </p>
-                <p className="text-xs text-[#BBBBBB] mt-0.5">
+                <p className="text-xs text-foreground-500 dark:text-[#BBBBBB] mt-0.5">
                   {String(agent.status || "").toLowerCase() === "thinking"
                     ? "Working now"
                     : agent.activityState === "active"

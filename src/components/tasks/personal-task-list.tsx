@@ -146,18 +146,18 @@ export function PersonalTaskList({ initialTasks }: PersonalTaskListProps) {
           </Chip>
         );
       case "due":
-        if (!task.due_at && !task.scheduled_at) return <span className="text-xs text-foreground-500">-</span>;
+        if (!task.due_at && !task.scheduled_at) return <span className="text-xs text-foreground-400">-</span>;
         const isOverdue = task.due_at && new Date(task.due_at) < new Date() && task.status !== "done";
         return (
           <div className="flex flex-col gap-1">
             {task.due_at && (
-              <div className={`flex items-center gap-1.5 text-[10px] ${isOverdue ? "text-danger" : "text-foreground-500"}`}>
+              <div className={`flex items-center gap-1.5 text-[10px] ${isOverdue ? "text-danger" : "text-foreground-400"}`}>
                 <Calendar size={10} />
                 <span>Due {formatLocal(task.due_at, { month: "short", day: "numeric" })}</span>
               </div>
             )}
             {task.scheduled_at && (
-              <div className="flex items-center gap-1.5 text-[10px] text-primary-400">
+              <div className="flex items-center gap-1.5 text-[10px] text-primary-500 dark:text-primary-400">
                 <Clock size={10} />
                 <span>Sched {formatLocal(task.scheduled_at, { month: "short", day: "numeric" })}</span>
               </div>
@@ -183,7 +183,7 @@ export function PersonalTaskList({ initialTasks }: PersonalTaskListProps) {
                  <span className="text-[10px] text-foreground-400">@{task.delegation.assignee}</span>
               )}
             </div>
-            <span className="text-[10px] text-foreground-500 truncate max-w-[150px]">
+            <span className="text-[10px] text-foreground-300 truncate max-w-[150px]">
               {task.delegation.title}
             </span>
           </div>
@@ -201,7 +201,7 @@ export function PersonalTaskList({ initialTasks }: PersonalTaskListProps) {
                 target="_blank"
                 rel="noopener noreferrer"
               >
-                <ExternalLink size={14} className="text-foreground-400" />
+                <ExternalLink size={14} className="text-foreground-300" />
               </Button>
             )}
             <Button
@@ -230,8 +230,8 @@ export function PersonalTaskList({ initialTasks }: PersonalTaskListProps) {
           size="sm"
           variant="underlined"
           classNames={{
-            tabList: "bg-content2/50 p-1 rounded-lg border border-divider/50",
-            cursor: "bg-background shadow-sm",
+            tabList: "bg-gray-100/50 dark:bg-content2/50 p-1 rounded-lg border border-divider/50",
+            cursor: "bg-white dark:bg-background shadow-sm",
             tab: "h-8 px-3",
             tabContent: "text-[11px] font-medium"
           }}
@@ -245,9 +245,9 @@ export function PersonalTaskList({ initialTasks }: PersonalTaskListProps) {
 
         <div className="flex items-center gap-3">
           <div className="flex items-center gap-2 mr-2">
-            <span className="text-[10px] text-foreground-400 uppercase tracking-wider font-semibold">{tasks.length} items</span>
+            <span className="text-[10px] text-foreground-300 uppercase tracking-wider font-semibold">{tasks.length} items</span>
             {tasks.length > 0 && (
-               <span className="text-[10px] text-foreground-500 font-mono">
+               <span className="text-[10px] text-foreground-300 font-mono">
                  Synced {timeAgo(tasks[0].last_synced_at)}
                </span>
             )}
@@ -259,7 +259,7 @@ export function PersonalTaskList({ initialTasks }: PersonalTaskListProps) {
               onPress={() => handleSync("incremental")}
               isLoading={isSyncing}
               startContent={!isSyncing && <RefreshCw size={14} />}
-              className="border border-divider bg-content1 text-[11px]"
+              className="border border-divider bg-white dark:bg-content1 text-[11px] text-foreground"
             >
               {isSyncing ? "Syncing..." : "Sync"}
             </Button>
@@ -270,23 +270,23 @@ export function PersonalTaskList({ initialTasks }: PersonalTaskListProps) {
                 variant="flat"
                 onPress={() => handleSync("full")}
                 isLoading={isSyncing}
-                className="border border-divider bg-content1"
+                className="border border-divider bg-white dark:bg-content1"
               >
-                <ArrowUpCircle size={14} className="rotate-180" />
+                <ArrowUpCircle size={14} className="rotate-180 text-foreground" />
               </Button>
             </Tooltip>
           </div>
         </div>
       </div>
 
-      <Card className="border border-divider bg-content1/50 backdrop-blur-xl">
+      <Card className="border border-divider bg-white/50 dark:bg-content1/50 backdrop-blur-xl">
         <Table 
           aria-label="Personal tasks table"
           classNames={{
             base: "max-h-[70vh] overflow-y-auto",
             table: "min-w-[800px]",
-            thead: "bg-content2/50",
-            th: "text-[10px] font-semibold uppercase tracking-wider text-foreground-500 border-b border-divider",
+            thead: "bg-gray-100/50 dark:bg-content2/50",
+            th: "text-[10px] font-semibold uppercase tracking-wider text-foreground-400 border-b border-divider",
             td: "py-3 border-b border-divider/50"
           }}
           removeWrapper
@@ -306,7 +306,7 @@ export function PersonalTaskList({ initialTasks }: PersonalTaskListProps) {
             emptyContent={isLoading ? " " : "No personal tasks found."}
           >
             {(item) => (
-              <TableRow key={item.id} className="hover:bg-content2/30 cursor-pointer" onClick={() => setSelectedTaskId(item.id)}>
+              <TableRow key={item.id} className="hover:bg-gray-100/30 dark:hover:bg-content2/30 cursor-pointer" onClick={() => setSelectedTaskId(item.id)}>
                 {(columnKey) => <TableCell>{renderCell(item, columnKey)}</TableCell>}
               </TableRow>
             )}

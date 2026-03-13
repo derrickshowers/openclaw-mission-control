@@ -14,6 +14,7 @@ import {
 } from "recharts";
 import { Zap, DollarSign, Users, TrendingUp, CircleHelp } from "lucide-react";
 import { formatLocalTime as formatLocalTimeShared } from "@/lib/dates";
+import { useTheme } from "next-themes";
 
 interface Summary {
   total_input_tokens: number;
@@ -73,7 +74,7 @@ interface LogRow {
   updated_at?: string | null;
 }
 
-// Muted dark-mode colors for each agent
+// Muted colors for each agent
 const AGENT_COLORS: Record<string, string> = {
   frank: "#6366f1",       // indigo
   tom: "#8b5cf6",         // violet
@@ -269,13 +270,13 @@ interface MetricCardProps {
 
 function MetricCard({ label, value, sub, icon }: MetricCardProps) {
   return (
-    <div className="rounded border border-[#333333] bg-[#111111] p-4">
+    <div className="rounded border border-divider bg-white dark:bg-[#111111] p-4">
       <div className="flex items-center justify-between mb-2">
-        <span className="text-xs uppercase text-[#888888] tracking-wider">{label}</span>
-        <span className="text-[#555555]">{icon}</span>
+        <span className="text-xs uppercase text-foreground-400 tracking-wider">{label}</span>
+        <span className="text-foreground-300">{icon}</span>
       </div>
-      <p className="text-2xl font-mono text-white">{value}</p>
-      {sub && <p className="text-xs text-[#555555] mt-1 font-mono">{sub}</p>}
+      <p className="text-2xl font-mono text-foreground dark:text-white">{value}</p>
+      {sub && <p className="text-xs text-foreground-300 mt-1 font-mono">{sub}</p>}
     </div>
   );
 }
@@ -292,13 +293,13 @@ function CustomTooltip({ active, payload, label, interval }: CustomTooltipProps)
   const displayLabel = formatTooltipLabel(label || "", interval || "day");
 
   return (
-    <div className="rounded border border-[#333333] bg-[#080808] p-2 text-xs font-mono">
-      <p className="text-[#888888] mb-1">{displayLabel}</p>
+    <div className="rounded border border-divider bg-white dark:bg-[#080808] p-2 text-xs font-mono">
+      <p className="text-foreground-400 mb-1">{displayLabel}</p>
       {payload.map((entry: any, i: number) => (
         <div key={i} className="flex items-center gap-2">
           <div className="h-2 w-2 rounded-full" style={{ backgroundColor: entry.color }} />
-          <span className="text-[#CCCCCC] capitalize">{entry.dataKey}</span>
-          <span className="text-white ml-auto">{formatTokens(entry.value)}</span>
+          <span className="text-foreground-500 dark:text-[#CCCCCC] capitalize">{entry.dataKey}</span>
+          <span className="text-foreground dark:text-white ml-auto">{formatTokens(entry.value)}</span>
         </div>
       ))}
     </div>
@@ -320,6 +321,7 @@ export function UsageDashboard() {
   const [recentLogs, setRecentLogs] = useState<LogRow[]>([]);
   const [loading, setLoading] = useState(true);
   const [lastUpdatedAt, setLastUpdatedAt] = useState<Date | null>(null);
+  const { theme } = useTheme();
 
   const resolvedRange = useMemo(() => resolveRange(period), [period]);
   // Auto-derived interval based on period
@@ -418,19 +420,24 @@ export function UsageDashboard() {
     new Set(breakdown.map((r) => r.agent))
   ).sort();
 
+  const chartColors = {
+    grid: theme === "light" ? "#e5e7eb" : "#333333",
+    text: theme === "light" ? "#9ca3af" : "#888888",
+  };
+
   return (
     <div className="mx-auto flex h-full max-w-[1200px] flex-col gap-4 overflow-y-auto">
       {/* Header */}
       <div className="flex items-center justify-between">
         <div className="flex items-center gap-2">
-          <TrendingUp size={16} strokeWidth={1.5} className="text-[#888888]" />
-          <span className="text-[11px] font-medium uppercase tracking-wider text-[#888888]">Model Usage</span>
+          <TrendingUp size={16} strokeWidth={1.5} className="text-foreground-400" />
+          <span className="text-[11px] font-medium uppercase tracking-wider text-foreground-400">Model Usage</span>
           <Tooltip
             content={
               <div className="max-w-xs text-xs leading-relaxed">
                 OpenClaw telemetry → usage-tracker hook → Mission Control usage_logs. Token totals include cached input; costs are estimated from non-cached input/output pricing.
                 {summary?.period_start_utc && summary?.period_end_utc ? (
-                  <div className="mt-1 text-[#bbbbbb]">
+                  <div className="mt-1 text-foreground-300">
                     Window: {new Date(summary.period_start_utc).toLocaleString()} – {new Date(summary.period_end_utc).toLocaleString()}
                   </div>
                 ) : null}
@@ -438,17 +445,17 @@ export function UsageDashboard() {
             }
             placement="right"
           >
-            <button className="text-[#666666] hover:text-[#bbbbbb]" aria-label="Model usage info">
+            <button className="text-foreground-300 hover:text-foreground-500" aria-label="Model usage info">
               <CircleHelp size={13} strokeWidth={1.75} />
             </button>
           </Tooltip>
           {summary?.unpriced_requests ? (
-            <span className="text-[10px] text-amber-300">
+            <span className="text-[10px] text-warning-500">
               {summary.unpriced_requests} unpriced
             </span>
           ) : null}
           {lastUpdatedAt ? (
-            <span className="text-[10px] text-[#555555]">Updated {lastUpdatedAt.toLocaleTimeString()}</span>
+            <span className="text-[10px] text-foreground-300">Updated {lastUpdatedAt.toLocaleTimeString()}</span>
           ) : null}
         </div>
         <Select
@@ -460,7 +467,7 @@ export function UsageDashboard() {
           variant="bordered"
           size="sm"
           className="max-w-[120px]"
-          classNames={{ trigger: "border-[#222222] bg-[#080808] h-8 min-h-8" }}
+          classNames={{ trigger: "border-divider bg-white dark:bg-[#080808] h-8 min-h-8" }}
         >
           {PERIOD_OPTIONS.map((p) => (
             <SelectItem key={p.value}>{p.label}</SelectItem>
@@ -473,7 +480,7 @@ export function UsageDashboard() {
       {loading && !summary ? (
         <div className="grid grid-cols-2 gap-3 lg:grid-cols-4">
           {[...Array(4)].map((_, i) => (
-            <div key={i} className="rounded border border-[#333333] bg-[#111111] p-4">
+            <div key={i} className="rounded border border-divider bg-white dark:bg-[#111111] p-4">
               <div className="skeleton h-3 w-20 mb-3" />
               <div className="skeleton h-7 w-24" />
             </div>
@@ -511,30 +518,30 @@ export function UsageDashboard() {
       ) : null}
 
       {/* Chart */}
-      <div className="rounded border border-[#222222] bg-[#0A0A0A] p-4">
-        <p className="text-xs text-[#888888] mb-3 uppercase tracking-wider">
+      <div className="rounded border border-divider bg-white dark:bg-[#0A0A0A] p-4">
+        <p className="text-xs text-foreground-400 mb-3 uppercase tracking-wider">
           Token Usage by Agent
-          <span className="text-[#555555]"> · {INTERVAL_LABELS[interval] || interval}</span>
+          <span className="text-foreground-300"> · {INTERVAL_LABELS[interval] || interval}</span>
         </p>
         {chartData.length === 0 ? (
           <div className="flex h-48 items-center justify-center">
-            <p className="text-xs text-[#555555]">
+            <p className="text-xs text-foreground-300">
               {loading ? "Loading..." : "No usage data yet. Data will accumulate as agents work."}
             </p>
           </div>
         ) : (
           <ResponsiveContainer width="100%" height={280}>
             <AreaChart data={chartData} margin={{ top: 5, right: 5, bottom: 5, left: 5 }}>
-              <CartesianGrid stroke="#333333" strokeDasharray="3 3" vertical={false} />
+              <CartesianGrid stroke={chartColors.grid} strokeDasharray="3 3" vertical={false} />
               <XAxis
                 dataKey="date"
-                tick={{ fill: "#888888", fontSize: 11, fontFamily: "monospace" }}
-                axisLine={{ stroke: "#333333" }}
+                tick={{ fill: chartColors.text, fontSize: 11, fontFamily: "monospace" }}
+                axisLine={{ stroke: chartColors.grid }}
                 tickLine={false}
                 tickFormatter={(v) => formatChartDate(v, interval)}
               />
               <YAxis
-                tick={{ fill: "#888888", fontSize: 11, fontFamily: "monospace" }}
+                tick={{ fill: chartColors.text, fontSize: 11, fontFamily: "monospace" }}
                 axisLine={false}
                 tickLine={false}
                 tickFormatter={formatTokens}
@@ -543,7 +550,7 @@ export function UsageDashboard() {
               <Legend
                 wrapperStyle={{ fontSize: "11px", fontFamily: "monospace" }}
                 formatter={(value: string) => (
-                  <span className="capitalize text-[#888888]">{value}</span>
+                  <span className="capitalize text-foreground-400">{value}</span>
                 )}
               />
               {agents.map((agent) => (
@@ -564,19 +571,19 @@ export function UsageDashboard() {
       </div>
 
       {/* Breakdown Table */}
-      <div className="rounded border border-[#222222] bg-[#0A0A0A]">
-        <div className="border-b border-[#222222] px-4 py-2.5">
-          <p className="text-xs text-[#888888] uppercase tracking-wider">Usage Breakdown</p>
+      <div className="rounded border border-divider bg-white dark:bg-[#0A0A0A]">
+        <div className="border-b border-divider px-4 py-2.5">
+          <p className="text-xs text-foreground-400 uppercase tracking-wider">Usage Breakdown</p>
         </div>
         {breakdown.length === 0 ? (
           <div className="flex h-24 items-center justify-center">
-            <p className="text-xs text-[#555555]">No usage data yet</p>
+            <p className="text-xs text-foreground-300">No usage data yet</p>
           </div>
         ) : (
           <div className="overflow-x-auto">
             <table className="w-full text-sm">
               <thead>
-                <tr className="border-b border-[#222222] text-left text-xs text-[#888888]">
+                <tr className="border-b border-divider text-left text-xs text-foreground-400">
                   <th className="px-4 py-2 font-medium">Agent</th>
                   <th className="px-4 py-2 font-medium">Model</th>
                   <th className="px-4 py-2 font-medium text-right">Input</th>
@@ -586,35 +593,35 @@ export function UsageDashboard() {
                   <th className="px-4 py-2 font-medium text-right">Est. Cost</th>
                 </tr>
               </thead>
-              <tbody className="divide-y divide-[#1A1A1A]">
+              <tbody className="divide-y divide-divider dark:divide-[#1A1A1A]">
                 {breakdown.map((row) => {
                   return (
-                    <tr key={`${row.agent}-${row.model}`} className="hover:bg-[#111111] transition-colors">
+                    <tr key={`${row.agent}-${row.model}`} className="hover:bg-gray-50 dark:hover:bg-[#111111] transition-colors">
                       <td className="px-4 py-2">
                         <div className="flex items-center gap-2">
                           <div
                             className="h-2 w-2 rounded-full"
                             style={{ backgroundColor: AGENT_COLORS[row.agent] || "#888888" }}
                           />
-                          <span className="capitalize text-white">{row.agent}</span>
+                          <span className="capitalize text-foreground dark:text-white">{row.agent}</span>
                         </div>
                       </td>
-                      <td className="px-4 py-2 font-mono text-xs text-[#CCCCCC]">{row.model}</td>
-                      <td className="px-4 py-2 text-right font-mono text-xs text-[#CCCCCC]">
+                      <td className="px-4 py-2 font-mono text-xs text-foreground-500 dark:text-[#CCCCCC]">{row.model}</td>
+                      <td className="px-4 py-2 text-right font-mono text-xs text-foreground-500 dark:text-[#CCCCCC]">
                         {formatTokens(row.input_tokens)}
                       </td>
-                      <td className="px-4 py-2 text-right font-mono text-xs text-[#888888]">
+                      <td className="px-4 py-2 text-right font-mono text-xs text-foreground-400">
                         {formatTokens(row.cached_input_tokens || 0)}
                       </td>
-                      <td className="px-4 py-2 text-right font-mono text-xs text-[#CCCCCC]">
+                      <td className="px-4 py-2 text-right font-mono text-xs text-foreground-500 dark:text-[#CCCCCC]">
                         {formatTokens(row.output_tokens)}
                       </td>
-                      <td className="px-4 py-2 text-right font-mono text-xs text-[#CCCCCC]">
+                      <td className="px-4 py-2 text-right font-mono text-xs text-foreground-500 dark:text-[#CCCCCC]">
                         {row.requests}
                       </td>
-                      <td className="px-4 py-2 text-right font-mono text-xs text-white">
+                      <td className="px-4 py-2 text-right font-mono text-xs text-foreground dark:text-white">
                         {row.cost_source === "unpriced" ? (
-                          <span className="text-amber-300">unpriced</span>
+                          <span className="text-warning-500">unpriced</span>
                         ) : (
                           formatCost(row.cost_usd)
                         )}
@@ -629,9 +636,9 @@ export function UsageDashboard() {
       </div>
 
       {/* Recent Sessions Table */}
-      <div className="rounded border border-[#222222] bg-[#0A0A0A]">
-        <div className="border-b border-[#222222] px-4 py-2.5 flex items-center gap-2">
-          <p className="text-xs text-[#888888] uppercase tracking-wider">Recent Sessions</p>
+      <div className="rounded border border-divider bg-white dark:bg-[#0A0A0A]">
+        <div className="border-b border-divider px-4 py-2.5 flex items-center gap-2">
+          <p className="text-xs text-foreground-400 uppercase tracking-wider">Recent Sessions</p>
           <Tooltip
             content={
               <div className="max-w-xs text-xs leading-relaxed">
@@ -643,20 +650,20 @@ export function UsageDashboard() {
             }
             placement="right"
           >
-            <button className="text-[#666666] hover:text-[#bbbbbb]" aria-label="Session status help">
+            <button className="text-foreground-300 hover:text-foreground-500" aria-label="Session status help">
               <CircleHelp size={13} strokeWidth={1.75} />
             </button>
           </Tooltip>
         </div>
         {recentLogs.length === 0 ? (
           <div className="flex h-16 items-center justify-center">
-            <p className="text-xs text-[#555555]">No recent sessions</p>
+            <p className="text-xs text-foreground-300">No recent sessions</p>
           </div>
         ) : (
           <div className="overflow-x-auto">
             <table className="w-full">
               <thead>
-                <tr className="border-b border-[#222222] text-left text-[10px] text-[#666666] uppercase tracking-wider">
+                <tr className="border-b border-divider text-left text-[10px] text-foreground-300 uppercase tracking-wider">
                   <th className="px-4 py-1.5 font-medium">Time</th>
                   <th className="px-4 py-1.5 font-medium">Agent</th>
                   <th className="px-4 py-1.5 font-medium">Session</th>
@@ -671,7 +678,7 @@ export function UsageDashboard() {
                   <th className="px-4 py-1.5 font-medium text-right">Cost</th>
                 </tr>
               </thead>
-              <tbody className="divide-y divide-[#161616]">
+              <tbody className="divide-y divide-divider dark:divide-[#161616]">
                 {recentLogs.map((row) => {
                   const sessionLabel = row.display_name || row.label || row.session_key || row.session_id || "-";
                   const rawStatus = String(row.status || "unknown").toLowerCase();
@@ -685,16 +692,16 @@ export function UsageDashboard() {
                           ? "Expired"
                           : rawStatus.replace(/[_-]+/g, " ");
                   const statusTone = rawStatus.startsWith("active")
-                    ? "border border-green-500/25 bg-green-500/10 text-green-300"
+                    ? "border border-success-200 dark:border-green-500/25 bg-success-50 dark:bg-green-500/10 text-success-700 dark:text-green-300"
                     : rawStatus === "deleted" || rawStatus === "reset"
-                      ? "border border-amber-500/25 bg-amber-500/10 text-amber-300"
+                      ? "border border-warning-200 dark:border-amber-500/25 bg-warning-50 dark:bg-amber-500/10 text-warning-700 dark:text-amber-300"
                       : rawStatus === "expired"
-                        ? "border border-[#3a3a3a] bg-[#222222] text-[#999999]"
-                        : "border border-[#3a3a3a] bg-[#1f1f1f] text-[#b0b0b0]";
+                        ? "border border-divider dark:border-[#3a3a3a] bg-gray-100 dark:bg-[#222222] text-foreground-400 dark:text-[#999999]"
+                        : "border border-divider dark:border-[#3a3a3a] bg-gray-50 dark:bg-[#1f1f1f] text-foreground-500 dark:text-[#b0b0b0]";
 
                   return (
-                    <tr key={row.id} className="hover:bg-[#0D0D0D] transition-colors">
-                      <td className="px-4 py-1 text-xs font-mono text-[#666666]">
+                    <tr key={row.id} className="hover:bg-gray-50 dark:hover:bg-[#0D0D0D] transition-colors">
+                      <td className="px-4 py-1 text-xs font-mono text-foreground-300">
                         {row.created_at ? formatLocalTime(row.created_at) : "-"}
                       </td>
                       <td className="px-4 py-1">
@@ -703,26 +710,26 @@ export function UsageDashboard() {
                             className="h-1.5 w-1.5 rounded-full"
                             style={{ backgroundColor: AGENT_COLORS[row.agent] || "#888888" }}
                           />
-                          <span className="text-xs text-[#CCCCCC] capitalize">{row.agent || "-"}</span>
+                          <span className="text-xs text-foreground-500 dark:text-[#CCCCCC] capitalize">{row.agent || "-"}</span>
                         </div>
                       </td>
-                      <td className="max-w-[280px] px-4 py-1 text-xs font-mono text-[#777777]" title={sessionLabel}>
+                      <td className="max-w-[280px] px-4 py-1 text-xs font-mono text-foreground-400" title={sessionLabel}>
                         <span className="block truncate">{sessionLabel}</span>
                       </td>
-                      <td className="px-4 py-1 text-xs text-[#BBBBBB]">{row.source || row.session_type || "-"}</td>
+                      <td className="px-4 py-1 text-xs text-foreground-500 dark:text-[#BBBBBB]">{row.source || row.session_type || "-"}</td>
                       <td className="px-4 py-1 text-xs">
                         <span className={`inline-flex items-center whitespace-nowrap rounded-md px-1.5 py-0.5 text-[10px] font-medium ${statusTone}`}>
                           {statusLabel}
                         </span>
                       </td>
-                      <td className="px-4 py-1 text-xs font-mono text-[#888888]">{row.model || "-"}</td>
-                      <td className="px-4 py-1 text-right text-xs font-mono text-[#CCCCCC]">
+                      <td className="px-4 py-1 text-xs font-mono text-foreground-400">{row.model || "-"}</td>
+                      <td className="px-4 py-1 text-right text-xs font-mono text-foreground-500 dark:text-[#CCCCCC]">
                         {row.llm_calls != null ? formatTokens(row.llm_calls) : "-"}
                       </td>
                       <td className="px-4 py-1 text-right text-xs">
                         {row.fullness_pct != null && row.total_tokens != null && row.context_tokens ? (
                           <div className="inline-flex items-center justify-end gap-2" title={`${formatTokens(row.total_tokens)} / ${formatTokens(row.context_tokens)} (${row.fullness_pct.toFixed(1)}%)`}>
-                            <div className="h-1 w-14 overflow-hidden rounded-full bg-[#222222]">
+                            <div className="h-1 w-14 overflow-hidden rounded-full bg-gray-200 dark:bg-[#222222]">
                               <div
                                 className="h-full rounded-full"
                                 style={{
@@ -731,26 +738,26 @@ export function UsageDashboard() {
                                 }}
                               />
                             </div>
-                            <span className="w-10 text-right font-mono text-[#CCCCCC]">{Math.round(row.fullness_pct)}%</span>
+                            <span className="w-10 text-right font-mono text-foreground-500 dark:text-[#CCCCCC]">{Math.round(row.fullness_pct)}%</span>
                           </div>
                         ) : (
-                          <span className="font-mono text-[#555555]">—</span>
+                          <span className="font-mono text-foreground-300">—</span>
                         )}
                       </td>
-                      <td className="px-4 py-1 text-right text-xs font-mono text-[#CCCCCC]">
+                      <td className="px-4 py-1 text-right text-xs font-mono text-foreground-500 dark:text-[#CCCCCC]">
                         {row.input_tokens ? formatTokens(row.input_tokens) : "-"}
                       </td>
-                      <td className="px-4 py-1 text-right text-xs font-mono text-[#777777]">
+                      <td className="px-4 py-1 text-right text-xs font-mono text-foreground-400">
                         {row.cached_input_tokens ? formatTokens(row.cached_input_tokens) : "-"}
                       </td>
-                      <td className="px-4 py-1 text-right text-xs font-mono text-[#888888]">
+                      <td className="px-4 py-1 text-right text-xs font-mono text-foreground-400">
                         {row.output_tokens ? formatTokens(row.output_tokens) : "-"}
                       </td>
-                      <td className="px-4 py-1 text-right text-xs font-mono text-[#888888]">
+                      <td className="px-4 py-1 text-right text-xs font-mono text-foreground-400">
                         {row.cost_source === "none" ? (
-                          <span className="text-[#555555]">-</span>
+                          <span className="text-foreground-300">-</span>
                         ) : row.cost_source === "unpriced" ? (
-                          <span className="text-amber-300">unpriced</span>
+                          <span className="text-warning-500">unpriced</span>
                         ) : (
                           formatCost(row.cost_usd || 0)
                         )}
@@ -766,3 +773,4 @@ export function UsageDashboard() {
     </div>
   );
 }
+

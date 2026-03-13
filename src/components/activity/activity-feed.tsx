@@ -98,8 +98,8 @@ export function ActivityFeed() {
       {/* Header */}
       <div className="mb-3 flex items-center justify-between">
         <div className="flex items-center gap-3">
-          <div className={`h-2 w-2 rounded-full ${connected ? "bg-green-500" : "bg-[#555555]"}`} />
-          <span className="text-xs text-[#888888]">
+          <div className={`h-2 w-2 rounded-full ${connected ? "bg-success" : "bg-foreground-300"}`} />
+          <span className="text-xs text-foreground-400">
             {connected ? "Live" : "Offline"} · {filteredActivities.length} events
           </span>
         </div>
@@ -107,7 +107,7 @@ export function ActivityFeed() {
           <Button
             size="sm"
             variant={agentFilter === null ? "flat" : "light"}
-            className={`text-xs h-6 min-w-0 px-2 ${agentFilter === null ? "bg-[#1A1A1A]" : ""}`}
+            className={`text-xs h-6 min-w-0 px-2 ${agentFilter === null ? "bg-gray-100 dark:bg-[#1A1A1A]" : ""}`}
             onPress={() => setAgentFilter(null)}
           >
             All
@@ -117,7 +117,7 @@ export function ActivityFeed() {
               key={agent}
               size="sm"
               variant={agentFilter === agent ? "flat" : "light"}
-              className={`text-xs h-6 min-w-0 px-2 capitalize ${agentFilter === agent ? "bg-[#1A1A1A]" : ""}`}
+              className={`text-xs h-6 min-w-0 px-2 capitalize ${agentFilter === agent ? "bg-gray-100 dark:bg-[#1A1A1A]" : ""}`}
               onPress={() => setAgentFilter(agentFilter === agent ? null : agent)}
             >
               {agent}
@@ -130,20 +130,20 @@ export function ActivityFeed() {
       <div
         ref={feedRef}
         onScroll={handleScroll}
-        className="flex-1 overflow-y-auto rounded border border-[#222222] bg-[#0A0A0A] font-mono text-xs"
+        className="flex-1 overflow-y-auto rounded border border-divider bg-white dark:bg-[#0A0A0A] font-mono text-xs"
       >
         {filteredActivities.length === 0 ? (
           <div className="flex h-full items-center justify-center">
-            <p className="text-[#555555]">No activity yet</p>
+            <p className="text-foreground-300">No activity yet</p>
           </div>
         ) : (
-          <div className="divide-y divide-[#1A1A1A]">
+          <div className="divide-y divide-divider dark:divide-[#1A1A1A]">
             {filteredActivities.map((entry, i) => (
               <div
                 key={entry.id || i}
-                className="flex items-start gap-3 px-3 py-2 hover:bg-[#121212]"
+                className="flex items-start gap-3 px-3 py-2 hover:bg-gray-50 dark:hover:bg-[#121212] transition-colors"
               >
-                <span className="flex-shrink-0 text-[#555555] w-[140px]">
+                <span className="flex-shrink-0 text-foreground-300 w-[140px]">
                   {formatLocalTimeUtil(entry.created_at)}
                 </span>
                 <Chip
@@ -155,11 +155,11 @@ export function ActivityFeed() {
                   {entry.event_type}
                 </Chip>
                 {entry.agent && (
-                  <span className="flex-shrink-0 text-[#888888] capitalize w-16">
+                  <span className="flex-shrink-0 text-foreground-400 capitalize w-16">
                     {entry.agent}
                   </span>
                 )}
-                <span className="flex-1 truncate text-[#CCCCCC]">
+                <span className="flex-1 truncate text-foreground-500 dark:text-[#CCCCCC]">
                   {formatPayload(entry.payload)}
                 </span>
               </div>
@@ -177,7 +177,7 @@ export function ActivityFeed() {
               feedRef.current.scrollTop = feedRef.current.scrollHeight;
             }
           }}
-          className="mt-2 self-center rounded border border-[#222222] bg-[#121212] px-3 py-1 text-xs text-[#888888] hover:text-white"
+          className="mt-2 self-center rounded border border-divider bg-white dark:bg-[#121212] px-3 py-1 text-xs text-foreground-400 hover:text-foreground transition-colors shadow-sm"
         >
           ↓ Scroll to latest
         </button>

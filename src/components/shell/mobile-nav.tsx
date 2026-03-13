@@ -47,25 +47,25 @@ export function MobileNav() {
       {menuOpen && (
         <>
           <div
-            className="fixed inset-0 z-40 bg-black/50"
+            className="fixed inset-0 z-40 bg-black/20 dark:bg-black/60"
             onClick={() => setMenuOpen(false)}
           />
-          <div className="fixed inset-x-0 bottom-0 z-50 rounded-t-lg border-t border-[#333333] bg-[#121212] pb-safe">
+          <div className="fixed inset-x-0 bottom-0 z-50 rounded-t-lg border-t border-divider bg-white dark:bg-[#121212] pb-safe shadow-2xl">
             {/* Handle */}
             <div className="flex justify-center py-2">
-              <div className="h-1 w-8 rounded-full bg-[#333333]" />
+              <div className="h-1 w-8 rounded-full bg-foreground-200 dark:bg-[#333333]" />
             </div>
 
             {/* Header */}
             <div className="flex items-center justify-between px-4 pb-2">
-              <span className="text-xs font-medium text-[#888888] uppercase tracking-wider">
+              <span className="text-xs font-medium text-foreground-400 uppercase tracking-wider">
                 More
               </span>
               <div className="flex items-center gap-2">
                 <ThemeToggle />
                 <button
                   onClick={() => setMenuOpen(false)}
-                  className="text-[#888888] hover:text-white p-1"
+                  className="text-foreground-400 hover:text-foreground p-1"
                 >
                   <X size={16} strokeWidth={1.5} />
                 </button>
@@ -87,8 +87,8 @@ export function MobileNav() {
                     onClick={() => setMenuOpen(false)}
                     className={`flex items-center gap-3 rounded-lg px-4 py-3 text-sm transition-colors ${
                       isActive
-                        ? "bg-[#1A1A1A] text-white"
-                        : "text-[#CCCCCC] hover:bg-[#1A1A1A]"
+                        ? "bg-gray-100 dark:bg-[#1A1A1A] text-foreground dark:text-white"
+                        : "text-foreground-600 dark:text-[#CCCCCC] hover:bg-gray-100 dark:hover:bg-[#1A1A1A]"
                     }`}
                   >
                     <Icon size={18} strokeWidth={1.5} className="flex-shrink-0" />
@@ -102,7 +102,7 @@ export function MobileNav() {
       )}
 
       {/* Bottom Nav Bar */}
-      <nav className="fixed inset-x-0 bottom-0 z-30 border-t border-[#222222] bg-[#080808] pb-safe">
+      <nav className="fixed inset-x-0 bottom-0 z-30 border-t border-divider bg-white dark:bg-[#080808] pb-safe shadow-[0_-1px_10px_rgba(0,0,0,0.05)] dark:shadow-none">
         <div className="flex items-center justify-around py-2">
           {primaryItems.map(({ href, label, Icon }) => {
             const isActive =
@@ -115,7 +115,7 @@ export function MobileNav() {
                 key={href}
                 href={href}
                 className={`flex flex-col items-center gap-0.5 px-3 py-1 text-[10px] ${
-                  isActive ? "text-white" : "text-[#888888]"
+                  isActive ? "text-foreground dark:text-white" : "text-foreground-400"
                 }`}
               >
                 <Icon size={20} strokeWidth={1.5} />
@@ -128,7 +128,7 @@ export function MobileNav() {
           <button
             onClick={() => setMenuOpen(true)}
             className={`flex flex-col items-center gap-0.5 px-3 py-1 text-[10px] ${
-              isMoreActive || menuOpen ? "text-white" : "text-[#888888]"
+              isMoreActive || menuOpen ? "text-foreground dark:text-white" : "text-foreground-400"
             }`}
           >
             <Menu size={20} strokeWidth={1.5} />

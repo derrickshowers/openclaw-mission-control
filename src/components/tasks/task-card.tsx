@@ -27,22 +27,22 @@ export function TaskCard({ task, onClick }: TaskCardProps) {
   return (
     <button
       onClick={onClick}
-      className="w-full rounded border border-[#222222] bg-[#121212] p-3 text-left transition-colors hover:bg-[#1A1A1A]"
+      className="w-full rounded border border-divider bg-white dark:bg-[#121212] p-3 text-left transition-colors hover:bg-gray-50 dark:hover:bg-[#1A1A1A]"
     >
-      <p className="text-sm leading-snug">{task.title}</p>
+      <p className="text-sm leading-snug text-foreground">{task.title}</p>
       <div className="mt-1.5 flex flex-wrap items-center gap-1.5">
         {task.project && (
           <Chip
             size="sm"
             variant="flat"
-            className="h-5 border border-[#222222] bg-[#1A1A1A] text-[10px] text-[#CCCCCC]"
+            className="h-5 border border-divider bg-gray-100 dark:bg-[#1A1A1A] text-[10px] text-foreground-500"
             startContent={<Folder size={10} strokeWidth={1.5} className="mr-0.5" />}
           >
             {task.project.name}
           </Chip>
         )}
         {task.assignee && (
-          <span className="text-xs text-[#888888] capitalize flex items-center gap-1.5">
+          <span className="text-xs text-foreground-400 capitalize flex items-center gap-1.5">
             {assigneeAvatar ? (
               <img src={assigneeAvatar} alt={task.assignee} className="h-4 w-4 rounded-full object-cover" />
             ) : null}
@@ -54,7 +54,7 @@ export function TaskCard({ task, onClick }: TaskCardProps) {
             {priority.label}
           </Chip>
         )}
-        <span className="ml-auto text-[10px] text-[#555555]">
+        <span className="ml-auto text-[10px] text-foreground-300">
           {timeAgo(task.updated_at || task.created_at)}
         </span>
       </div>

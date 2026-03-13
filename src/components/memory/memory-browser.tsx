@@ -206,9 +206,9 @@ export function MemoryBrowser() {
   return (
     <>
       <div className="mx-auto flex h-full max-w-[1200px] gap-4">
-      <div className="w-64 flex-shrink-0 overflow-y-auto rounded border border-[#222222] bg-[#0A0A0A]">
-        <div className="border-b border-[#222222] p-2">
-          <label className="mb-1 block text-[10px] uppercase tracking-wide text-[#777777]">Source</label>
+      <div className="w-64 flex-shrink-0 overflow-y-auto rounded border border-divider bg-white dark:bg-[#0A0A0A]">
+        <div className="border-b border-divider p-2">
+          <label className="mb-1 block text-[10px] uppercase tracking-wide text-foreground-400">Source</label>
           <Select
             size="sm"
             selectedKeys={[selectedAgent]}
@@ -227,8 +227,8 @@ export function MemoryBrowser() {
             }}
             variant="bordered"
             classNames={{
-              trigger: "border-[#222222] bg-[#080808] min-h-8 h-8",
-              value: "text-xs text-[#CCCCCC]",
+              trigger: "border-divider bg-white dark:bg-[#080808] min-h-8 h-8",
+              value: "text-xs text-foreground-600 dark:text-[#CCCCCC]",
             }}
             aria-label="Select source"
           >
@@ -240,7 +240,7 @@ export function MemoryBrowser() {
           </Select>
         </div>
 
-        <div className="border-b border-[#222222] p-2">
+        <div className="border-b border-divider p-2">
           <Input
             size="sm"
             placeholder="Search..."
@@ -248,11 +248,11 @@ export function MemoryBrowser() {
             onValueChange={setSearchQuery}
             onKeyDown={(e) => e.key === "Enter" && search()}
             variant="bordered"
-            classNames={{ inputWrapper: "border-[#222222] bg-[#080808] h-7 min-h-7" }}
-            startContent={<Search size={12} strokeWidth={1.5} className="text-[#888888]" />}
+            classNames={{ inputWrapper: "border-divider bg-white dark:bg-[#080808] h-7 min-h-7" }}
+            startContent={<Search size={12} strokeWidth={1.5} className="text-foreground-400" />}
             endContent={
               searchQuery ? (
-                <button onClick={clearSearch} className="text-[#888888] hover:text-white">
+                <button onClick={clearSearch} className="text-foreground-400 hover:text-foreground">
                   <X size={12} strokeWidth={1.5} />
                 </button>
               ) : null
@@ -261,13 +261,13 @@ export function MemoryBrowser() {
         </div>
 
         {currentDir && (
-          <div className="border-b border-[#222222] px-3 py-1.5">
+          <div className="border-b border-divider px-3 py-1.5">
             <button
               onClick={() => {
                 const parent = currentDir.split("/").slice(0, -1).join("/");
                 setCurrentDir(parent);
               }}
-              className="flex items-center gap-1 text-xs text-[#888888] hover:text-white"
+              className="flex items-center gap-1 text-xs text-foreground-400 hover:text-foreground"
             >
               <ArrowLeft size={12} strokeWidth={1.5} /> {currentDir || "root"}
             </button>
@@ -287,8 +287,8 @@ export function MemoryBrowser() {
                   }
                 });
               }}
-              className={`flex w-full items-center gap-2 rounded px-2 py-1.5 text-left text-xs transition-colors hover:bg-[#1A1A1A] ${
-                currentFile === file.path ? "bg-[#1A1A1A] text-white" : "text-[#CCCCCC]"
+              className={`flex w-full items-center gap-2 rounded px-2 py-1.5 text-left text-xs transition-colors hover:bg-gray-100 dark:hover:bg-[#1A1A1A] ${
+                currentFile === file.path ? "bg-gray-100 dark:bg-[#1A1A1A] text-foreground dark:text-white" : "text-foreground-600 dark:text-[#CCCCCC]"
               }`}
             >
               <span className="text-muted-foreground">
@@ -298,12 +298,12 @@ export function MemoryBrowser() {
             </button>
           ))}
           {files.length === 0 && !loading && (
-            <p className="py-4 text-center text-xs text-[#555555]">Empty</p>
+            <p className="py-4 text-center text-xs text-foreground-300">Empty</p>
           )}
         </div>
       </div>
 
-      <div className="flex-1 overflow-y-auto rounded border border-[#222222] bg-[#0A0A0A] p-4">
+      <div className="flex-1 overflow-y-auto rounded border border-divider bg-white dark:bg-[#0A0A0A] p-4">
         {loading ? (
           <div className="space-y-2">
             <div className="skeleton h-4 w-3/4" />
@@ -313,10 +313,10 @@ export function MemoryBrowser() {
         ) : searchResults ? (
           <div className="space-y-3">
             <div className="flex items-center justify-between">
-              <p className="text-xs text-[#888888]">
+              <p className="text-xs text-foreground-400">
                 {searchResults.length} result{searchResults.length !== 1 ? "s" : ""} for &quot;{searchQuery}&quot;
               </p>
-              <button onClick={clearSearch} className="text-xs text-[#888888] hover:text-white">
+              <button onClick={clearSearch} className="text-xs text-foreground-400 hover:text-foreground">
                 Clear search
               </button>
             </div>
@@ -329,12 +329,12 @@ export function MemoryBrowser() {
                     loadFile(result.agent, result.path);
                   });
                 }}
-                className="block w-full rounded border border-[#222222] bg-[#121212] p-3 text-left hover:bg-[#1A1A1A]"
+                className="block w-full rounded border border-divider bg-gray-50 dark:bg-[#121212] p-3 text-left hover:bg-gray-100 dark:hover:bg-[#1A1A1A] transition-colors"
               >
-                <p className="text-xs font-mono text-[#888888]">
+                <p className="text-xs font-mono text-foreground-400">
                   {result.agent}/{result.path}
                 </p>
-                <p className="mt-1 text-sm text-[#CCCCCC]">
+                <p className="mt-1 text-sm text-foreground-600 dark:text-[#CCCCCC]">
                   ...{result.snippet}...
                 </p>
               </button>
@@ -343,8 +343,8 @@ export function MemoryBrowser() {
         ) : fileContent !== null ? (
           <div className="px-8 py-12">
             <div className="mx-auto max-w-3xl">
-              <div className="mb-6 flex items-center justify-between border-b border-[#222222] pb-3">
-                <span className="text-xs font-mono text-[#888888]">{selectedAgent}/{currentFile}</span>
+              <div className="mb-6 flex items-center justify-between border-b border-divider pb-3">
+                <span className="text-xs font-mono text-foreground-400">{selectedAgent}/{currentFile}</span>
                 <div className="flex items-center gap-2">
                   {editing ? (
                     <>
@@ -352,7 +352,7 @@ export function MemoryBrowser() {
                         size="sm"
                         variant="light"
                         onPress={cancelEdit}
-                        className="h-7 text-xs text-[#888888] hover:text-white"
+                        className="h-7 text-xs text-foreground-400 hover:text-foreground"
                       >
                         Cancel
                       </Button>
@@ -375,7 +375,7 @@ export function MemoryBrowser() {
                           variant="bordered"
                           onPress={enterEditMode}
                           startContent={<Pencil size={12} strokeWidth={1.5} />}
-                          className="h-7 text-xs border-[#222222] text-[#888888] hover:text-white"
+                          className="h-7 text-xs border-divider text-foreground-400 hover:text-foreground"
                         >
                           Edit
                         </Button>
@@ -383,7 +383,7 @@ export function MemoryBrowser() {
                       <Button
                         size="sm"
                         variant="flat"
-                        className="h-7 text-xs border border-[#222222] bg-[#080808]"
+                        className="h-7 text-xs border border-divider bg-gray-50 dark:bg-[#080808]"
                         onPress={() => {
                           withDiscardGuard(() => {
                             setFileContent(null);
@@ -408,11 +408,11 @@ export function MemoryBrowser() {
                     setEditContent(e.target.value);
                     setDirty(true);
                   }}
-                  className="w-full min-h-[60vh] resize-y rounded-md border border-[#222222] bg-[#080808] p-4 font-mono text-sm text-[#CCCCCC] leading-relaxed outline-none focus:border-[#333333] transition-colors"
+                  className="w-full min-h-[60vh] resize-y rounded-md border border-divider bg-gray-50 dark:bg-[#080808] p-4 font-mono text-sm text-foreground dark:text-[#CCCCCC] leading-relaxed outline-none focus:border-foreground-300 transition-colors"
                   spellCheck={false}
                 />
               ) : (
-                <article className="markdown-prose prose prose-invert prose-sm max-w-none prose-p:text-[#D4D4D8] prose-p:text-[13px] prose-p:leading-[1.6] prose-p:mb-4 prose-headings:text-white prose-h1:text-xl prose-h1:font-semibold prose-h1:mt-8 prose-h1:mb-4 prose-h2:text-base prose-h2:font-semibold prose-h2:mt-6 prose-h2:mb-3 prose-h3:text-xs prose-h3:font-bold prose-h3:mt-4 prose-h3:mb-2 prose-strong:text-white prose-a:text-[#8b5cf6] prose-a:no-underline hover:prose-a:underline prose-code:text-[#CCCCCC] prose-code:bg-[#1a1a1a] prose-code:border prose-code:border-[#333333] prose-code:px-1 prose-code:py-0.5 prose-code:rounded-sm prose-code:text-xs prose-code:font-mono prose-pre:bg-[#111111] prose-pre:border prose-pre:border-[#333333] prose-pre:rounded-md prose-pre:p-4 prose-pre:text-xs prose-pre:my-4 prose-ul:my-4 prose-ul:ml-0 prose-ul:pl-5 prose-ul:list-disc prose-ul:space-y-1.5 prose-ol:my-4 prose-ol:ml-0 prose-ol:pl-5 prose-ol:list-decimal prose-ol:space-y-1.5 prose-li:text-[#D4D4D8] prose-li:leading-[1.6] prose-li:my-1 prose-li:pl-1 prose-table:border-collapse prose-table:my-6 prose-table:w-full prose-th:border prose-th:border-[#333333] prose-th:bg-[#111111] prose-th:px-3 prose-th:py-1.5 prose-th:text-left prose-th:text-xs prose-th:font-medium prose-td:border prose-td:border-[#333333] prose-td:px-3 prose-td:py-1.5 prose-td:text-xs prose-blockquote:my-4 prose-blockquote:pl-4 prose-blockquote:py-1 prose-blockquote:border-l-2 prose-blockquote:border-[#555555] prose-blockquote:text-[#888888] prose-blockquote:italic prose-hr:my-8 prose-hr:border-0 prose-hr:border-t prose-hr:border-[#222222]">
+                <article className="markdown-prose prose prose-sm max-w-none dark:prose-invert prose-p:text-foreground-600 dark:prose-p:text-[#D4D4D8] prose-p:text-[13px] prose-p:leading-[1.6] prose-p:mb-4 prose-headings:text-foreground dark:prose-headings:text-white prose-h1:text-xl prose-h1:font-semibold prose-h1:mt-8 prose-h1:mb-4 prose-h2:text-base prose-h2:font-semibold prose-h2:mt-6 prose-h2:mb-3 prose-h3:text-xs prose-h3:font-bold prose-h3:mt-4 prose-h3:mb-2 prose-strong:text-foreground dark:prose-strong:text-white prose-a:text-primary dark:prose-a:text-[#8b5cf6] prose-a:no-underline hover:prose-a:underline prose-code:text-foreground-700 dark:prose-code:text-[#CCCCCC] prose-code:bg-gray-100 dark:prose-code:bg-[#1a1a1a] prose-code:border prose-code:border-divider dark:prose-code:border-[#333333] prose-code:px-1 prose-code:py-0.5 prose-code:rounded-sm prose-code:text-xs prose-code:font-mono prose-pre:bg-gray-50 dark:prose-pre:bg-[#111111] prose-pre:border prose-pre:border-divider dark:prose-pre:border-[#333333] prose-pre:rounded-md prose-pre:p-4 prose-pre:text-xs prose-pre:my-4 prose-ul:my-4 prose-ul:ml-0 prose-ul:pl-5 prose-ul:list-disc prose-ul:space-y-1.5 prose-ol:my-4 prose-ol:ml-0 prose-ol:pl-5 prose-ol:list-decimal prose-ol:space-y-1.5 prose-li:text-foreground-600 dark:prose-li:text-[#D4D4D8] prose-li:leading-[1.6] prose-li:my-1 prose-li:pl-1 prose-table:border-collapse prose-table:my-6 prose-table:w-full prose-th:border prose-th:border-divider dark:prose-th:border-[#333333] prose-th:bg-gray-100 dark:prose-th:bg-[#111111] prose-th:px-3 prose-th:py-1.5 prose-th:text-left prose-th:text-xs prose-th:font-medium prose-td:border prose-td:border-divider dark:prose-td:border-[#333333] prose-td:px-3 prose-td:py-1.5 prose-td:text-xs prose-blockquote:my-4 prose-blockquote:pl-4 prose-blockquote:py-1 prose-blockquote:border-l-2 prose-blockquote:border-divider dark:prose-blockquote:border-[#555555] prose-blockquote:text-foreground-400 dark:prose-blockquote:text-[#888888] prose-blockquote:italic prose-hr:my-8 prose-hr:border-0 prose-hr:border-t prose-hr:border-divider">
                   <ReactMarkdown remarkPlugins={[remarkGfm]}>{fileContent}</ReactMarkdown>
                 </article>
               )}
@@ -420,7 +420,7 @@ export function MemoryBrowser() {
           </div>
         ) : (
           <div className="flex h-full items-center justify-center">
-            <p className="text-sm text-[#555555]">
+            <p className="text-sm text-foreground-300">
               Select a file to view
             </p>
           </div>
@@ -431,14 +431,14 @@ export function MemoryBrowser() {
       <Modal
         isOpen={!!confirmModal}
         onClose={() => setConfirmModal(null)}
-        className="dark bg-[#121212] text-white"
+        className="bg-white dark:bg-[#121212] text-foreground dark:text-white"
       >
         <ModalContent>
-          <ModalHeader className="border-b border-[#222222] text-sm">{confirmModal?.title}</ModalHeader>
+          <ModalHeader className="border-b border-divider text-sm">{confirmModal?.title}</ModalHeader>
           <ModalBody className="py-4">
-            <p className="text-sm text-[#CCCCCC]">{confirmModal?.message}</p>
+            <p className="text-sm text-foreground-600 dark:text-[#CCCCCC]">{confirmModal?.message}</p>
           </ModalBody>
-          <ModalFooter className="border-t border-[#222222]">
+          <ModalFooter className="border-t border-divider">
             <Button size="sm" variant="flat" onPress={() => setConfirmModal(null)}>
               Cancel
             </Button>
@@ -459,14 +459,14 @@ export function MemoryBrowser() {
       <Modal
         isOpen={!!alertModal}
         onClose={() => setAlertModal(null)}
-        className="dark bg-[#121212] text-white"
+        className="bg-white dark:bg-[#121212] text-foreground dark:text-white"
       >
         <ModalContent>
-          <ModalHeader className="border-b border-[#222222] text-sm">{alertModal?.title}</ModalHeader>
+          <ModalHeader className="border-b border-divider text-sm">{alertModal?.title}</ModalHeader>
           <ModalBody className="py-4">
-            <p className="text-sm text-[#CCCCCC]">{alertModal?.message}</p>
+            <p className="text-sm text-foreground-600 dark:text-[#CCCCCC]">{alertModal?.message}</p>
           </ModalBody>
-          <ModalFooter className="border-t border-[#222222]">
+          <ModalFooter className="border-t border-divider">
             <Button size="sm" color="primary" onPress={() => setAlertModal(null)}>
               OK
             </Button>

@@ -130,10 +130,10 @@ export function DashboardContent({ tasks, agents, status, recentActivity, person
 
       <div className="grid gap-6 lg:grid-cols-2 xl:grid-cols-3">
         {/* Active Agents */}
-        <Card className="border border-divider bg-content1/50 backdrop-blur-xl shadow-[0_8px_30px_rgba(0,0,0,0.15)] dark:shadow-[0_8px_30px_rgba(0,0,0,0.35)]">
+        <Card className="border border-divider bg-content1/50 backdrop-blur-xl shadow-[0_8px_30px_rgba(0,0,0,0.06)] dark:shadow-[0_8px_30px_rgba(0,0,0,0.35)]">
           <CardHeader className="border-b border-divider px-4 py-2.5">
             <span className="flex items-center gap-2 text-xs font-medium uppercase tracking-wider text-foreground-400">
-              <Users size={16} strokeWidth={1.5} className="text-muted-foreground" />
+              <Users size={16} strokeWidth={1.5} className="text-foreground-300" />
               Team
             </span>
           </CardHeader>
@@ -154,17 +154,17 @@ export function DashboardContent({ tasks, agents, status, recentActivity, person
               return (
               <div
                 key={agent.name}
-                className="flex items-center justify-between rounded-lg border border-divider bg-content2/50 px-3 py-2 backdrop-blur"
+                className="flex items-center justify-between rounded-lg border border-divider bg-content2/50 px-3 py-2 backdrop-blur transition-colors hover:bg-content2/80"
               >
                 <div className="flex items-center gap-3">
                   {avatarUrl ? (
                     <img
                       src={avatarUrl}
                       alt={agent.name}
-                      className="h-7 w-7 rounded-full object-cover"
+                      className="h-7 w-7 rounded-full object-cover border border-divider"
                     />
                   ) : (
-                    <div className="flex h-7 w-7 items-center justify-center rounded-full bg-default-100 text-muted-foreground">
+                    <div className="flex h-7 w-7 items-center justify-center rounded-full bg-gray-100 dark:bg-default-100 text-foreground-400">
                       {(() => { const Icon = agentIcons[normalizeAgentId(agent.name) || ""] || Bot; return <Icon size={16} strokeWidth={1.5} />; })()}
                     </div>
                   )}
@@ -185,29 +185,29 @@ export function DashboardContent({ tasks, agents, status, recentActivity, person
         </Card>
 
         {/* Urgent / In-Progress Tasks */}
-        <Card className="border border-divider bg-content1/50 backdrop-blur-xl shadow-[0_8px_30px_rgba(0,0,0,0.15)] dark:shadow-[0_8px_30px_rgba(0,0,0,0.35)]">
+        <Card className="border border-divider bg-content1/50 backdrop-blur-xl shadow-[0_8px_30px_rgba(0,0,0,0.06)] dark:shadow-[0_8px_30px_rgba(0,0,0,0.35)]">
           <CardHeader className="border-b border-divider px-4 py-2.5">
             <span className="flex items-center gap-2 text-xs font-medium uppercase tracking-wider text-foreground-400">
-              <ListChecks size={16} strokeWidth={1.5} className="text-muted-foreground" />
+              <ListChecks size={16} strokeWidth={1.5} className="text-foreground-300" />
               Active Tasks
             </span>
           </CardHeader>
           <CardBody className="gap-2 p-3">
             {inProgress.length === 0 && blocked.length === 0 ? (
-              <p className="py-4 text-center text-sm text-foreground-400">
+              <p className="py-4 text-center text-sm text-foreground-400 font-mono">
                 No active tasks. Take a breath.
               </p>
             ) : (
               [...blocked, ...inProgress].slice(0, 5).map((task) => (
                 <div
                   key={task.id}
-                  className="flex items-center justify-between rounded-lg border border-divider bg-content2/50 px-3 py-2 backdrop-blur"
+                  className="flex items-center justify-between rounded-lg border border-divider bg-content2/50 px-3 py-2 backdrop-blur transition-colors hover:bg-content2/80"
                 >
                   <div className="flex-1 min-w-0">
-                    <p className="truncate text-sm">{task.title}</p>
-                    <p className="text-xs text-foreground-400 flex items-center gap-1.5">
+                    <p className="truncate text-sm font-medium">{task.title}</p>
+                    <p className="text-xs text-foreground-400 flex items-center gap-1.5 mt-0.5">
                       {task.assignee && resolveAgentAvatarUrl(task.assignee) ? (
-                        <img src={resolveAgentAvatarUrl(task.assignee)!} alt={task.assignee} className="h-4 w-4 rounded-full object-cover" />
+                        <img src={resolveAgentAvatarUrl(task.assignee)!} alt={task.assignee} className="h-4 w-4 rounded-full object-cover border border-divider" />
                       ) : null}
                       {task.assignee ? `→ ${task.assignee}` : "Unassigned"}
                     </p>
@@ -218,7 +218,7 @@ export function DashboardContent({ tasks, agents, status, recentActivity, person
                         size="sm"
                         variant="flat"
                         color={priorityLabels[task.priority]?.color || "default"}
-                        className="text-xs"
+                        className="text-[10px] h-5"
                       >
                         {priorityLabels[task.priority]?.label}
                       </Chip>
@@ -227,7 +227,7 @@ export function DashboardContent({ tasks, agents, status, recentActivity, person
                       size="sm"
                       variant="flat"
                       color={task.status === "blocked" ? "danger" : "primary"}
-                      className="text-xs"
+                      className="text-[10px] h-5"
                     >
                       {task.status === "in_progress" ? "active" : task.status}
                     </Chip>
@@ -239,15 +239,15 @@ export function DashboardContent({ tasks, agents, status, recentActivity, person
         </Card>
       {/* Personal Summary Widget */}
       {personalSummary && (
-        <Card className="border border-divider bg-content1/50 backdrop-blur-xl shadow-[0_8px_30px_rgba(0,0,0,0.15)] dark:shadow-[0_8px_30px_rgba(0,0,0,0.35)]">
+        <Card className="border border-divider bg-content1/50 backdrop-blur-xl shadow-[0_8px_30px_rgba(0,0,0,0.06)] dark:shadow-[0_8px_30px_rgba(0,0,0,0.35)]">
           <CardHeader className="border-b border-divider px-4 py-2.5">
             <div className="flex w-full items-center justify-between">
               <span className="flex items-center gap-2 text-xs font-medium uppercase tracking-wider text-foreground-400">
-                <User size={16} strokeWidth={1.5} className="text-muted-foreground" />
+                <User size={16} strokeWidth={1.5} className="text-foreground-300" />
                 Personal Backlog (Notion)
               </span>
               {personalSummary.last_synced_at && (
-                <span className="text-[10px] text-foreground-500 font-mono">
+                <span className="text-[10px] text-foreground-400 font-mono">
                   Synced {timeAgo(personalSummary.last_synced_at)}
                 </span>
               )}
@@ -255,24 +255,24 @@ export function DashboardContent({ tasks, agents, status, recentActivity, person
           </CardHeader>
           <CardBody className="p-3">
             <div className="grid grid-cols-3 gap-2 mb-4">
-              <div className="rounded-lg bg-content2/50 p-2 text-center">
+              <div className="rounded-lg bg-content2/50 p-2 text-center border border-divider">
                 <p className="text-[10px] uppercase text-foreground-400">Overdue</p>
                 <p className={`text-lg font-bold ${personalSummary.overdue > 0 ? 'text-danger' : 'text-foreground'}`}>
                   {personalSummary.overdue}
                 </p>
               </div>
-              <div className="rounded-lg bg-content2/50 p-2 text-center">
+              <div className="rounded-lg bg-content2/50 p-2 text-center border border-divider">
                 <p className="text-[10px] uppercase text-foreground-400">Today</p>
                 <p className="text-lg font-bold text-primary">{personalSummary.due_today}</p>
               </div>
-              <div className="rounded-lg bg-content2/50 p-2 text-center">
+              <div className="rounded-lg bg-content2/50 p-2 text-center border border-divider">
                 <p className="text-[10px] uppercase text-foreground-400">Open</p>
                 <p className="text-lg font-bold">{personalSummary.in_progress + personalSummary.backlog + personalSummary.blocked}</p>
               </div>
             </div>
             
             <div className="space-y-2">
-              <div className="flex items-center justify-between text-xs px-1">
+              <div className="flex items-center justify-between text-xs px-1 font-mono">
                 <span className="text-foreground-400">Delegated items</span>
                 <span className="font-medium text-primary">{personalSummary.linked_open ?? personalSummary.delegated ?? 0} active</span>
               </div>
@@ -294,10 +294,10 @@ export function DashboardContent({ tasks, agents, status, recentActivity, person
 
       </div>
 
-      <Card className="border border-divider bg-content1/50 backdrop-blur-xl shadow-[0_8px_30px_rgba(0,0,0,0.15)] dark:shadow-[0_8px_30px_rgba(0,0,0,0.35)]">
+      <Card className="border border-divider bg-content1/50 backdrop-blur-xl shadow-[0_8px_30px_rgba(0,0,0,0.06)] dark:shadow-[0_8px_30px_rgba(0,0,0,0.35)]">
         <CardHeader className="border-b border-divider px-4 py-2.5">
           <span className="flex items-center gap-2 text-xs font-medium uppercase tracking-wider text-foreground-400">
-            <ShieldAlert size={16} strokeWidth={1.5} className="text-muted-foreground" />
+            <ShieldAlert size={16} strokeWidth={1.5} className="text-foreground-300" />
             OpenClaw Controls
           </span>
         </CardHeader>
@@ -315,7 +315,7 @@ export function DashboardContent({ tasks, agents, status, recentActivity, person
           </div>
 
           <div className="rounded-lg border border-divider bg-content2/50 p-3 backdrop-blur">
-            <p className="text-xs text-foreground-400 font-mono mb-2">
+            <p className="text-[10px] text-foreground-400 font-mono mb-2 uppercase tracking-wide">
               {doctorCommand || "Run doctor to see diagnostics output"}
             </p>
             <pre className="max-h-80 overflow-auto whitespace-pre-wrap font-mono text-xs text-foreground-500">
@@ -326,7 +326,7 @@ export function DashboardContent({ tasks, agents, status, recentActivity, person
       </Card>
 
       {/* Recent Activity */}
-      <Card className="border border-divider bg-content1/50 backdrop-blur-xl shadow-[0_8px_30px_rgba(0,0,0,0.15)] dark:shadow-[0_8px_30px_rgba(0,0,0,0.35)]">
+      <Card className="border border-divider bg-content1/50 backdrop-blur-xl shadow-[0_8px_30px_rgba(0,0,0,0.06)] dark:shadow-[0_8px_30px_rgba(0,0,0,0.35)]">
         <CardHeader className="border-b border-divider px-4 py-2.5">
           <div className="flex w-full items-center justify-between">
             <h2 className="text-[11px] font-medium uppercase tracking-wider text-foreground-400">Recent Activity</h2>
@@ -337,7 +337,7 @@ export function DashboardContent({ tasks, agents, status, recentActivity, person
         </CardHeader>
         <CardBody className="p-0">
           {recentActivity.length === 0 ? (
-            <p className="py-6 text-center font-mono text-xs text-foreground-500">
+            <p className="py-6 text-center font-mono text-xs text-foreground-400">
               No recent activity
             </p>
           ) : (
@@ -363,7 +363,7 @@ export function DashboardContent({ tasks, agents, status, recentActivity, person
                   <span className="flex-1 truncate font-mono text-xs text-foreground-500">
                     {formatEventPayload(entry.payload)}
                   </span>
-                  <span className="flex-shrink-0 text-[10px] text-foreground-500 font-mono">
+                  <span className="flex-shrink-0 text-[10px] text-foreground-400 font-mono">
                     {timeAgo(entry.created_at)}
                   </span>
                 </div>
@@ -378,7 +378,7 @@ export function DashboardContent({ tasks, agents, status, recentActivity, person
 
 function StatCard({ label, value }: { label: string; value: number }) {
   return (
-    <div className="rounded-xl border border-divider bg-content1/50 px-3 py-2 backdrop-blur shadow-[0_6px_18px_rgba(0,0,0,0.1)] dark:shadow-[0_6px_18px_rgba(0,0,0,0.25)]">
+    <div className="rounded-xl border border-divider bg-content1/50 px-3 py-2 backdrop-blur shadow-[0_6px_18px_rgba(0,0,0,0.04)] dark:shadow-[0_6px_18px_rgba(0,0,0,0.25)]">
       <p className="text-[10px] uppercase tracking-wider text-foreground-400">{label}</p>
       <p className="mt-1 text-2xl font-semibold">{value}</p>
     </div>
