@@ -24,6 +24,13 @@ Repo-specific instructions for agents working in the Mission Control frontend re
 - `3001` = live local API runtime (`mc-api`)
 - `3002` = temporary API dev server for side-by-side testing
 
+## PR review / merge policy
+
+- For **Mission Control** repos, **Tom (Lead Architect)** is allowed to approve and merge PRs after review.
+- Other agents should still hand work off for review; do **not** self-approve or self-merge your own PRs.
+- Check `/data/.openclaw/shared/how-we-work/pr-standards.md` for review-readiness and evidence requirements.
+- If Derrick explicitly asks for final review on a given PR, or if the change materially affects auth, security boundaries, or deploy behavior, escalate instead of merging on your own.
+
 ## Notes for agents
 
 - No push = no deploy. Vercel only sees what is pushed to GitHub.

@@ -1,7 +1,7 @@
 "use client";
 
 import { useState, useEffect } from "react";
-import { Tabs, Tab, Card, CardBody } from "@heroui/react";
+import { Tabs, Tab, Card, CardBody, Chip } from "@heroui/react";
 import { Users, User, LayoutGrid } from "lucide-react";
 import { useRouter, useSearchParams } from "next/navigation";
 import { KanbanBoard } from "./kanban-board";
@@ -57,6 +57,11 @@ export function TasksContainer({
               <div className="flex items-center space-x-2">
                 <Users size={16} />
                 <span>Team Tasks</span>
+                {initialTeamTasks.length > 0 && (
+                  <Chip size="sm" variant="flat" className="h-4 min-w-4 px-1 text-[10px] bg-default-100 text-foreground-500">
+                    {initialTeamTasks.length}
+                  </Chip>
+                )}
               </div>
             }
           />
@@ -66,6 +71,11 @@ export function TasksContainer({
               <div className="flex items-center space-x-2">
                 <User size={16} />
                 <span>Personal (Notion)</span>
+                {initialPersonalTasks.length > 0 && (
+                  <Chip size="sm" variant="flat" className="h-4 min-w-4 px-1 text-[10px] bg-default-100 text-foreground-500">
+                    {initialPersonalTasks.length}
+                  </Chip>
+                )}
               </div>
             }
           />
@@ -75,6 +85,11 @@ export function TasksContainer({
               <div className="flex items-center space-x-2">
                 <LayoutGrid size={16} />
                 <span>All Tasks</span>
+                {(initialTeamTasks.length + initialPersonalTasks.length) > 0 && (
+                  <Chip size="sm" variant="flat" className="h-4 min-w-4 px-1 text-[10px] bg-default-100 text-foreground-500">
+                    {initialTeamTasks.length + initialPersonalTasks.length}
+                  </Chip>
+                )}
               </div>
             }
           />

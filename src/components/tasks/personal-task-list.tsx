@@ -66,10 +66,10 @@ export function PersonalTaskList({ initialTasks }: PersonalTaskListProps) {
     }
   }, []);
 
-  const handleSync = async () => {
+  const handleSync = async (runType: "incremental" | "full" = "incremental") => {
     setIsSyncing(true);
     try {
-      await api.syncPersonalTasks("incremental");
+      await api.syncPersonalTasks(runType);
       // The SSE event will trigger a refresh or we can poll
     } catch (err) {
       console.error("Sync failed:", err);
@@ -188,16 +188,30 @@ export function PersonalTaskList({ initialTasks }: PersonalTaskListProps) {
              </span>
           )}
         </div>
-        <Button
-          size="sm"
-          variant="flat"
-          onPress={handleSync}
-          isLoading={isSyncing}
-          startContent={!isSyncing && <RefreshCw size={14} />}
-          className="border border-divider bg-content1"
-        >
-          {isSyncing ? "Syncing..." : "Sync Notion"}
-        </Button>
+        <div className="flex items-center gap-2">
+          <Button
+            size="sm"
+            variant="flat"
+            onPress={() => handleSync("incremental")}
+            isLoading={isSyncing}
+            startContent={!isSyncing && <RefreshCw size={14} />}
+            className="border border-divider bg-content1"
+          >
+            {isSyncing ? "Syncing..." : "Sync Notion"}
+          </Button>
+          <Tooltip content="Forces a full reconcile of all tasks (slower)">
+            <Button
+              isIconOnly
+              size="sm"
+              variant="flat"
+              onPress={() => handleSync("full")}
+              isLoading={isSyncing}
+              className="border border-divider bg-content1"
+            >
+              <ArrowUpCircle size={14} className="rotate-180" />
+            </Button>
+          </Tooltip>
+        </div>
       </div>
 
       <Card className="border border-divider bg-content1/50 backdrop-blur-xl">
