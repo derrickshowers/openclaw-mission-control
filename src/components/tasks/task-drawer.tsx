@@ -5,7 +5,7 @@ import { useSession } from "next-auth/react";
 import { useSSE } from "@/hooks/use-sse";
 import { Button, Input, Textarea, Select, SelectItem, Chip, Card, CardBody, Modal, ModalContent, ModalHeader, ModalBody, ModalFooter } from "@heroui/react";
 import { MentionTextarea } from "@/components/shared/mention-textarea";
-import { X, Trash2, Send, Paperclip, ImagePlus, XCircle, Folder } from "lucide-react";
+import { X, Trash2, Send, Paperclip, ImagePlus, Folder, Copy, Check } from "lucide-react";
 import { api } from "@/lib/api";
 import type { Task, TaskComment, TaskAttachment, Project } from "@/lib/api";
 import { formatLocal, parseUTC } from "@/lib/dates";
@@ -84,6 +84,8 @@ export function TaskDrawer({ task, isOpen, onClose, onUpdate }: TaskDrawerProps)
   const [lightboxUrl, setLightboxUrl] = useState<string | null>(null);
   const [dragOver, setDragOver] = useState(false);
   const [confirmDelete, setConfirmDelete] = useState(false);
+  const [copiedTaskId, setCopiedTaskId] = useState(false);
+  const copyResetTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
 
   useEffect(() => {
@@ -98,6 +100,22 @@ export function TaskDrawer({ task, isOpen, onClose, onUpdate }: TaskDrawerProps)
     setTitle(task.title);
     setDescription(task.description || "");
   }, [task.title, task.description]);
+
+  useEffect(() => {
+    setCopiedTaskId(false);
+    if (copyResetTimeoutRef.current) {
+      clearTimeout(copyResetTimeoutRef.current);
+      copyResetTimeoutRef.current = null;
+    }
+  }, [task.id]);
+
+  useEffect(() => {
+    return () => {
+      if (copyResetTimeoutRef.current) {
+        clearTimeout(copyResetTimeoutRef.current);
+      }
+    };
+  }, []);
 
   // Live updates for comments and attachments
   const drawerEvents = ["comment.created", "attachment.created", "attachment.deleted"];
@@ -138,6 +156,22 @@ export function TaskDrawer({ task, isOpen, onClose, onUpdate }: TaskDrawerProps)
       console.error("Failed to post comment:", err);
     } finally {
       setSubmitting(false);
+    }
+  };
+
+  const copyTaskId = async () => {
+    try {
+      await navigator.clipboard.writeText(task.id);
+      setCopiedTaskId(true);
+      if (copyResetTimeoutRef.current) {
+        clearTimeout(copyResetTimeoutRef.current);
+      }
+      copyResetTimeoutRef.current = setTimeout(() => {
+        setCopiedTaskId(false);
+        copyResetTimeoutRef.current = null;
+      }, 2000);
+    } catch (err) {
+      console.error("Failed to copy task ID:", err);
     }
   };
 
@@ -257,7 +291,20 @@ export function TaskDrawer({ task, isOpen, onClose, onUpdate }: TaskDrawerProps)
             <Chip size="sm" variant="flat" color={statusColors[task.status]}>
               {task.status.replace("_", " ")}
             </Chip>
-            <span className="text-xs text-gray-500 dark:text-[#888888] font-mono">{task.id.slice(0, 8)}</span>
+            <button
+              type="button"
+              onClick={copyTaskId}
+              title={`Copy full ID: ${task.id}`}
+              aria-label={`Copy full task ID ${task.id}`}
+              className="inline-flex items-center gap-1.5 px-2 py-1 rounded-md border border-white/5 bg-white/5 text-xs font-mono text-gray-400 hover:text-gray-100 hover:bg-white/10 hover:border-white/10 transition-all cursor-copy"
+            >
+              <span>{task.id.slice(0, 8)}</span>
+              {copiedTaskId ? (
+                <Check size={12} className="text-green-400" />
+              ) : (
+                <Copy size={12} />
+              )}
+            </button>
           </div>
           <button onClick={onClose} className="text-gray-500 dark:text-[#888888] hover:text-gray-900 dark:hover:text-white">
             <X size={16} strokeWidth={1.5} />
