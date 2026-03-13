@@ -301,6 +301,12 @@ export const api = {
 
   getPersonalTask: (id: string) => apiFetch<PersonalTaskDetail>(`/personal-tasks/${id}`),
 
+  schedulePersonalTask: (id: string, scheduledAt: string | null) =>
+    apiFetch<PersonalTask>(`/personal-tasks/${id}/schedule`, {
+      method: "PATCH",
+      body: JSON.stringify({ scheduled_at: scheduledAt }),
+    }),
+
   getPersonalTaskSummary: () =>
     apiFetch<PersonalTaskSummary>("/personal-tasks", { params: { summary: "1" } }),
 
