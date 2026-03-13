@@ -12,7 +12,9 @@ import {
   Button,
   Tooltip,
   Spinner,
-  Card
+  Card,
+  Tabs,
+  Tab
 } from "@heroui/react";
 import { 
   ExternalLink, 
@@ -22,7 +24,10 @@ import {
   Link as LinkIcon,
   CheckCircle2,
   Clock,
-  ArrowUpCircle
+  ArrowUpCircle,
+  Inbox,
+  ArrowUpRight,
+  ClipboardCheck
 } from "lucide-react";
 import { api, type PersonalTask } from "@/lib/api";
 import { formatLocal, timeAgo } from "@/lib/dates";
@@ -50,6 +55,7 @@ interface PersonalTaskListProps {
 
 export function PersonalTaskList({ initialTasks }: PersonalTaskListProps) {
   const [tasks, setTasks] = useState<PersonalTask[]>(initialTasks);
+  const [filter, setFilter] = useState<string>("all");
   const [selectedTaskId, setSelectedTaskId] = useState<string | null>(null);
   const [isSyncing, setIsSyncing] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
@@ -57,14 +63,40 @@ export function PersonalTaskList({ initialTasks }: PersonalTaskListProps) {
   const fetchTasks = useCallback(async () => {
     setIsLoading(true);
     try {
-      const data = await api.getPersonalTasks({ limit: 100 });
+      const params: any = { limit: 100 };
+      
+      if (filter === "needs_delegation") {
+        params.linked = "unlinked";
+        params.status = "backlog"; // Or in_progress too? Usually backlog.
+      } else if (filter === "delegated") {
+        params.linked = "linked";
+      } else if (filter === "overdue") {
+        params.due = "overdue";
+      }
+      
+      let data = await api.getPersonalTasks(params);
+      
+      // Client-side filter for "Done on team, still open personally"
+      if (filter === "waiting_on_me") {
+        data = await api.getPersonalTasks({ limit: 200 });
+        data = data.filter(t => 
+          t.link_count > 0 && 
+          t.open_link_count === 0 && 
+          t.status !== "done"
+        );
+      }
+      
       setTasks(data);
     } catch (err) {
       console.error("Failed to fetch personal tasks:", err);
     } finally {
       setIsLoading(false);
     }
-  }, []);
+  }, [filter]);
+
+  useEffect(() => {
+    fetchTasks();
+  }, [fetchTasks]);
 
   const handleSync = async (runType: "incremental" | "full" = "incremental") => {
     setIsSyncing(true);
@@ -124,26 +156,47 @@ export function PersonalTaskList({ initialTasks }: PersonalTaskListProps) {
           </Chip>
         );
       case "due":
-        if (!task.due_at) return <span className="text-xs text-foreground-500">-</span>;
-        const isOverdue = new Date(task.due_at) < new Date() && task.status !== "done";
+        if (!task.due_at && !task.scheduled_at) return <span className="text-xs text-foreground-500">-</span>;
+        const isOverdue = task.due_at && new Date(task.due_at) < new Date() && task.status !== "done";
         return (
-          <div className={`flex items-center gap-1.5 text-xs ${isOverdue ? "text-danger" : "text-foreground-500"}`}>
-            <Calendar size={12} />
-            {formatLocal(task.due_at, { month: "short", day: "numeric" })}
+          <div className="flex flex-col gap-1">
+            {task.due_at && (
+              <div className={`flex items-center gap-1.5 text-[10px] ${isOverdue ? "text-danger" : "text-foreground-500"}`}>
+                <Calendar size={10} />
+                <span>Due {formatLocal(task.due_at, { month: "short", day: "numeric" })}</span>
+              </div>
+            )}
+            {task.scheduled_at && (
+              <div className="flex items-center gap-1.5 text-[10px] text-primary-400">
+                <Clock size={10} />
+                <span>Sched {formatLocal(task.scheduled_at, { month: "short", day: "numeric" })}</span>
+              </div>
+            )}
           </div>
         );
-      case "links":
-        if (task.link_count === 0) return null;
+      case "delegation":
+        if (!task.delegation) return null;
+        const teamStatus = task.delegation.status;
+        const isTeamDone = teamStatus === "done";
         return (
-          <Tooltip content={`${task.link_count} linked team tasks (${task.open_link_count} open)`}>
-            <div className="flex items-center gap-1 text-primary">
-              <LinkIcon size={14} />
-              <span className="text-xs font-medium">{task.link_count}</span>
-              {task.open_link_count > 0 && (
-                 <span className="flex h-1.5 w-1.5 rounded-full bg-primary animate-pulse" />
+          <div className="flex flex-col gap-1">
+            <div className="flex items-center gap-2">
+              <Chip
+                size="sm"
+                variant="flat"
+                color={isTeamDone ? "success" : "primary"}
+                className="h-5 text-[10px] uppercase font-bold"
+              >
+                {teamStatus.replace("_", " ")}
+              </Chip>
+              {task.delegation.assignee && (
+                 <span className="text-[10px] text-foreground-400">@{task.delegation.assignee}</span>
               )}
             </div>
-          </Tooltip>
+            <span className="text-[10px] text-foreground-500 truncate max-w-[150px]">
+              {task.delegation.title}
+            </span>
+          </div>
         );
       case "actions":
         return (
@@ -179,38 +232,60 @@ export function PersonalTaskList({ initialTasks }: PersonalTaskListProps) {
 
   return (
     <div className="space-y-4">
-      <div className="flex items-center justify-between px-1">
-        <div className="flex items-center gap-4">
-          <span className="text-sm text-foreground-400">{tasks.length} personal tasks</span>
-          {tasks.length > 0 && (
-             <span className="text-[10px] text-foreground-500 font-mono">
-               Last synced {timeAgo(tasks[0].last_synced_at)}
-             </span>
-          )}
-        </div>
-        <div className="flex items-center gap-2">
-          <Button
-            size="sm"
-            variant="flat"
-            onPress={() => handleSync("incremental")}
-            isLoading={isSyncing}
-            startContent={!isSyncing && <RefreshCw size={14} />}
-            className="border border-divider bg-content1"
-          >
-            {isSyncing ? "Syncing..." : "Sync Notion"}
-          </Button>
-          <Tooltip content="Forces a full reconcile of all tasks (slower)">
+      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 px-1">
+        <Tabs 
+          aria-label="Personal Task Filters" 
+          selectedKey={filter}
+          onSelectionChange={(key) => setFilter(key as string)}
+          size="sm"
+          variant="underlined"
+          classNames={{
+            tabList: "bg-content2/50 p-1 rounded-lg border border-divider/50",
+            cursor: "bg-background shadow-sm",
+            tab: "h-8 px-3",
+            tabContent: "text-[11px] font-medium"
+          }}
+        >
+          <Tab key="all" title={<div className="flex items-center gap-2"><Inbox size={14}/><span>All</span></div>} />
+          <Tab key="needs_delegation" title={<div className="flex items-center gap-2"><ArrowUpRight size={14}/><span>Needs Delegation</span></div>} />
+          <Tab key="delegated" title={<div className="flex items-center gap-2"><LinkIcon size={14}/><span>Delegated</span></div>} />
+          <Tab key="waiting_on_me" title={<div className="flex items-center gap-2"><CheckCircle2 size={14}/><span>Done on Team</span></div>} />
+          <Tab key="overdue" title={<div className="flex items-center gap-2"><AlertCircle size={14}/><span>Overdue</span></div>} />
+        </Tabs>
+
+        <div className="flex items-center gap-3">
+          <div className="flex items-center gap-2 mr-2">
+            <span className="text-[10px] text-foreground-400 uppercase tracking-wider font-semibold">{tasks.length} items</span>
+            {tasks.length > 0 && (
+               <span className="text-[10px] text-foreground-500 font-mono">
+                 Synced {timeAgo(tasks[0].last_synced_at)}
+               </span>
+            )}
+          </div>
+          <div className="flex items-center gap-2">
             <Button
-              isIconOnly
               size="sm"
               variant="flat"
-              onPress={() => handleSync("full")}
+              onPress={() => handleSync("incremental")}
               isLoading={isSyncing}
-              className="border border-divider bg-content1"
+              startContent={!isSyncing && <RefreshCw size={14} />}
+              className="border border-divider bg-content1 text-[11px]"
             >
-              <ArrowUpCircle size={14} className="rotate-180" />
+              {isSyncing ? "Syncing..." : "Sync"}
             </Button>
-          </Tooltip>
+            <Tooltip content="Full reconcile (slow)">
+              <Button
+                isIconOnly
+                size="sm"
+                variant="flat"
+                onPress={() => handleSync("full")}
+                isLoading={isSyncing}
+                className="border border-divider bg-content1"
+              >
+                <ArrowUpCircle size={14} className="rotate-180" />
+              </Button>
+            </Tooltip>
+          </div>
         </div>
       </div>
 
@@ -230,15 +305,15 @@ export function PersonalTaskList({ initialTasks }: PersonalTaskListProps) {
             <TableColumn key="title">Task</TableColumn>
             <TableColumn key="status" width={140}>Status</TableColumn>
             <TableColumn key="priority" width={100}>Priority</TableColumn>
-            <TableColumn key="due" width={100}>Due Date</TableColumn>
-            <TableColumn key="links" width={60}>Links</TableColumn>
+            <TableColumn key="due" width={140}>Date</TableColumn>
+            <TableColumn key="delegation" width={200}>Team Progress</TableColumn>
             <TableColumn key="actions" width={120} align="end">Actions</TableColumn>
           </TableHeader>
           <TableBody 
             items={tasks}
             loadingContent={<Spinner size="sm" />}
             isLoading={isLoading}
-            emptyContent={"No personal tasks found in Notion."}
+            emptyContent={isLoading ? " " : "No personal tasks found."}
           >
             {(item) => (
               <TableRow key={item.id} className="hover:bg-content2/30 cursor-pointer" onClick={() => setSelectedTaskId(item.id)}>

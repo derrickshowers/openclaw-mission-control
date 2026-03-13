@@ -5,6 +5,7 @@ import { Providers } from "./providers";
 import { Sidebar } from "@/components/shell/sidebar";
 import { MobileNav } from "@/components/shell/mobile-nav";
 import { TopBar } from "@/components/shell/top-bar";
+import { CommandPalette } from "@/components/command-palette";
 
 const plusJakarta = Plus_Jakarta_Sans({
   subsets: ["latin"],
@@ -34,22 +35,6 @@ export default function RootLayout({
   return (
     <html lang="en" className={plusJakarta.variable} suppressHydrationWarning>
       <head>
-        <script
-          dangerouslySetInnerHTML={{
-            __html: `
-              (function() {
-                try {
-                  var theme = localStorage.getItem('theme');
-                  var supportDarkMode = window.matchMedia('(prefers-color-scheme: dark)').matches === true;
-                  if (!theme && supportDarkMode) theme = 'dark';
-                  if (!theme) theme = 'dark';
-                  document.documentElement.classList.add(theme);
-                  document.documentElement.setAttribute('data-theme', theme);
-                } catch (e) {}
-              })();
-            `,
-          }}
-        />
         <script
           dangerouslySetInnerHTML={{
             __html: `
@@ -96,6 +81,7 @@ export default function RootLayout({
               <MobileNav />
             </div>
           </div>
+          <CommandPalette />
         </Providers>
       </body>
     </html>
