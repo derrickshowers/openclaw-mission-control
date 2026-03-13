@@ -24,12 +24,28 @@ Repo-specific instructions for agents working in the Mission Control frontend re
 - `3001` = live local API runtime (`mc-api`)
 - `3002` = temporary API dev server for side-by-side testing
 
-## PR review / merge policy
+## Push policy
 
-- For **Mission Control** repos, **Tom (Lead Architect)** is allowed to approve and merge PRs after review.
-- Other agents should still hand work off for review; do **not** self-approve or self-merge your own PRs.
-- Check `/data/.openclaw/shared/how-we-work/pr-standards.md` for review-readiness and evidence requirements.
-- If Derrick explicitly asks for final review on a given PR, or if the change materially affects auth, security boundaries, or deploy behavior, escalate instead of merging on your own.
+**Mission Control repos do not require PRs.** Push directly to `main` when your work is ready.
+
+### Before pushing:
+
+1. **Test your changes** locally
+2. **Complete UI quality checklist** (see below) if UI work
+3. **Verify no regressions** (avatars, mentions, theming, etc.)
+4. **Build passes** (`npm run build` for web)
+5. **Add task comment** summarizing what you pushed
+
+### When to get review first:
+
+- **Security changes** (auth, permissions, API keys)
+- **Architecture changes** (new services, major refactors)
+- **Deploy behavior changes** (build config, environment setup)
+- **When Derrick explicitly asks** for review before pushing
+
+For everything else: test it, push it, mark task done.
+
+**Speed matters.** PRs create ceremony and delay. Push with confidence.
 
 ## UI quality standards
 
