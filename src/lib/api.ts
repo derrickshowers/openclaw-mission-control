@@ -107,6 +107,7 @@ export interface PersonalTask {
   source_status: string | null;
   priority: number;
   due_at: string | null;
+  scheduled_at: string | null;
   owner: string;
   source_last_edited_at: string | null;
   last_synced_at: string;

@@ -60,9 +60,12 @@ export function PersonalTaskDrawer({ taskId, isOpen, onClose, onPromoted }: Pers
 
   // Promotion form state
   const [promoTitle, setPromoTitle] = useState("");
+  const [promoDescription, setPromoDescription] = useState("");
   const [promoAssignee, setPromoAssignee] = useState("");
   const [promoProject, setPromoProject] = useState("");
   const [promoPriority, setPromoPriority] = useState("0");
+  const [promoStatus, setPromoStatus] = useState("backlog");
+  const [promoRelation, setPromoRelation] = useState("delegated");
 
   useEffect(() => {
     if (isOpen && taskId) {
@@ -74,6 +77,7 @@ export function PersonalTaskDrawer({ taskId, isOpen, onClose, onPromoted }: Pers
         setTask(taskData);
         setProjects(projectsData);
         setPromoTitle(taskData.title);
+        setPromoDescription(taskData.description || "");
         setPromoPriority(String(taskData.priority));
         setLoading(false);
       }).catch(err => {
@@ -89,9 +93,12 @@ export function PersonalTaskDrawer({ taskId, isOpen, onClose, onPromoted }: Pers
     try {
       const result = await api.promotePersonalTask(task.id, {
         title: promoTitle,
+        description: promoDescription || undefined,
         assignee: promoAssignee || undefined,
         project_id: promoProject || undefined,
         priority: parseInt(promoPriority),
+        status: promoStatus as any,
+        relation: promoRelation as any,
         create_another: createAnother
       });
       
@@ -167,6 +174,11 @@ export function PersonalTaskDrawer({ taskId, isOpen, onClose, onPromoted }: Pers
                   {task.due_at && (
                     <Chip size="sm" variant="flat" startContent={<Calendar size={12} />} className="text-foreground-500">
                       Due {formatLocal(task.due_at, { month: "short", day: "numeric", year: "numeric" })}
+                    </Chip>
+                  )}
+                  {task.scheduled_at && (
+                    <Chip size="sm" variant="flat" startContent={<Clock size={12} />} className="text-primary-400">
+                      Scheduled {formatLocal(task.scheduled_at, { month: "short", day: "numeric", year: "numeric" })}
                     </Chip>
                   )}
                   <Chip size="sm" variant="flat" startContent={<History size={12} />} className="text-foreground-400">
@@ -288,6 +300,15 @@ export function PersonalTaskDrawer({ taskId, isOpen, onClose, onPromoted }: Pers
               variant="bordered"
               size="sm"
             />
+            <Textarea
+              label="Description"
+              placeholder="Add more context for the team..."
+              value={promoDescription}
+              onValueChange={setPromoDescription}
+              variant="bordered"
+              size="sm"
+              minRows={2}
+            />
             <div className="grid grid-cols-2 gap-3">
               <Select
                 label="Assignee"
@@ -302,6 +323,19 @@ export function PersonalTaskDrawer({ taskId, isOpen, onClose, onPromoted }: Pers
                 ))}
               </Select>
               <Select
+                label="Status"
+                selectedKeys={[promoStatus]}
+                onSelectionChange={(keys) => setPromoStatus(Array.from(keys)[0] as string || "backlog")}
+                variant="bordered"
+                size="sm"
+              >
+                <SelectItem key="backlog">Backlog</SelectItem>
+                <SelectItem key="in_progress">In Progress</SelectItem>
+                <SelectItem key="blocked">Blocked</SelectItem>
+              </Select>
+            </div>
+            <div className="grid grid-cols-2 gap-3">
+              <Select
                 label="Priority"
                 selectedKeys={[promoPriority]}
                 onSelectionChange={(keys) => setPromoPriority(Array.from(keys)[0] as string || "0")}
@@ -311,6 +345,16 @@ export function PersonalTaskDrawer({ taskId, isOpen, onClose, onPromoted }: Pers
                 {PRIORITIES.map((p) => (
                   <SelectItem key={p.value}>{p.label}</SelectItem>
                 ))}
+              </Select>
+              <Select
+                label="Relation"
+                selectedKeys={[promoRelation]}
+                onSelectionChange={(keys) => setPromoRelation(Array.from(keys)[0] as string || "delegated")}
+                variant="bordered"
+                size="sm"
+              >
+                <SelectItem key="delegated">Delegated</SelectItem>
+                <SelectItem key="related">Related</SelectItem>
               </Select>
             </div>
             <Select
