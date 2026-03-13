@@ -1,40 +1,38 @@
 "use client";
 
-import { useState, useCallback, useEffect } from "react";
-import { 
-  Table, 
-  TableHeader, 
-  TableColumn, 
-  TableBody, 
-  TableRow, 
-  TableCell, 
-  Chip, 
+import { useState, useCallback, useEffect, useMemo } from "react";
+import {
+  Table,
+  TableHeader,
+  TableColumn,
+  TableBody,
+  TableRow,
+  TableCell,
+  Chip,
   Button,
   Tooltip,
   Spinner,
   Card,
-  Tabs,
-  Tab
 } from "@heroui/react";
-import { 
-  ExternalLink, 
-  RefreshCw, 
-  Calendar, 
+import {
+  ExternalLink,
+  RefreshCw,
+  Calendar,
   AlertCircle,
-  Link as LinkIcon,
   CheckCircle2,
   Clock,
   ArrowUpCircle,
-  Inbox,
-  ArrowUpRight,
-  ClipboardCheck
 } from "lucide-react";
+import type { LucideIcon } from "lucide-react";
 import { api, type PersonalTask } from "@/lib/api";
 import { formatLocal, timeAgo } from "@/lib/dates";
 import { PersonalTaskDrawer } from "./personal-task-drawer";
 import { useSSE } from "@/hooks/use-sse";
 
-const statusConfig: Record<string, { color: "default" | "primary" | "danger" | "success" | "warning"; icon: any }> = {
+type PersonalFilter = "all" | "today" | "next_7_days" | "overdue";
+type TaskEmphasis = "today" | "next7" | "overdue" | "default";
+
+const statusConfig: Record<string, { color: "default" | "primary" | "danger" | "success" | "warning"; icon: LucideIcon }> = {
   backlog: { color: "default", icon: Clock },
   in_progress: { color: "primary", icon: RefreshCw },
   blocked: { color: "danger", icon: AlertCircle },
@@ -53,9 +51,99 @@ interface PersonalTaskListProps {
   initialTasks: PersonalTask[];
 }
 
+interface TaskMeta {
+  scheduledToday: boolean;
+  dueToday: boolean;
+  dueWithinNext7: boolean;
+  dueSoonUnscheduled: boolean;
+  overdue: boolean;
+  emphasis: TaskEmphasis;
+  sortRank: number;
+  dueTimestamp: number | null;
+  scheduledTimestamp: number | null;
+}
+
+const EMPTY_META: TaskMeta = {
+  scheduledToday: false,
+  dueToday: false,
+  dueWithinNext7: false,
+  dueSoonUnscheduled: false,
+  overdue: false,
+  emphasis: "default",
+  sortRank: 4,
+  dueTimestamp: null,
+  scheduledTimestamp: null,
+};
+
+function startOfDay(date: Date) {
+  const d = new Date(date);
+  d.setHours(0, 0, 0, 0);
+  return d;
+}
+
+function addDays(date: Date, days: number) {
+  const d = new Date(date);
+  d.setDate(d.getDate() + days);
+  return d;
+}
+
+function isSameDay(a: Date, b: Date) {
+  return (
+    a.getFullYear() === b.getFullYear() &&
+    a.getMonth() === b.getMonth() &&
+    a.getDate() === b.getDate()
+  );
+}
+
+function parseDate(iso: string | null | undefined) {
+  if (!iso) return null;
+  const parsed = new Date(iso);
+  return Number.isNaN(parsed.getTime()) ? null : parsed;
+}
+
+function getTaskMeta(task: PersonalTask, now: Date): TaskMeta {
+  const due = parseDate(task.due_at);
+  const scheduled = parseDate(task.scheduled_at);
+  const todayStart = startOfDay(now);
+  const nextWeekExclusive = addDays(todayStart, 8);
+  const isDone = task.status === "done";
+
+  const scheduledToday = !!scheduled && isSameDay(scheduled, now);
+  const dueToday = !!due && isSameDay(due, now);
+  const overdue = !!due && due < todayStart && !isDone;
+  const dueWithinNext7 = !!due && due >= todayStart && due < nextWeekExclusive && !isDone;
+  const dueSoonUnscheduled = dueWithinNext7 && !scheduledToday;
+
+  let emphasis: TaskEmphasis = "default";
+  let sortRank = 4;
+
+  if (scheduledToday) {
+    emphasis = "today";
+    sortRank = 0;
+  } else if (dueSoonUnscheduled) {
+    emphasis = "next7";
+    sortRank = 1;
+  } else if (overdue) {
+    emphasis = "overdue";
+    sortRank = 2;
+  }
+
+  return {
+    scheduledToday,
+    dueToday,
+    dueWithinNext7,
+    dueSoonUnscheduled,
+    overdue,
+    emphasis,
+    sortRank,
+    dueTimestamp: due ? due.getTime() : null,
+    scheduledTimestamp: scheduled ? scheduled.getTime() : null,
+  };
+}
+
 export function PersonalTaskList({ initialTasks }: PersonalTaskListProps) {
   const [tasks, setTasks] = useState<PersonalTask[]>(initialTasks);
-  const [filter, setFilter] = useState<string>("all");
+  const [filter, setFilter] = useState<PersonalFilter>("all");
   const [selectedTaskId, setSelectedTaskId] = useState<string | null>(null);
   const [isSyncing, setIsSyncing] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
@@ -63,44 +151,91 @@ export function PersonalTaskList({ initialTasks }: PersonalTaskListProps) {
   const fetchTasks = useCallback(async () => {
     setIsLoading(true);
     try {
-      const params: any = { limit: 100 };
-      
-      if (filter === "needs_delegation") {
-        params.view = "needs_delegation";
-      } else if (filter === "delegated") {
-        params.view = "delegated";
-      } else if (filter === "waiting_on_me") {
-        params.view = "done_on_team";
-      } else if (filter === "overdue") {
-        params.view = "overdue";
-      }
-
-      const data = await api.getPersonalTasks(params);
+      const data = await api.getPersonalTasks({ limit: 500 });
       setTasks(data);
     } catch (err) {
       console.error("Failed to fetch personal tasks:", err);
     } finally {
       setIsLoading(false);
     }
-  }, [filter]);
+  }, []);
 
   useEffect(() => {
     fetchTasks();
   }, [fetchTasks]);
 
+  const taskMetaById = useMemo(() => {
+    const now = new Date();
+    const meta = new Map<string, TaskMeta>();
+    for (const task of tasks) {
+      meta.set(task.id, getTaskMeta(task, now));
+    }
+    return meta;
+  }, [tasks]);
+
+  const filteredTasks = useMemo(() => {
+    const scoped = tasks.filter((task) => {
+      const meta = taskMetaById.get(task.id) || EMPTY_META;
+      if (filter === "today") return meta.scheduledToday || meta.dueToday;
+      if (filter === "next_7_days") return meta.dueSoonUnscheduled;
+      if (filter === "overdue") return meta.overdue;
+      return true;
+    });
+
+    return scoped.sort((a, b) => {
+      const aMeta = taskMetaById.get(a.id) || EMPTY_META;
+      const bMeta = taskMetaById.get(b.id) || EMPTY_META;
+
+      if (aMeta.sortRank !== bMeta.sortRank) return aMeta.sortRank - bMeta.sortRank;
+
+      if (aMeta.dueTimestamp !== null && bMeta.dueTimestamp !== null && aMeta.dueTimestamp !== bMeta.dueTimestamp) {
+        return aMeta.dueTimestamp - bMeta.dueTimestamp;
+      }
+
+      if (aMeta.scheduledTimestamp !== null && bMeta.scheduledTimestamp !== null && aMeta.scheduledTimestamp !== bMeta.scheduledTimestamp) {
+        return aMeta.scheduledTimestamp - bMeta.scheduledTimestamp;
+      }
+
+      return new Date(b.updated_at).getTime() - new Date(a.updated_at).getTime();
+    });
+  }, [tasks, filter, taskMetaById]);
+
+  const filterCounts = useMemo(() => {
+    let today = 0;
+    let next7 = 0;
+    let overdue = 0;
+
+    for (const task of tasks) {
+      const meta = taskMetaById.get(task.id) || EMPTY_META;
+      if (meta.scheduledToday || meta.dueToday) today += 1;
+      if (meta.dueSoonUnscheduled) next7 += 1;
+      if (meta.overdue) overdue += 1;
+    }
+
+    return {
+      all: tasks.length,
+      today,
+      next_7_days: next7,
+      overdue,
+    };
+  }, [tasks, taskMetaById]);
+
   const handleSync = async (runType: "incremental" | "full" = "incremental") => {
     setIsSyncing(true);
     try {
       await api.syncPersonalTasks(runType);
-      // The SSE event will trigger a refresh or we can poll
     } catch (err) {
       console.error("Sync failed:", err);
       setIsSyncing(false);
     }
   };
 
-  // SSE for sync completion and promotions
-  const { lastEvent } = useSSE(["personal_task.sync.completed", "personal_task.promoted"]);
+  const { lastEvent } = useSSE([
+    "personal_task.sync.completed",
+    "personal_task.promoted",
+    "personal_task.updated",
+    "personal_task.scheduled",
+  ]);
 
   useEffect(() => {
     if (!lastEvent) return;
@@ -108,23 +243,49 @@ export function PersonalTaskList({ initialTasks }: PersonalTaskListProps) {
       setIsSyncing(false);
       fetchTasks();
     }
-    if (lastEvent.event === "personal_task.promoted") {
-        fetchTasks();
+    if (
+      lastEvent.event === "personal_task.promoted" ||
+      lastEvent.event === "personal_task.updated" ||
+      lastEvent.event === "personal_task.scheduled"
+    ) {
+      fetchTasks();
     }
   }, [lastEvent, fetchTasks]);
 
   const renderCell = (task: PersonalTask, columnKey: React.Key) => {
+    const meta = taskMetaById.get(task.id) || EMPTY_META;
+
     switch (columnKey) {
-      case "title":
+      case "title": {
+        const titleTone =
+          meta.emphasis === "today"
+            ? "text-zinc-100"
+            : meta.emphasis === "next7"
+              ? "text-zinc-200"
+              : meta.emphasis === "overdue"
+                ? "text-rose-300"
+                : "text-zinc-500";
+
+        const leftBorder =
+          meta.emphasis === "today"
+            ? "border-[#5e6ad2]"
+            : meta.emphasis === "next7"
+              ? "border-white/20"
+              : meta.emphasis === "overdue"
+                ? "border-rose-500/70"
+                : "border-transparent";
+
         return (
-          <div className="flex flex-col">
-            <span className="text-sm font-medium text-foreground">{task.title}</span>
-            <span className="text-xs text-foreground-400 truncate max-w-[300px]">
+          <div className={`flex flex-col gap-1 border-l-2 pl-3 ${leftBorder}`}>
+            <span className={`text-[13px] font-medium leading-tight ${titleTone}`}>{task.title}</span>
+            <span className="truncate max-w-[320px] text-[12px] text-zinc-500">
               {task.description || "No description"}
             </span>
           </div>
         );
-      case "status":
+      }
+
+      case "status": {
         const config = statusConfig[task.status] || statusConfig.backlog;
         const Icon = config.icon;
         return (
@@ -133,64 +294,85 @@ export function PersonalTaskList({ initialTasks }: PersonalTaskListProps) {
             variant="flat"
             color={config.color}
             size="sm"
-            className="capitalize"
+            className="h-6 border border-white/10 bg-white/5 font-mono text-[11px] capitalize"
           >
             {task.source_status || task.status.replace("_", " ")}
           </Chip>
         );
-      case "priority":
+      }
+
+      case "priority": {
         const pConfig = priorityConfig[task.priority] || priorityConfig[0];
         return (
-          <Chip variant="dot" color={pConfig.color} size="sm" className="border-none">
+          <Chip
+            variant="dot"
+            color={pConfig.color}
+            size="sm"
+            className="h-6 border border-white/10 bg-white/5 font-mono text-[11px]"
+          >
             {pConfig.label}
           </Chip>
         );
-      case "due":
-        if (!task.due_at && !task.scheduled_at) return <span className="text-xs text-foreground-400">-</span>;
-        const isOverdue = task.due_at && new Date(task.due_at) < new Date() && task.status !== "done";
+      }
+
+      case "due": {
+        if (!task.due_at && !task.scheduled_at) {
+          return <span className="font-mono text-[11px] text-zinc-500">-</span>;
+        }
+
         return (
-          <div className="flex flex-col gap-1">
+          <div className="flex flex-col gap-1.5 font-mono text-[11px]">
             {task.due_at && (
-              <div className={`flex items-center gap-1.5 text-[10px] ${isOverdue ? "text-danger" : "text-foreground-400"}`}>
-                <Calendar size={10} />
+              <div
+                className={`flex items-center gap-1.5 ${
+                  meta.overdue ? "text-rose-400" : meta.dueSoonUnscheduled ? "text-amber-500/90" : "text-zinc-400"
+                }`}
+              >
+                <Calendar size={11} />
                 <span>Due {formatLocal(task.due_at, { month: "short", day: "numeric" })}</span>
               </div>
             )}
             {task.scheduled_at && (
-              <div className="flex items-center gap-1.5 text-[10px] text-primary-500 dark:text-primary-400">
-                <Clock size={10} />
+              <div
+                className={`flex items-center gap-1.5 ${
+                  meta.scheduledToday ? "text-[#8f98e8]" : "text-zinc-400"
+                }`}
+              >
+                <Clock size={11} />
                 <span>Sched {formatLocal(task.scheduled_at, { month: "short", day: "numeric" })}</span>
               </div>
             )}
           </div>
         );
-      case "delegation":
-        if (!task.delegation) return null;
+      }
+
+      case "delegation": {
+        if (!task.delegation) return <span className="text-[11px] text-zinc-600">—</span>;
+
         const teamStatus = task.delegation.status;
         const isTeamDone = teamStatus === "done";
+
         return (
-          <div className="flex flex-col gap-1">
+          <div className="flex flex-col gap-1.5">
             <div className="flex items-center gap-2">
               <Chip
                 size="sm"
                 variant="flat"
                 color={isTeamDone ? "success" : "primary"}
-                className="h-5 text-[10px] uppercase font-bold"
+                className="h-5 border border-white/10 bg-white/5 font-mono text-[10px] uppercase"
               >
                 {teamStatus.replace("_", " ")}
               </Chip>
-              {task.delegation.assignee && (
-                 <span className="text-[10px] text-foreground-400">@{task.delegation.assignee}</span>
-              )}
+              {task.delegation.assignee && <span className="font-mono text-[10px] text-zinc-500">@{task.delegation.assignee}</span>}
             </div>
-            <span className="text-[10px] text-foreground-300 truncate max-w-[150px]">
-              {task.delegation.title}
-            </span>
+            <span className="truncate max-w-[170px] text-[11px] text-zinc-500">{task.delegation.title}</span>
           </div>
         );
+      }
+
       case "actions":
         return (
-          <div className="flex items-center gap-2">
+          <div className="flex items-center justify-end gap-2" onClick={(e) => e.stopPropagation()}>
             {task.source_url && (
               <Button
                 isIconOnly
@@ -200,66 +382,74 @@ export function PersonalTaskList({ initialTasks }: PersonalTaskListProps) {
                 href={task.source_url}
                 target="_blank"
                 rel="noopener noreferrer"
+                className="h-7 w-7 min-w-0 rounded-sm border border-white/10 bg-white/5 text-zinc-300 hover:bg-white/10"
               >
-                <ExternalLink size={14} className="text-foreground-300" />
+                <ExternalLink size={13} />
               </Button>
             )}
             <Button
               size="sm"
               variant="flat"
-              color="primary"
-              className="h-7 text-[10px] font-medium uppercase tracking-wider"
+              className="h-7 rounded-sm border border-white/10 bg-white/10 px-2 font-mono text-[10px] uppercase tracking-wide text-zinc-100"
               onPress={() => setSelectedTaskId(task.id)}
             >
               Details
             </Button>
           </div>
         );
+
       default:
         return null;
     }
   };
 
+  const filterButtons: Array<{ key: PersonalFilter; label: string }> = [
+    { key: "all", label: "All" },
+    { key: "today", label: "Today" },
+    { key: "next_7_days", label: "Next 7 Days" },
+    { key: "overdue", label: "Overdue" },
+  ];
+
   return (
-    <div className="space-y-4">
-      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 px-1">
-        <Tabs 
-          aria-label="Personal Task Filters" 
-          selectedKey={filter}
-          onSelectionChange={(key) => setFilter(key as string)}
-          size="sm"
-          variant="underlined"
-          classNames={{
-            tabList: "bg-gray-100/50 dark:bg-content2/50 p-1 rounded-lg border border-divider/50",
-            cursor: "bg-white dark:bg-background shadow-sm",
-            tab: "h-8 px-3",
-            tabContent: "text-[11px] font-medium"
-          }}
-        >
-          <Tab key="all" title={<div className="flex items-center gap-2"><Inbox size={14}/><span>All</span></div>} />
-          <Tab key="needs_delegation" title={<div className="flex items-center gap-2"><ArrowUpRight size={14}/><span>Needs Delegation</span></div>} />
-          <Tab key="delegated" title={<div className="flex items-center gap-2"><LinkIcon size={14}/><span>Delegated</span></div>} />
-          <Tab key="waiting_on_me" title={<div className="flex items-center gap-2"><CheckCircle2 size={14}/><span>Done on Team</span></div>} />
-          <Tab key="overdue" title={<div className="flex items-center gap-2"><AlertCircle size={14}/><span>Overdue</span></div>} />
-        </Tabs>
+    <div className="space-y-4 font-sans">
+      <div className="flex flex-col gap-3 px-1 lg:flex-row lg:items-center lg:justify-between">
+        <div className="flex flex-wrap items-center gap-2 rounded-md border border-white/10 bg-[#080808] p-1">
+          {filterButtons.map((option) => {
+            const isActive = filter === option.key;
+            return (
+              <button
+                key={option.key}
+                type="button"
+                onClick={() => setFilter(option.key)}
+                className={
+                  isActive
+                    ? "rounded-sm border border-white/10 bg-white/10 px-3 py-1 text-[12px] text-zinc-100"
+                    : "rounded-sm px-3 py-1 text-[12px] text-zinc-500 hover:bg-white/5 hover:text-zinc-300"
+                }
+              >
+                {option.label}
+                <span className="ml-1.5 font-mono text-[10px] text-zinc-400">
+                  {filterCounts[option.key]}
+                </span>
+              </button>
+            );
+          })}
+        </div>
 
         <div className="flex items-center gap-3">
-          <div className="flex items-center gap-2 mr-2">
-            <span className="text-[10px] text-foreground-300 uppercase tracking-wider font-semibold">{tasks.length} items</span>
-            {tasks.length > 0 && (
-               <span className="text-[10px] text-foreground-300 font-mono">
-                 Synced {timeAgo(tasks[0].last_synced_at)}
-               </span>
-            )}
+          <div className="flex items-center gap-2 pr-1">
+            <span className="font-mono text-[10px] uppercase tracking-widest text-zinc-500">{filteredTasks.length} items</span>
+            {tasks.length > 0 && <span className="font-mono text-[10px] text-zinc-600">Synced {timeAgo(tasks[0].last_synced_at)}</span>}
           </div>
+
           <div className="flex items-center gap-2">
             <Button
               size="sm"
               variant="flat"
               onPress={() => handleSync("incremental")}
               isLoading={isSyncing}
-              startContent={!isSyncing && <RefreshCw size={14} />}
-              className="border border-divider bg-white dark:bg-content1 text-[11px] text-foreground"
+              startContent={!isSyncing && <RefreshCw size={13} />}
+              className="h-7 rounded-sm border border-white/10 bg-white/5 px-3 font-mono text-[11px] text-zinc-200"
             >
               {isSyncing ? "Syncing..." : "Sync"}
             </Button>
@@ -270,56 +460,85 @@ export function PersonalTaskList({ initialTasks }: PersonalTaskListProps) {
                 variant="flat"
                 onPress={() => handleSync("full")}
                 isLoading={isSyncing}
-                className="border border-divider bg-white dark:bg-content1"
+                className="h-7 w-7 min-w-0 rounded-sm border border-white/10 bg-white/5"
               >
-                <ArrowUpCircle size={14} className="rotate-180 text-foreground" />
+                <ArrowUpCircle size={13} className="rotate-180 text-zinc-300" />
               </Button>
             </Tooltip>
           </div>
         </div>
       </div>
 
-      <Card className="border border-divider bg-white/50 dark:bg-content1/50 backdrop-blur-xl">
-        <Table 
+      <Card className="rounded-md border border-white/10 bg-[#080808] shadow-none">
+        <Table
           aria-label="Personal tasks table"
           classNames={{
             base: "max-h-[70vh] overflow-y-auto",
-            table: "min-w-[800px]",
-            thead: "bg-gray-100/50 dark:bg-content2/50",
-            th: "text-[10px] font-semibold uppercase tracking-wider text-foreground-400 border-b border-divider",
-            td: "py-3 border-b border-divider/50"
+            table: "min-w-[880px]",
+            thead: "bg-white/[0.03]",
+            th: "border-b border-white/10 text-[10px] font-semibold uppercase tracking-[0.12em] text-zinc-500",
+            td: "border-b border-white/5 py-2.5",
           }}
           removeWrapper
         >
           <TableHeader>
             <TableColumn key="title">Task</TableColumn>
-            <TableColumn key="status" width={140}>Status</TableColumn>
-            <TableColumn key="priority" width={100}>Priority</TableColumn>
-            <TableColumn key="due" width={140}>Date</TableColumn>
-            <TableColumn key="delegation" width={200}>Team Progress</TableColumn>
-            <TableColumn key="actions" width={120} align="end">Actions</TableColumn>
+            <TableColumn key="status" width={160}>
+              Status
+            </TableColumn>
+            <TableColumn key="priority" width={120}>
+              Priority
+            </TableColumn>
+            <TableColumn key="due" width={170}>
+              Date
+            </TableColumn>
+            <TableColumn key="delegation" width={220}>
+              Team Progress
+            </TableColumn>
+            <TableColumn key="actions" width={140} align="end">
+              Actions
+            </TableColumn>
           </TableHeader>
-          <TableBody 
-            items={tasks}
+          <TableBody
+            items={filteredTasks}
             loadingContent={<Spinner size="sm" />}
             isLoading={isLoading}
             emptyContent={isLoading ? " " : "No personal tasks found."}
           >
-            {(item) => (
-              <TableRow key={item.id} className="hover:bg-gray-100/30 dark:hover:bg-content2/30 cursor-pointer" onClick={() => setSelectedTaskId(item.id)}>
-                {(columnKey) => <TableCell>{renderCell(item, columnKey)}</TableCell>}
-              </TableRow>
-            )}
+            {(item) => {
+              const meta = taskMetaById.get(item.id) || EMPTY_META;
+              const rowTone =
+                meta.emphasis === "today"
+                  ? "bg-[#5e6ad2]/[0.07]"
+                  : meta.emphasis === "next7"
+                    ? "bg-amber-500/[0.04]"
+                    : meta.emphasis === "overdue"
+                      ? "bg-rose-500/[0.04]"
+                      : "";
+
+              return (
+                <TableRow
+                  key={item.id}
+                  className={`cursor-pointer transition-colors hover:bg-white/5 ${rowTone}`}
+                  onClick={() => setSelectedTaskId(item.id)}
+                >
+                  {(columnKey) => <TableCell>{renderCell(item, columnKey)}</TableCell>}
+                </TableRow>
+              );
+            }}
           </TableBody>
         </Table>
       </Card>
 
       {selectedTaskId && (
-        <PersonalTaskDrawer 
+        <PersonalTaskDrawer
           taskId={selectedTaskId}
           isOpen={!!selectedTaskId}
           onClose={() => setSelectedTaskId(null)}
           onPromoted={() => {
+            fetchTasks();
+          }}
+          onTaskUpdated={() => {
             fetchTasks();
           }}
         />

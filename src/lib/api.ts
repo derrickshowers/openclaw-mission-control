@@ -248,6 +248,14 @@ type TaskUpdate = Partial<Pick<Task, "title" | "description" | "status" | "assig
   tags?: string[] | null;
 };
 
+type PersonalTaskUpdate = {
+  status?: "backlog" | "in_progress" | "blocked" | "done";
+  source_status?: string | null;
+  due_at?: string | null;
+  scheduled_at?: string | null;
+  description?: string | null;
+};
+
 export const api = {
   // Team tasks
   getTasks: (params?: { status?: string; assignee?: string; project_id?: string }) =>
@@ -300,6 +308,12 @@ export const api = {
     }),
 
   getPersonalTask: (id: string) => apiFetch<PersonalTaskDetail>(`/personal-tasks/${id}`),
+
+  updatePersonalTask: (id: string, data: PersonalTaskUpdate) =>
+    apiFetch<PersonalTask>(`/personal-tasks/${id}`, {
+      method: "PATCH",
+      body: JSON.stringify(data),
+    }),
 
   schedulePersonalTask: (id: string, scheduledAt: string | null) =>
     apiFetch<PersonalTask>(`/personal-tasks/${id}/schedule`, {
