@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect, useMemo, useRef } from "react";
+import { useState, useEffect, useMemo } from "react";
 import {
   Button,
   Chip,
@@ -11,6 +11,7 @@ import {
   SelectItem,
   Input,
   Textarea,
+  DatePicker,
   Modal,
   ModalContent,
   ModalHeader,
@@ -29,6 +30,7 @@ import {
   ArrowUpRight,
 } from "lucide-react";
 import { useRouter } from "next/navigation";
+import { parseDate, type DateValue } from "@internationalized/date";
 import { api, type PersonalTaskDetail, type Project } from "@/lib/api";
 import { timeAgo } from "@/lib/dates";
 import { KNOWN_AGENT_IDS } from "@/lib/agents";
@@ -96,18 +98,17 @@ function normalizeSourceStatus(sourceStatus: string | null | undefined) {
   return "backlog" as const;
 }
 
-function toDateInputValue(iso: string | null | undefined) {
-  if (!iso) return "";
+function toCalendarDateValue(iso: string | null | undefined): DateValue | null {
+  if (!iso) return null;
   const parsed = Date.parse(iso);
-  if (!Number.isFinite(parsed)) return "";
-  return new Date(parsed).toISOString().slice(0, 10);
+  if (!Number.isFinite(parsed)) return null;
+  const dateString = new Date(parsed).toISOString().slice(0, 10);
+  return parseDate(dateString);
 }
 
-function toIsoDateFromInput(value: string) {
+function toIsoDateFromCalendar(value: DateValue | null): string | null {
   if (!value) return null;
-  const parsed = Date.parse(value);
-  if (!Number.isFinite(parsed)) return null;
-  return new Date(parsed).toISOString();
+  return value.toString();
 }
 
 function getStatusOptions(task: PersonalTaskDetail | null) {
@@ -153,8 +154,6 @@ export function PersonalTaskDrawer({ taskId, isOpen, onClose, onPromoted, onTask
   const [projects, setProjects] = useState<Project[]>([]);
   const [isEditingDescription, setIsEditingDescription] = useState(false);
   const [draftDescription, setDraftDescription] = useState("");
-  const dueInputRef = useRef<HTMLInputElement>(null);
-  const scheduledInputRef = useRef<HTMLInputElement>(null);
   const { isOpen: isConfirmOpen, onOpen: onConfirmOpen, onClose: onConfirmClose } = useDisclosure();
 
   // Promotion form state
@@ -240,9 +239,9 @@ export function PersonalTaskDrawer({ taskId, isOpen, onClose, onPromoted, onTask
     );
   };
 
-  const handleDateChange = async (field: "due_at" | "scheduled_at", dateValue: string) => {
+  const handleDateChange = async (field: "due_at" | "scheduled_at", dateValue: DateValue | null) => {
     if (!task) return;
-    const nextIso = dateValue ? toIsoDateFromInput(dateValue) : null;
+    const nextIso = toIsoDateFromCalendar(dateValue);
 
     await patchTask(
       { [field]: nextIso },
@@ -397,53 +396,36 @@ export function PersonalTaskDrawer({ taskId, isOpen, onClose, onPromoted, onTask
 
                   <div className="flex items-center text-zinc-500">Due</div>
                   <div className="flex items-center gap-2">
-                    {task.due_at ? (
-                      <input
-                        ref={dueInputRef}
-                        type="date"
-                        value={toDateInputValue(task.due_at)}
-                        onChange={(e) => {
-                          void handleDateChange("due_at", e.target.value);
-                        }}
-                        className="-ml-2 h-8 rounded-sm px-2 py-1 font-mono text-sm text-zinc-800 dark:text-zinc-200 bg-transparent hover:bg-zinc-100 dark:bg-white/5 focus:bg-zinc-100 dark:bg-white/5 focus:outline-none"
-                        disabled={syncingToNotion}
-                      />
-                    ) : (
-                      <>
-                        <button
-                          type="button"
-                          className="-ml-2 h-8 rounded-sm px-2 py-1 font-mono text-sm text-zinc-500 transition-colors hover:bg-zinc-100 dark:bg-white/5 hover:text-zinc-700 dark:text-zinc-300"
-                          onClick={() => {
-                            const input = dueInputRef.current;
-                            if (!input) return;
-                            try {
-                              (input as HTMLInputElement & { showPicker?: () => void }).showPicker?.();
-                            } catch {}
-                            input.focus();
-                            input.click();
-                          }}
-                          disabled={syncingToNotion}
-                        >
-                          Add date...
-                        </button>
-                        <input
-                          ref={dueInputRef}
-                          type="date"
-                          className="sr-only"
-                          onChange={(e) => {
-                            void handleDateChange("due_at", e.target.value);
-                          }}
-                          disabled={syncingToNotion}
-                        />
-                      </>
-                    )}
+                    <DatePicker
+                      aria-label="Due date"
+                      granularity="day"
+                      hideTimeZone
+                      showMonthAndYearPickers
+                      value={toCalendarDateValue(task.due_at)}
+                      onChange={(value) => {
+                        void handleDateChange("due_at", value);
+                      }}
+                      isDisabled={syncingToNotion}
+                      variant="flat"
+                      size="sm"
+                      className="max-w-[220px]"
+                      classNames={{
+                        inputWrapper:
+                          "rounded-sm border border-zinc-200 dark:border-white/10 bg-transparent hover:bg-zinc-100 dark:hover:bg-white/5",
+                        input: "font-mono text-sm text-zinc-800 dark:text-zinc-200",
+                        selectorButton:
+                          "h-7 w-7 min-w-0 rounded-sm border border-zinc-200 dark:border-white/10 bg-zinc-100 dark:bg-white/5 text-zinc-600 dark:text-zinc-300",
+                        popoverContent: "border border-zinc-200 dark:border-white/10 bg-white dark:bg-[#0d0d0d]",
+                        calendarContent: "bg-white dark:bg-[#0d0d0d]",
+                      }}
+                    />
                     {task.due_at && (
                       <Button
                         size="sm"
                         variant="light"
                         className="h-6 min-w-0 rounded-sm border border-zinc-200 dark:border-white/10 px-2 font-mono text-[10px] text-zinc-600 dark:text-zinc-400"
                         onPress={() => {
-                          void handleDateChange("due_at", "");
+                          void handleDateChange("due_at", null);
                         }}
                         isDisabled={syncingToNotion}
                       >
@@ -454,53 +436,36 @@ export function PersonalTaskDrawer({ taskId, isOpen, onClose, onPromoted, onTask
 
                   <div className="flex items-center text-zinc-500">Scheduled</div>
                   <div className="flex items-center gap-2">
-                    {task.scheduled_at ? (
-                      <input
-                        ref={scheduledInputRef}
-                        type="date"
-                        value={toDateInputValue(task.scheduled_at)}
-                        onChange={(e) => {
-                          void handleDateChange("scheduled_at", e.target.value);
-                        }}
-                        className="-ml-2 h-8 rounded-sm px-2 py-1 font-mono text-sm text-zinc-800 dark:text-zinc-200 bg-transparent hover:bg-zinc-100 dark:bg-white/5 focus:bg-zinc-100 dark:bg-white/5 focus:outline-none"
-                        disabled={syncingToNotion}
-                      />
-                    ) : (
-                      <>
-                        <button
-                          type="button"
-                          className="-ml-2 h-8 rounded-sm px-2 py-1 font-mono text-sm text-zinc-500 transition-colors hover:bg-zinc-100 dark:bg-white/5 hover:text-zinc-700 dark:text-zinc-300"
-                          onClick={() => {
-                            const input = scheduledInputRef.current;
-                            if (!input) return;
-                            try {
-                              (input as HTMLInputElement & { showPicker?: () => void }).showPicker?.();
-                            } catch {}
-                            input.focus();
-                            input.click();
-                          }}
-                          disabled={syncingToNotion}
-                        >
-                          Add date...
-                        </button>
-                        <input
-                          ref={scheduledInputRef}
-                          type="date"
-                          className="sr-only"
-                          onChange={(e) => {
-                            void handleDateChange("scheduled_at", e.target.value);
-                          }}
-                          disabled={syncingToNotion}
-                        />
-                      </>
-                    )}
+                    <DatePicker
+                      aria-label="Scheduled date"
+                      granularity="day"
+                      hideTimeZone
+                      showMonthAndYearPickers
+                      value={toCalendarDateValue(task.scheduled_at)}
+                      onChange={(value) => {
+                        void handleDateChange("scheduled_at", value);
+                      }}
+                      isDisabled={syncingToNotion}
+                      variant="flat"
+                      size="sm"
+                      className="max-w-[220px]"
+                      classNames={{
+                        inputWrapper:
+                          "rounded-sm border border-zinc-200 dark:border-white/10 bg-transparent hover:bg-zinc-100 dark:hover:bg-white/5",
+                        input: "font-mono text-sm text-zinc-800 dark:text-zinc-200",
+                        selectorButton:
+                          "h-7 w-7 min-w-0 rounded-sm border border-zinc-200 dark:border-white/10 bg-zinc-100 dark:bg-white/5 text-zinc-600 dark:text-zinc-300",
+                        popoverContent: "border border-zinc-200 dark:border-white/10 bg-white dark:bg-[#0d0d0d]",
+                        calendarContent: "bg-white dark:bg-[#0d0d0d]",
+                      }}
+                    />
                     {task.scheduled_at && (
                       <Button
                         size="sm"
                         variant="light"
                         className="h-6 min-w-0 rounded-sm border border-zinc-200 dark:border-white/10 px-2 font-mono text-[10px] text-zinc-600 dark:text-zinc-400"
                         onPress={() => {
-                          void handleDateChange("scheduled_at", "");
+                          void handleDateChange("scheduled_at", null);
                         }}
                         isDisabled={syncingToNotion}
                       >
