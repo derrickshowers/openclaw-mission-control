@@ -75,11 +75,28 @@ type TimeGridItem = {
   hasError?: boolean;
 };
 
+type PositionedTimeGridItem = TimeGridItem & {
+  laneIndex: number;
+  laneCount: number;
+};
+
 type DragPreview = {
   taskId: string;
   dayIndex: number;
   startMinute: number;
   durationMinutes: number;
+};
+
+type ResizeEdge = "start" | "end";
+
+type ActiveResize = {
+  taskId: string;
+  dayIndex: number;
+  edge: ResizeEdge;
+  originClientY: number;
+  originStartMinute: number;
+  originDurationMinutes: number;
+  originScrollTop: number;
 };
 
 const CATEGORY_COLORS: Record<string, string> = {
@@ -144,6 +161,92 @@ function parseDraggedTaskId(rawId: string | number): string | null {
   return id.slice("notion-".length);
 }
 
+function getTaskDurationMinutes(task: PersonalTask): number {
+  const startRaw = task.scheduled_at;
+  if (!startRaw) return DEFAULT_NOTION_TASK_MINUTES;
+
+  const start = parseISO(startRaw);
+  if (!isValid(start)) return DEFAULT_NOTION_TASK_MINUTES;
+
+  if (!task.scheduled_end_at) return DEFAULT_NOTION_TASK_MINUTES;
+
+  const end = parseISO(task.scheduled_end_at);
+  if (!isValid(end) || end <= start) return DEFAULT_NOTION_TASK_MINUTES;
+
+  const minutes = Math.round((end.getTime() - start.getTime()) / 60000);
+  return clamp(minutes, SNAP_MINUTES, 12 * 60);
+}
+
+function applyOverlapLayout(items: TimeGridItem[]): PositionedTimeGridItem[] {
+  if (items.length <= 1) {
+    return items.map((item) => ({ ...item, laneIndex: 0, laneCount: 1 }));
+  }
+
+  const sorted = [...items].sort((a, b) => {
+    if (a.startMinute !== b.startMinute) return a.startMinute - b.startMinute;
+    return b.durationMinutes - a.durationMinutes;
+  });
+
+  const layoutById = new Map<string, { laneIndex: number; laneCount: number }>();
+  let cursor = 0;
+
+  while (cursor < sorted.length) {
+    const cluster: TimeGridItem[] = [sorted[cursor]];
+    let clusterEnd = sorted[cursor].startMinute + sorted[cursor].durationMinutes;
+    let next = cursor + 1;
+
+    while (next < sorted.length && sorted[next].startMinute < clusterEnd) {
+      cluster.push(sorted[next]);
+      clusterEnd = Math.max(clusterEnd, sorted[next].startMinute + sorted[next].durationMinutes);
+      next += 1;
+    }
+
+    const laneEnds: number[] = [];
+    for (const item of cluster) {
+      let laneIndex = laneEnds.findIndex((endMinute) => endMinute <= item.startMinute);
+      if (laneIndex === -1) {
+        laneIndex = laneEnds.length;
+        laneEnds.push(0);
+      }
+      laneEnds[laneIndex] = item.startMinute + item.durationMinutes;
+      layoutById.set(item.id, { laneIndex, laneCount: 0 });
+    }
+
+    const laneCount = Math.max(1, laneEnds.length);
+    for (const item of cluster) {
+      const lane = layoutById.get(item.id);
+      if (lane) {
+        lane.laneCount = laneCount;
+      }
+    }
+
+    cursor = next;
+  }
+
+  return sorted.map((item) => {
+    const lane = layoutById.get(item.id) ?? { laneIndex: 0, laneCount: 1 };
+    return {
+      ...item,
+      laneIndex: lane.laneIndex,
+      laneCount: lane.laneCount,
+    };
+  });
+}
+
+function positionedItemStyle(item: PositionedTimeGridItem, top: number, height: number): CSSProperties {
+  const laneCount = Math.max(1, item.laneCount);
+  const laneWidthPercent = 100 / laneCount;
+  const leftPercent = laneWidthPercent * item.laneIndex;
+  const rightPercent = 100 - laneWidthPercent * (item.laneIndex + 1);
+
+  return {
+    top,
+    height,
+    left: `calc(${leftPercent}% + 4px)`,
+    right: `calc(${rightPercent}% + 4px)`,
+  };
+}
+
 export function CalendarView() {
   const [currentDate, setCurrentDate] = useState(new Date());
   const [viewMode, setViewMode] = useState<ViewMode>("week");
@@ -153,12 +256,16 @@ export function CalendarView() {
   const [loading, setLoading] = useState(true);
   const [activeDragTaskId, setActiveDragTaskId] = useState<string | null>(null);
   const [dragPreview, setDragPreview] = useState<DragPreview | null>(null);
+  const [activeResize, setActiveResize] = useState<ActiveResize | null>(null);
+  const [resizePreview, setResizePreview] = useState<DragPreview | null>(null);
   const [now, setNow] = useState(new Date());
   const [syncingTaskIds, setSyncingTaskIds] = useState<Set<string>>(new Set());
   const [errorTaskIds, setErrorTaskIds] = useState<Set<string>>(new Set());
 
   const dayColumnRefs = useRef<(HTMLDivElement | null)[]>([]);
   const weekScrollRef = useRef<HTMLDivElement | null>(null);
+  const dragAnchorOffsetRef = useRef<number>(minuteToPixels(DEFAULT_NOTION_TASK_MINUTES) / 2);
+  const resizePreviewRef = useRef<DragPreview | null>(null);
 
   const sensors = useSensors(
     useSensor(PointerSensor, {
@@ -222,6 +329,10 @@ export function CalendarView() {
   }, []);
 
   useEffect(() => {
+    resizePreviewRef.current = resizePreview;
+  }, [resizePreview]);
+
+  useEffect(() => {
     if (viewMode !== "week" || !weekScrollRef.current) return;
 
     const currentMinutes = minutesOfDay(new Date());
@@ -247,7 +358,9 @@ export function CalendarView() {
 
   const weekItems = useMemo(() => {
     const byDay = Array.from({ length: 7 }, () => [] as TimeGridItem[]);
-    if (viewMode !== "week" || !weekStart || !weekEnd) return byDay;
+    if (viewMode !== "week" || !weekStart || !weekEnd) {
+      return byDay.map((dayItems) => applyOverlapLayout(dayItems));
+    }
 
     const weekStartBoundary = startOfDay(weekStart);
     const weekEndBoundary = endOfDay(weekEnd);
@@ -285,7 +398,7 @@ export function CalendarView() {
       const dayIndex = differenceInCalendarDays(startOfDay(scheduledAt), weekStartBoundary);
       if (dayIndex < 0 || dayIndex > 6) continue;
 
-      const durationMinutes = DEFAULT_NOTION_TASK_MINUTES;
+      const durationMinutes = getTaskDurationMinutes(task);
       const startMinute = clamp(minutesOfDay(scheduledAt), 0, 24 * 60 - durationMinutes);
 
       byDay[dayIndex].push({
@@ -301,26 +414,22 @@ export function CalendarView() {
       });
     }
 
-    for (const dayItems of byDay) {
-      dayItems.sort((a, b) => a.startMinute - b.startMinute);
-    }
-
-    return byDay;
+    return byDay.map((dayItems) => applyOverlapLayout(dayItems));
   }, [events, notionTasks, syncingTaskIds, errorTaskIds, viewMode, weekStart, weekEnd]);
 
   const buildDragPreview = useCallback(
-    (taskId: string, dayIndex: number, translatedTop?: number, translatedHeight?: number): DragPreview | null => {
+    (taskId: string, dayIndex: number, translatedTop?: number): DragPreview | null => {
       const column = dayColumnRefs.current[dayIndex];
       if (!column) return null;
 
       const task = notionTasks.find((t) => t.id === taskId);
       if (!task) return null;
 
-      const durationMinutes = DEFAULT_NOTION_TASK_MINUTES;
+      const durationMinutes = getTaskDurationMinutes(task);
       const bounds = column.getBoundingClientRect();
-      const cardHeight = translatedHeight ?? minuteToPixels(durationMinutes);
-      const centerY = (translatedTop ?? bounds.top + minuteToPixels(12)) + cardHeight / 2;
-      const relativeY = centerY - bounds.top;
+      const currentScrollTop = weekScrollRef.current?.scrollTop ?? 0;
+      const topY = translatedTop ?? bounds.top + minuteToPixels(12) - dragAnchorOffsetRef.current;
+      const relativeY = topY - bounds.top + currentScrollTop;
 
       const rawMinutes = (relativeY / HOUR_ROW_HEIGHT) * 60;
       const snapped = snapMinutes(rawMinutes);
@@ -336,110 +445,24 @@ export function CalendarView() {
     [notionTasks]
   );
 
-  const handleDragStart = useCallback(
-    (event: DragStartEvent) => {
-      const taskId = parseDraggedTaskId(event.active.id);
-      if (!taskId) return;
-
-      setActiveDragTaskId(taskId);
-
-      const currentTask = notionTasks.find((task) => task.id === taskId);
-      if (!currentTask?.scheduled_at || !weekStart) return;
-
-      const scheduledAt = parseISO(currentTask.scheduled_at);
-      if (!isValid(scheduledAt)) return;
-
-      const dayIndex = differenceInCalendarDays(startOfDay(scheduledAt), startOfDay(weekStart));
-      if (dayIndex < 0 || dayIndex > 6) return;
-
-      setDragPreview({
-        taskId,
-        dayIndex,
-        startMinute: snapMinutes(minutesOfDay(scheduledAt)),
-        durationMinutes: DEFAULT_NOTION_TASK_MINUTES,
-      });
-    },
-    [notionTasks, weekStart]
-  );
-
-  const handleDragMove = useCallback(
-    (event: DragMoveEvent) => {
-      const taskId = parseDraggedTaskId(event.active.id);
-      if (!taskId) return;
-
-      const collisionId = event.collisions?.[0]?.id ? String(event.collisions[0].id) : "";
-      if (!collisionId.startsWith("day-")) return;
-
-      const dayIndex = Number(collisionId.replace("day-", ""));
-      if (Number.isNaN(dayIndex) || dayIndex < 0 || dayIndex > 6) return;
-
-      const translated = event.active.rect.current.translated;
-      const preview = buildDragPreview(taskId, dayIndex, translated?.top, translated?.height);
-      if (preview) {
-        setDragPreview(preview);
-      }
-    },
-    [buildDragPreview]
-  );
-
-  const handleDragOver = useCallback(
-    (event: DragOverEvent) => {
-      const taskId = parseDraggedTaskId(event.active.id);
-      if (!taskId) return;
-
-      const overId = event.over?.id ? String(event.over.id) : "";
-      if (!overId.startsWith("day-")) {
-        setDragPreview(null);
-        return;
-      }
-
-      const dayIndex = Number(overId.replace("day-", ""));
-      if (Number.isNaN(dayIndex) || dayIndex < 0 || dayIndex > 6) return;
-
-      const translated = event.active.rect.current.translated;
-      const preview = buildDragPreview(taskId, dayIndex, translated?.top, translated?.height);
-
-      if (preview) {
-        setDragPreview(preview);
-      }
-    },
-    [buildDragPreview]
-  );
-
-  const handleDragEnd = useCallback(
-    async (event: DragEndEvent) => {
-      const taskId = parseDraggedTaskId(event.active.id);
-      const nextPreview = dragPreview;
-
-      setActiveDragTaskId(null);
-      setDragPreview(null);
-
-      if (!taskId || !nextPreview) return;
-
-      const task = notionTasks.find((t) => t.id === taskId);
-      if (!task) return;
-
-      const targetDay = calendarDays[nextPreview.dayIndex];
-      if (!targetDay) return;
-
-      const nextScheduledAt = new Date(targetDay);
-      nextScheduledAt.setHours(0, nextPreview.startMinute, 0, 0);
-      const nextIso = nextScheduledAt.toISOString();
-      const previousIso = task.scheduled_at;
-
-      if (previousIso) {
-        const previousDate = parseISO(previousIso);
-        if (
-          isValid(previousDate) &&
-          previousDate.getTime() === nextScheduledAt.getTime()
-        ) {
-          return;
-        }
-      }
+  const persistTaskSchedule = useCallback(
+    async (args: {
+      taskId: string;
+      nextStartIso: string | null;
+      nextEndIso: string | null;
+      previousStartIso: string | null;
+      previousEndIso: string | null;
+    }) => {
+      const { taskId, nextStartIso, nextEndIso, previousStartIso, previousEndIso } = args;
 
       setNotionTasks((prev) =>
-        prev.map((entry) => (entry.id === taskId ? { ...entry, scheduled_at: nextIso } : entry))
+        prev.map((entry) =>
+          entry.id === taskId
+            ? { ...entry, scheduled_at: nextStartIso, scheduled_end_at: nextEndIso }
+            : entry
+        )
       );
+
       setSyncingTaskIds((prev) => {
         const next = new Set(prev);
         next.add(taskId);
@@ -447,11 +470,16 @@ export function CalendarView() {
       });
 
       try {
-        await api.schedulePersonalTask(taskId, nextIso);
+        await api.schedulePersonalTask(taskId, {
+          scheduled_at: nextStartIso,
+          scheduled_end_at: nextEndIso,
+        });
       } catch {
         setNotionTasks((prev) =>
           prev.map((entry) =>
-            entry.id === taskId ? { ...entry, scheduled_at: previousIso ?? null } : entry
+            entry.id === taskId
+              ? { ...entry, scheduled_at: previousStartIso, scheduled_end_at: previousEndIso }
+              : entry
           )
         );
 
@@ -476,13 +504,262 @@ export function CalendarView() {
         });
       }
     },
-    [calendarDays, dragPreview, notionTasks]
+    []
+  );
+
+  const handleDragStart = useCallback(
+    (event: DragStartEvent) => {
+      const taskId = parseDraggedTaskId(event.active.id);
+      if (!taskId || activeResize) return;
+
+      setResizePreview(null);
+      setActiveDragTaskId(taskId);
+
+      const currentTask = notionTasks.find((task) => task.id === taskId);
+      if (!currentTask?.scheduled_at || !weekStart) return;
+
+      const activator = event.activatorEvent as any;
+      const pointerClientY =
+        typeof activator?.clientY === "number"
+          ? activator.clientY
+          : activator?.touches?.length
+            ? activator.touches[0]?.clientY
+            : null;
+      const initialTop = event.active.rect.current.initial?.top ?? event.active.rect.current.translated?.top;
+      if (typeof pointerClientY === "number" && typeof initialTop === "number") {
+        dragAnchorOffsetRef.current = pointerClientY - initialTop;
+      }
+
+      const scheduledAt = parseISO(currentTask.scheduled_at);
+      if (!isValid(scheduledAt)) return;
+
+      const dayIndex = differenceInCalendarDays(startOfDay(scheduledAt), startOfDay(weekStart));
+      if (dayIndex < 0 || dayIndex > 6) return;
+
+      setDragPreview({
+        taskId,
+        dayIndex,
+        startMinute: snapMinutes(minutesOfDay(scheduledAt)),
+        durationMinutes: getTaskDurationMinutes(currentTask),
+      });
+    },
+    [activeResize, notionTasks, weekStart]
+  );
+
+  const handleDragMove = useCallback(
+    (event: DragMoveEvent) => {
+      const taskId = parseDraggedTaskId(event.active.id);
+      if (!taskId || activeResize) return;
+
+      const collisionId = event.collisions?.[0]?.id ? String(event.collisions[0].id) : "";
+      if (!collisionId.startsWith("day-")) return;
+
+      const dayIndex = Number(collisionId.replace("day-", ""));
+      if (Number.isNaN(dayIndex) || dayIndex < 0 || dayIndex > 6) return;
+
+      const translated = event.active.rect.current.translated;
+      const preview = buildDragPreview(taskId, dayIndex, translated?.top);
+      if (preview) {
+        setDragPreview(preview);
+      }
+    },
+    [activeResize, buildDragPreview]
+  );
+
+  const handleDragOver = useCallback(
+    (event: DragOverEvent) => {
+      const taskId = parseDraggedTaskId(event.active.id);
+      if (!taskId || activeResize) return;
+
+      const overId = event.over?.id ? String(event.over.id) : "";
+      if (!overId.startsWith("day-")) {
+        setDragPreview(null);
+        return;
+      }
+
+      const dayIndex = Number(overId.replace("day-", ""));
+      if (Number.isNaN(dayIndex) || dayIndex < 0 || dayIndex > 6) return;
+
+      const translated = event.active.rect.current.translated;
+      const preview = buildDragPreview(taskId, dayIndex, translated?.top);
+
+      if (preview) {
+        setDragPreview(preview);
+      }
+    },
+    [activeResize, buildDragPreview]
+  );
+
+  const handleDragEnd = useCallback(
+    async (event: DragEndEvent) => {
+      const taskId = parseDraggedTaskId(event.active.id);
+      const nextPreview = dragPreview;
+
+      setActiveDragTaskId(null);
+      setDragPreview(null);
+
+      if (!taskId || !nextPreview) return;
+
+      const task = notionTasks.find((t) => t.id === taskId);
+      if (!task) return;
+
+      const targetDay = calendarDays[nextPreview.dayIndex];
+      if (!targetDay) return;
+
+      const nextScheduledAt = new Date(targetDay);
+      nextScheduledAt.setHours(0, nextPreview.startMinute, 0, 0);
+      const nextEndAt = new Date(nextScheduledAt.getTime() + nextPreview.durationMinutes * 60_000);
+
+      const nextStartIso = nextScheduledAt.toISOString();
+      const nextEndIso = nextEndAt.toISOString();
+      const previousStartIso = task.scheduled_at ?? null;
+      const previousEndIso = task.scheduled_end_at ?? null;
+
+      if (previousStartIso === nextStartIso && previousEndIso === nextEndIso) {
+        return;
+      }
+
+      await persistTaskSchedule({
+        taskId,
+        nextStartIso,
+        nextEndIso,
+        previousStartIso,
+        previousEndIso,
+      });
+    },
+    [calendarDays, dragPreview, notionTasks, persistTaskSchedule]
   );
 
   const handleDragCancel = useCallback(() => {
     setActiveDragTaskId(null);
     setDragPreview(null);
   }, []);
+
+  const computeResizePreview = useCallback(
+    (resizeState: ActiveResize, clientY: number): DragPreview => {
+      const currentScrollTop = weekScrollRef.current?.scrollTop ?? resizeState.originScrollTop;
+      const scrollDelta = currentScrollTop - resizeState.originScrollTop;
+      const deltaMinutes = snapMinutes(((clientY - resizeState.originClientY + scrollDelta) / HOUR_ROW_HEIGHT) * 60);
+
+      if (resizeState.edge === "end") {
+        const durationMinutes = clamp(
+          resizeState.originDurationMinutes + deltaMinutes,
+          SNAP_MINUTES,
+          24 * 60 - resizeState.originStartMinute
+        );
+        return {
+          taskId: resizeState.taskId,
+          dayIndex: resizeState.dayIndex,
+          startMinute: resizeState.originStartMinute,
+          durationMinutes,
+        };
+      }
+
+      const maxStartMinute = resizeState.originStartMinute + resizeState.originDurationMinutes - SNAP_MINUTES;
+      const startMinute = clamp(resizeState.originStartMinute + deltaMinutes, 0, maxStartMinute);
+      const durationMinutes = resizeState.originDurationMinutes - (startMinute - resizeState.originStartMinute);
+
+      return {
+        taskId: resizeState.taskId,
+        dayIndex: resizeState.dayIndex,
+        startMinute,
+        durationMinutes,
+      };
+    },
+    []
+  );
+
+  const handleResizeStart = useCallback(
+    (args: { taskId: string; dayIndex: number; edge: ResizeEdge; clientY: number }) => {
+      const task = notionTasks.find((entry) => entry.id === args.taskId);
+      if (!task?.scheduled_at || !weekStart) return;
+
+      const scheduledAt = parseISO(task.scheduled_at);
+      if (!isValid(scheduledAt)) return;
+
+      const computedDayIndex = differenceInCalendarDays(startOfDay(scheduledAt), startOfDay(weekStart));
+      const dayIndex = computedDayIndex >= 0 && computedDayIndex <= 6 ? computedDayIndex : args.dayIndex;
+      if (dayIndex < 0 || dayIndex > 6) return;
+
+      const durationMinutes = getTaskDurationMinutes(task);
+      const startMinute = clamp(minutesOfDay(scheduledAt), 0, 24 * 60 - durationMinutes);
+
+      setActiveDragTaskId(null);
+      setDragPreview(null);
+
+      const nextResize: ActiveResize = {
+        taskId: args.taskId,
+        dayIndex,
+        edge: args.edge,
+        originClientY: args.clientY,
+        originStartMinute: startMinute,
+        originDurationMinutes: durationMinutes,
+        originScrollTop: weekScrollRef.current?.scrollTop ?? 0,
+      };
+
+      setActiveResize(nextResize);
+      setResizePreview({
+        taskId: args.taskId,
+        dayIndex,
+        startMinute,
+        durationMinutes,
+      });
+    },
+    [notionTasks, weekStart]
+  );
+
+  useEffect(() => {
+    if (!activeResize) return;
+
+    const handlePointerMove = (event: PointerEvent) => {
+      setResizePreview(computeResizePreview(activeResize, event.clientY));
+    };
+
+    const handlePointerUp = () => {
+      const finalPreview = resizePreviewRef.current ?? {
+        taskId: activeResize.taskId,
+        dayIndex: activeResize.dayIndex,
+        startMinute: activeResize.originStartMinute,
+        durationMinutes: activeResize.originDurationMinutes,
+      };
+
+      setActiveResize(null);
+      setResizePreview(null);
+
+      const task = notionTasks.find((entry) => entry.id === activeResize.taskId);
+      const targetDay = calendarDays[finalPreview.dayIndex];
+      if (!task || !targetDay) return;
+
+      const nextStart = new Date(targetDay);
+      nextStart.setHours(0, finalPreview.startMinute, 0, 0);
+      const nextEnd = new Date(nextStart.getTime() + finalPreview.durationMinutes * 60_000);
+
+      const nextStartIso = nextStart.toISOString();
+      const nextEndIso = nextEnd.toISOString();
+      const previousStartIso = task.scheduled_at ?? null;
+      const previousEndIso = task.scheduled_end_at ?? null;
+
+      if (previousStartIso === nextStartIso && previousEndIso === nextEndIso) {
+        return;
+      }
+
+      void persistTaskSchedule({
+        taskId: activeResize.taskId,
+        nextStartIso,
+        nextEndIso,
+        previousStartIso,
+        previousEndIso,
+      });
+    };
+
+    window.addEventListener("pointermove", handlePointerMove);
+    window.addEventListener("pointerup", handlePointerUp, { once: true });
+
+    return () => {
+      window.removeEventListener("pointermove", handlePointerMove);
+      window.removeEventListener("pointerup", handlePointerUp);
+    };
+  }, [activeResize, calendarDays, computeResizePreview, notionTasks, persistTaskSchedule]);
 
   const nowTop = minuteToPixels(minutesOfDay(now));
 
@@ -624,10 +901,12 @@ export function CalendarView() {
                     key={day.toISOString()}
                     dayIndex={dayIndex}
                     items={weekItems[dayIndex]}
-                    dragPreview={dragPreview}
+                    dragPreview={resizePreview ?? dragPreview}
                     activeDragTaskId={activeDragTaskId}
+                    activeResizeTaskId={activeResize?.taskId ?? null}
                     nowTop={nowTop}
                     isTodayColumn={isToday(day)}
+                    onResizeStart={handleResizeStart}
                     onColumnRef={(index, node) => {
                       dayColumnRefs.current[index] = node;
                     }}
@@ -723,17 +1002,21 @@ function WeekDayColumn({
   items,
   dragPreview,
   activeDragTaskId,
+  activeResizeTaskId,
   nowTop,
   isTodayColumn,
+  onResizeStart,
   onColumnRef,
   onEventClick,
 }: {
   dayIndex: number;
-  items: TimeGridItem[];
+  items: PositionedTimeGridItem[];
   dragPreview: DragPreview | null;
   activeDragTaskId: string | null;
+  activeResizeTaskId: string | null;
   nowTop: number;
   isTodayColumn: boolean;
+  onResizeStart: (args: { taskId: string; dayIndex: number; edge: ResizeEdge; clientY: number }) => void;
   onColumnRef: (index: number, node: HTMLDivElement | null) => void;
   onEventClick: (event: CalendarEvent) => void;
 }) {
@@ -791,6 +1074,7 @@ function WeekDayColumn({
         {items.map((item) => {
           const top = minuteToPixels(item.startMinute);
           const height = Math.max(minuteToPixels(item.durationMinutes), MIN_CARD_HEIGHT);
+          const style = positionedItemStyle(item, top, height);
 
           if (item.kind === "event" && item.event) {
             return (
@@ -798,8 +1082,8 @@ function WeekDayColumn({
                 key={item.id}
                 type="button"
                 onClick={() => onEventClick(item.event!)}
-                className="absolute left-1 right-1 rounded-sm border border-primary-500/20 bg-primary-500/10 px-1.5 py-1 text-left text-[11px] leading-tight text-primary-600 transition-colors hover:border-primary-500/30 hover:bg-primary-500/20 dark:text-primary-400"
-                style={{ top: `${top}px`, height: `${height}px` }}
+                className="absolute rounded-sm border border-primary-500/20 bg-primary-500/10 px-1.5 py-1 text-left text-[11px] leading-tight text-primary-600 transition-colors hover:border-primary-500/30 hover:bg-primary-500/20 dark:text-primary-400"
+                style={style}
                 title={item.title}
               >
                 <span className="line-clamp-2">{item.title}</span>
@@ -811,8 +1095,10 @@ function WeekDayColumn({
             <NotionTaskCard
               key={item.id}
               item={item}
-              top={top}
-              height={height}
+              dayIndex={dayIndex}
+              style={style}
+              isResizeActive={activeResizeTaskId === item.sourceId}
+              onResizeStart={onResizeStart}
             />
           );
         })}
@@ -823,48 +1109,93 @@ function WeekDayColumn({
 
 function NotionTaskCard({
   item,
-  top,
-  height,
+  dayIndex,
+  style,
+  isResizeActive,
+  onResizeStart,
 }: {
-  item: TimeGridItem;
-  top: number;
-  height: number;
+  item: PositionedTimeGridItem;
+  dayIndex: number;
+  style: CSSProperties;
+  isResizeActive: boolean;
+  onResizeStart: (args: { taskId: string; dayIndex: number; edge: ResizeEdge; clientY: number }) => void;
 }) {
   const { attributes, listeners, setNodeRef, transform, isDragging } = useDraggable({
     id: item.id,
     data: {
       taskId: item.sourceId,
     },
-    disabled: item.syncing,
+    disabled: item.syncing || isResizeActive,
   });
 
-  const style: CSSProperties = {
-    top,
-    height,
+  const cardStyle: CSSProperties = {
+    ...style,
     transform: CSS.Translate.toString(transform),
-    zIndex: isDragging ? 50 : 20,
+    zIndex: isDragging || isResizeActive ? 60 : 20,
   };
 
   return (
-    <button
+    <div
       ref={setNodeRef}
-      type="button"
-      title={item.title}
-      style={style}
-      {...attributes}
-      {...listeners}
-      className={`absolute left-1 right-1 rounded-sm border border-amber-500/30 bg-amber-500/10 px-1.5 py-1 text-left text-[11px] leading-tight text-amber-600 transition-[box-shadow,transform,opacity,border-color] duration-150 hover:border-amber-500/50 dark:text-amber-500 ${
-        isDragging ? "cursor-grabbing scale-[1.02] shadow-md" : "cursor-grab"
+      className={`group absolute rounded-sm border border-amber-500/30 bg-amber-500/10 text-amber-600 transition-[box-shadow,transform,opacity,border-color] duration-150 hover:border-amber-500/50 dark:text-amber-500 ${
+        isDragging ? "scale-[1.02] shadow-md" : ""
       } ${item.syncing ? "opacity-50" : "opacity-100"} ${
         item.hasError ? "border-red-500 ring-1 ring-red-500/60" : ""
       }`}
+      style={cardStyle}
+      title={item.title}
     >
-      <span className="flex items-center gap-1">
-        <ListTodo size={11} strokeWidth={1.8} className="flex-shrink-0" />
-        <span className="truncate">{item.title}</span>
-        {item.syncing && <Loader2 size={11} className="ml-auto animate-spin" />}
-      </span>
-    </button>
+      <button
+        type="button"
+        {...attributes}
+        {...listeners}
+        className={`flex h-full w-full cursor-grab items-start px-1.5 py-1 text-left text-[11px] leading-tight outline-none ${
+          isDragging ? "cursor-grabbing" : ""
+        }`}
+      >
+        <span className="flex w-full items-center gap-1">
+          <ListTodo size={11} strokeWidth={1.8} className="mt-0.5 flex-shrink-0" />
+          <span className="line-clamp-3 flex-1">{item.title}</span>
+          {item.syncing && <Loader2 size={11} className="ml-auto animate-spin" />}
+        </span>
+      </button>
+
+      <button
+        type="button"
+        aria-label="Resize start"
+        onPointerDown={(event) => {
+          event.preventDefault();
+          event.stopPropagation();
+          onResizeStart({
+            taskId: item.sourceId,
+            dayIndex,
+            edge: "start",
+            clientY: event.clientY,
+          });
+        }}
+        className="absolute -top-1 left-1 right-1 z-20 h-2 cursor-ns-resize opacity-0 transition-opacity group-hover:opacity-100"
+      >
+        <span className="mx-auto mt-[2px] block h-px w-6 rounded bg-amber-500/70" />
+      </button>
+
+      <button
+        type="button"
+        aria-label="Resize end"
+        onPointerDown={(event) => {
+          event.preventDefault();
+          event.stopPropagation();
+          onResizeStart({
+            taskId: item.sourceId,
+            dayIndex,
+            edge: "end",
+            clientY: event.clientY,
+          });
+        }}
+        className="absolute -bottom-1 left-1 right-1 z-20 h-2 cursor-ns-resize opacity-0 transition-opacity group-hover:opacity-100"
+      >
+        <span className="mx-auto mt-[5px] block h-px w-6 rounded bg-amber-500/70" />
+      </button>
+    </div>
   );
 }
 

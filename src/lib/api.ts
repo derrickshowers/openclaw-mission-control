@@ -108,6 +108,7 @@ export interface PersonalTask {
   priority: number;
   due_at: string | null;
   scheduled_at: string | null;
+  scheduled_end_at: string | null;
   owner: string;
   source_last_edited_at: string | null;
   last_synced_at: string;
@@ -253,6 +254,7 @@ type PersonalTaskUpdate = {
   source_status?: string | null;
   due_at?: string | null;
   scheduled_at?: string | null;
+  scheduled_end_at?: string | null;
   description?: string | null;
 };
 
@@ -315,10 +317,13 @@ export const api = {
       body: JSON.stringify(data),
     }),
 
-  schedulePersonalTask: (id: string, scheduledAt: string | null) =>
+  schedulePersonalTask: (
+    id: string,
+    data: { scheduled_at: string | null; scheduled_end_at?: string | null }
+  ) =>
     apiFetch<PersonalTask>(`/personal-tasks/${id}/schedule`, {
       method: "PATCH",
-      body: JSON.stringify({ scheduled_at: scheduledAt }),
+      body: JSON.stringify(data),
     }),
 
   getPersonalTaskSummary: () =>
