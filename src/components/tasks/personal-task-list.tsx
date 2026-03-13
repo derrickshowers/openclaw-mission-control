@@ -66,26 +66,16 @@ export function PersonalTaskList({ initialTasks }: PersonalTaskListProps) {
       const params: any = { limit: 100 };
       
       if (filter === "needs_delegation") {
-        params.linked = "unlinked";
-        params.status = "backlog"; // Or in_progress too? Usually backlog.
+        params.view = "needs_delegation";
       } else if (filter === "delegated") {
-        params.linked = "linked";
+        params.view = "delegated";
+      } else if (filter === "waiting_on_me") {
+        params.view = "done_on_team";
       } else if (filter === "overdue") {
-        params.due = "overdue";
+        params.view = "overdue";
       }
-      
-      let data = await api.getPersonalTasks(params);
-      
-      // Client-side filter for "Done on team, still open personally"
-      if (filter === "waiting_on_me") {
-        data = await api.getPersonalTasks({ limit: 200 });
-        data = data.filter(t => 
-          t.link_count > 0 && 
-          t.open_link_count === 0 && 
-          t.status !== "done"
-        );
-      }
-      
+
+      const data = await api.getPersonalTasks(params);
       setTasks(data);
     } catch (err) {
       console.error("Failed to fetch personal tasks:", err);

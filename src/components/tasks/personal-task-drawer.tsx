@@ -17,6 +17,7 @@ import {
   ModalHeader,
   ModalBody,
   ModalFooter,
+  Checkbox,
   useDisclosure
 } from "@heroui/react";
 import { 
@@ -69,6 +70,7 @@ export function PersonalTaskDrawer({ taskId, isOpen, onClose, onPromoted }: Pers
   const [promoPriority, setPromoPriority] = useState("0");
   const [promoStatus, setPromoStatus] = useState("backlog");
   const [promoRelation, setPromoRelation] = useState("delegated");
+  const [promoCreateAnother, setPromoCreateAnother] = useState(false);
 
   useEffect(() => {
     if (isOpen && taskId) {
@@ -257,7 +259,10 @@ export function PersonalTaskDrawer({ taskId, isOpen, onClose, onPromoted }: Pers
                       variant="flat" 
                       color="primary" 
                       startContent={<ArrowUpCircle size={18} />}
-                      onPress={onConfirmOpen}
+                      onPress={() => {
+                        setPromoCreateAnother(true);
+                        onConfirmOpen();
+                      }}
                     >
                       Delegate Again
                     </Button>
@@ -274,7 +279,10 @@ export function PersonalTaskDrawer({ taskId, isOpen, onClose, onPromoted }: Pers
                         className="mt-4" 
                         color="primary" 
                         startContent={<ArrowUpCircle size={18} />}
-                        onPress={onConfirmOpen}
+                        onPress={() => {
+                          setPromoCreateAnother(false);
+                          onConfirmOpen();
+                        }}
                       >
                         Create Team Task
                       </Button>
@@ -389,8 +397,16 @@ export function PersonalTaskDrawer({ taskId, isOpen, onClose, onPromoted }: Pers
             </Select>
 
             {task?.open_link_count && task.open_link_count > 0 ? (
-               <div className="mt-2 rounded-lg bg-warning-50 p-3 text-xs text-warning-700">
-                 Note: This personal task already has an active link to a team task.
+               <div className="mt-2 rounded-lg bg-warning-50 p-3 text-xs text-warning-700 space-y-2">
+                 <p>Note: This personal task already has an active link to a team task.</p>
+                 <Checkbox 
+                   size="sm" 
+                   isSelected={promoCreateAnother} 
+                   onValueChange={setPromoCreateAnother}
+                   classNames={{ label: "text-[10px] text-warning-800 font-medium" }}
+                 >
+                   Force create another team task
+                 </Checkbox>
                </div>
             ) : null}
           </ModalBody>
@@ -398,12 +414,12 @@ export function PersonalTaskDrawer({ taskId, isOpen, onClose, onPromoted }: Pers
             <Button variant="flat" onPress={onConfirmClose} size="sm">Cancel</Button>
             <Button 
               color="primary" 
-              onPress={() => handlePromote(true)} 
+              onPress={() => handlePromote(promoCreateAnother)} 
               isLoading={promoting}
               size="sm"
               startContent={!promoting && <ArrowUpCircle size={16} />}
             >
-              {task?.link_count ? "Delegate Again" : "Delegate Task"}
+              {task?.link_count && !promoCreateAnother ? "Re-delegate" : (task?.link_count ? "Delegate Again" : "Delegate Task")}
             </Button>
           </ModalFooter>
         </ModalContent>
