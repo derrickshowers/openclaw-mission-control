@@ -1050,15 +1050,22 @@ function WeekDayColumn({
           <div className="pointer-events-none absolute inset-0 z-10 bg-black/[0.03] dark:bg-white/[0.04]" />
         )}
 
-        {dragPreview && dragPreview.dayIndex === dayIndex && (
-          <div
-            className="pointer-events-none absolute left-1 right-1 z-20 rounded-sm border border-dashed border-amber-500/60 bg-amber-500/10"
-            style={{
-              top: `${minuteToPixels(dragPreview.startMinute)}px`,
-              height: `${Math.max(minuteToPixels(dragPreview.durationMinutes), MIN_CARD_HEIGHT)}px`,
-            }}
-          />
-        )}
+        {dragPreview && dragPreview.dayIndex === dayIndex && (() => {
+          const sourceItem = items.find((i) => i.sourceId === dragPreview.taskId);
+          const top = minuteToPixels(dragPreview.startMinute);
+          const height = Math.max(minuteToPixels(dragPreview.durationMinutes), MIN_CARD_HEIGHT);
+          
+          const previewStyle = sourceItem 
+            ? positionedItemStyle(sourceItem, top, height) 
+            : { top, height, left: "4px", right: "4px" };
+
+          return (
+            <div
+              className="pointer-events-none absolute z-20 rounded-sm border border-dashed border-amber-500/60 bg-amber-500/10"
+              style={previewStyle}
+            />
+          );
+        })()}
 
         {isTodayColumn && (
           <div
