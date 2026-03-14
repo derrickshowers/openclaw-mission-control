@@ -606,34 +606,34 @@ export function SessionsBrowser({ formatTokens, formatCost, formatLocalTime, age
                       onClick={() => {
                         if (canOpen) void openSessionDetail(row);
                       }}
-                      className={`transition ${canOpen ? "cursor-pointer hover:bg-gray-50 dark:hover:bg-white/5" : "cursor-default opacity-60"}`}
+                      className={`transition ${canOpen ? "cursor-pointer hover:bg-gray-50 dark:hover:bg-white/5" : "cursor-default"}`}
                     >
                       <td className="px-4 py-2">
                         <div className="flex items-center gap-2">
                           <span className="h-2 w-2 rounded-full" style={{ backgroundColor: agentColors[row.agent] || "#888" }} />
-                          <span className="capitalize text-foreground-500 dark:text-[#D4D4D8]">{row.agent}</span>
+                          <span className="capitalize text-foreground dark:text-[#E4E4E7]">{row.agent}</span>
                         </div>
                       </td>
-                      <td className="px-4 py-2 font-mono text-xs text-foreground-400">{row.model_label || row.model || "Unknown"}</td>
+                      <td className="px-4 py-2 font-mono text-xs text-foreground dark:text-[#E4E4E7]">{row.model_label || row.model || "Unknown"}</td>
                       <td className="px-4 py-2 text-xs">
                         {row.task_id ? (
                           <div className="flex flex-col">
                             <span className="font-mono text-indigo-300">Task {row.task_id.slice(0, 8)}</span>
-                            {row.task_title ? <span className="truncate text-gray-400" title={row.task_title}>{row.task_title}</span> : null}
+                            {row.task_title ? <span className="truncate text-foreground-500 dark:text-gray-300" title={row.task_title}>{row.task_title}</span> : null}
                           </div>
                         ) : (
-                          <span className="truncate font-mono text-gray-400" title={row.display_name || row.session_key || row.session_id || "-"}>
+                          <span className="truncate font-mono text-foreground-500 dark:text-gray-300" title={row.display_name || row.session_key || row.session_id || "-"}>
                             {row.display_name || row.session_key || row.session_id || "-"}
                           </span>
                         )}
                       </td>
-                      <td className="px-4 py-2 text-xs text-foreground-500 dark:text-gray-300" title={row.last_activity_at || ""}>
+                      <td className="px-4 py-2 text-xs text-foreground dark:text-gray-200" title={row.last_activity_at || ""}>
                         {formatRelative(row.last_activity_at)}
                       </td>
-                      <td className="px-4 py-2 text-right font-mono text-xs text-foreground-500 dark:text-gray-300">
+                      <td className="px-4 py-2 text-right font-mono text-xs text-foreground dark:text-gray-200">
                         {formatTokens(row.usage_total_tokens || 0)}
                       </td>
-                      <td className="px-4 py-2 text-right font-mono text-xs text-foreground-500 dark:text-gray-300">
+                      <td className="px-4 py-2 text-right font-mono text-xs text-foreground dark:text-gray-200">
                         {row.cost_source === "none" ? "—" : row.cost_source === "unpriced" ? "unpriced" : formatCost(row.cost_usd || 0)}
                       </td>
                     </tr>
