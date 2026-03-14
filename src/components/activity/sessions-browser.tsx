@@ -2,7 +2,7 @@
 
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { Modal, ModalBody, ModalContent, ModalHeader, Select, SelectItem } from "@heroui/react";
-import { Filter } from "lucide-react";
+import { Filter, X } from "lucide-react";
 import ReactMarkdown from "react-markdown";
 
 type DatePreset = "all" | "today" | "last7" | "last30" | "custom";
@@ -835,22 +835,36 @@ export function SessionsBrowser({ formatTokens, formatCost, formatLocalTime, age
                 {selectedSession?.task_title || selectedSession?.display_name || selectedSession?.session_key || selectedSession?.session_id || ""}
               </div>
             </div>
-            <div className="text-right text-[11px] font-mono text-foreground-500 dark:text-gray-400">
-              <div className="inline-flex flex-wrap justify-end gap-x-2 gap-y-1">
-                <span>Total {selectedSession ? formatTokens(selectedSession.usage_total_tokens || 0) : "0"}</span>
-                <span>In {selectedSession ? formatTokens(selectedSession.input_tokens || 0) : "0"}</span>
-                <span>Cached {selectedSession ? formatTokens(selectedSession.cached_input_tokens || 0) : "0"}</span>
-                <span>Out {selectedSession ? formatTokens(selectedSession.output_tokens || 0) : "0"}</span>
-                <span>
-                  Cost {selectedSession
-                    ? (selectedSession.cost_source === "none"
-                      ? "—"
-                      : selectedSession.cost_source === "unpriced"
-                        ? "unpriced"
-                        : formatCost(selectedSession.cost_usd || 0))
-                    : "$0.00"}
-                </span>
+            <div className="flex items-start gap-2">
+              <div className="text-right text-[11px] font-mono text-foreground-500 dark:text-gray-400">
+                <div className="inline-flex flex-wrap justify-end gap-x-2 gap-y-1">
+                  <span>Total {selectedSession ? formatTokens(selectedSession.usage_total_tokens || 0) : "0"}</span>
+                  <span>In {selectedSession ? formatTokens(selectedSession.input_tokens || 0) : "0"}</span>
+                  <span>Cached {selectedSession ? formatTokens(selectedSession.cached_input_tokens || 0) : "0"}</span>
+                  <span>Out {selectedSession ? formatTokens(selectedSession.output_tokens || 0) : "0"}</span>
+                  <span>
+                    Cost {selectedSession
+                      ? (selectedSession.cost_source === "none"
+                        ? "—"
+                        : selectedSession.cost_source === "unpriced"
+                          ? "unpriced"
+                          : formatCost(selectedSession.cost_usd || 0))
+                      : "$0.00"}
+                  </span>
+                </div>
               </div>
+              <button
+                type="button"
+                onClick={() => {
+                  setSelectedSession(null);
+                  setDetail(null);
+                  setDetailError(null);
+                }}
+                className="inline-flex h-7 w-7 items-center justify-center rounded border border-divider text-foreground-500 hover:bg-gray-100 md:hidden dark:border-white/10 dark:text-gray-300 dark:hover:bg-white/10"
+                aria-label="Close session modal"
+              >
+                <X size={14} />
+              </button>
             </div>
           </ModalHeader>
 
