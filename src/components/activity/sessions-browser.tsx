@@ -158,6 +158,25 @@ function formatStopReason(stopReason: string | null | undefined): string | null 
   return normalized.charAt(0).toUpperCase() + normalized.slice(1);
 }
 
+function formatThreadTimestamp(timestamp: string | null | undefined): string {
+  if (!timestamp) return "—";
+  const date = new Date(timestamp);
+  if (Number.isNaN(date.getTime())) return String(timestamp);
+
+  const now = new Date();
+  const dayMs = 24 * 60 * 60 * 1000;
+  const dayDiff = Math.floor((startOfLocalDay(now).getTime() - startOfLocalDay(date).getTime()) / dayMs);
+  const timeLabel = date.toLocaleTimeString([], { hour: "numeric", minute: "2-digit" });
+
+  if (dayDiff >= 0 && dayDiff <= 5) {
+    const weekday = date.toLocaleDateString([], { weekday: "short" });
+    return `${weekday} ${timeLabel}`;
+  }
+
+  const shortDate = date.toLocaleDateString([], { month: "numeric", day: "numeric" });
+  return `${shortDate} ${timeLabel}`;
+}
+
 export function SessionsBrowser({ formatTokens, formatCost, formatLocalTime, agentColors }: SessionsBrowserProps) {
   const [sessions, setSessions] = useState<SessionListItem[]>([]);
   const [pageInfo, setPageInfo] = useState<SessionsPage["pageInfo"] | null>(null);
@@ -405,7 +424,7 @@ export function SessionsBrowser({ formatTokens, formatCost, formatLocalTime, age
               ⚙️ {item.toolName || "tool"} result
               {item.isError ? <span className="ml-2 text-red-500 dark:text-red-400">error</span> : null}
             </div>
-            <span className="text-[10px] text-gray-500 dark:text-gray-500">{formatLocalTime(item.timestamp)}</span>
+            <span className="text-[10px] text-gray-500 dark:text-gray-500">{formatThreadTimestamp(item.timestamp)}</span>
           </div>
           <details>
             <summary className="cursor-pointer text-[11px] text-foreground-500 dark:text-gray-400">Show payload</summary>
@@ -425,7 +444,7 @@ export function SessionsBrowser({ formatTokens, formatCost, formatLocalTime, age
         <div key={item.id} className="rounded border border-divider bg-gray-50 p-2 text-[11px] text-foreground-500 dark:border-white/10 dark:bg-white/5 dark:text-gray-400">
           <div className="mb-1 flex items-center justify-between">
             <span className="font-mono uppercase tracking-wide">{item.eventType || "meta"}</span>
-            <span>{formatLocalTime(item.timestamp)}</span>
+            <span>{formatThreadTimestamp(item.timestamp)}</span>
           </div>
           <div className="space-y-2">{item.parts.map(renderPart)}</div>
         </div>
@@ -441,7 +460,7 @@ export function SessionsBrowser({ formatTokens, formatCost, formatLocalTime, age
           <span className={`text-[11px] font-medium uppercase tracking-wide ${isUser ? "text-foreground dark:text-gray-300" : "text-violet-700 dark:text-violet-300"}`}>
             {isUser ? "User" : "Assistant"}
           </span>
-          <span className="text-[10px] text-gray-500 dark:text-gray-500">{formatLocalTime(item.timestamp)}</span>
+          <span className="text-[10px] text-gray-500 dark:text-gray-500">{formatThreadTimestamp(item.timestamp)}</span>
         </div>
 
         <div className="space-y-2">{item.parts.map(renderPart)}</div>
@@ -455,7 +474,7 @@ export function SessionsBrowser({ formatTokens, formatCost, formatLocalTime, age
         ) : null}
       </div>
     );
-  }, [formatCost, formatLocalTime, formatTokens, renderPart]);
+  }, [formatCost, formatTokens, renderPart]);
 
   return (
     <div className="rounded border border-divider bg-white dark:bg-[#0A0A0A]">
