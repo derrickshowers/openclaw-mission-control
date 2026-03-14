@@ -27,7 +27,8 @@ import {
 } from "lucide-react";
 import {
   DndContext,
-  PointerSensor,
+  MouseSensor,
+  TouchSensor,
   useDraggable,
   useDroppable,
   useSensor,
@@ -258,8 +259,14 @@ export function CalendarView() {
   const resizePreviewRef = useRef<DragPreview | null>(null);
 
   const sensors = useSensors(
-    useSensor(PointerSensor, {
+    useSensor(MouseSensor, {
       activationConstraint: { distance: 4 },
+    }),
+    useSensor(TouchSensor, {
+      activationConstraint: {
+        delay: 180,
+        tolerance: 10,
+      },
     })
   );
 
@@ -683,11 +690,16 @@ export function CalendarView() {
   useEffect(() => {
     if (!activeResize) return;
 
+    let finished = false;
+
     const handlePointerMove = (event: PointerEvent) => {
       setResizePreview(computeResizePreview(activeResize, event.clientY));
     };
 
-    const handlePointerUp = () => {
+    const finishResize = () => {
+      if (finished) return;
+      finished = true;
+
       const finalPreview = resizePreviewRef.current ?? {
         taskId: activeResize.taskId,
         dayIndex: activeResize.dayIndex,
@@ -725,11 +737,13 @@ export function CalendarView() {
     };
 
     window.addEventListener("pointermove", handlePointerMove);
-    window.addEventListener("pointerup", handlePointerUp, { once: true });
+    window.addEventListener("pointerup", finishResize);
+    window.addEventListener("pointercancel", finishResize);
 
     return () => {
       window.removeEventListener("pointermove", handlePointerMove);
-      window.removeEventListener("pointerup", handlePointerUp);
+      window.removeEventListener("pointerup", finishResize);
+      window.removeEventListener("pointercancel", finishResize);
     };
   }, [activeResize, calendarDays, computeResizePreview, notionTasks, persistTaskSchedule]);
 
@@ -1028,7 +1042,7 @@ function NotionTaskCard({
         type="button"
         {...attributes}
         {...listeners}
-        className={`flex h-full w-full cursor-grab items-start px-1.5 py-1 text-left text-[11px] leading-tight outline-none ${
+        className={`flex h-full w-full cursor-grab touch-none select-none items-start px-1.5 py-1 text-left text-[11px] leading-tight outline-none ${
           isDragging ? "cursor-grabbing" : ""
         }`}
       >
@@ -1052,7 +1066,7 @@ function NotionTaskCard({
             clientY: event.clientY,
           });
         }}
-        className="absolute -top-1 left-1 right-1 z-20 h-2 cursor-ns-resize opacity-0 transition-opacity group-hover:opacity-100"
+        className="absolute -top-1 left-1 right-1 z-20 h-2 cursor-ns-resize touch-none opacity-100 transition-opacity md:opacity-0 md:group-hover:opacity-100"
       >
         <span className="mx-auto mt-[2px] block h-px w-6 rounded bg-amber-500/70" />
       </button>
@@ -1070,7 +1084,7 @@ function NotionTaskCard({
             clientY: event.clientY,
           });
         }}
-        className="absolute -bottom-1 left-1 right-1 z-20 h-2 cursor-ns-resize opacity-0 transition-opacity group-hover:opacity-100"
+        className="absolute -bottom-1 left-1 right-1 z-20 h-2 cursor-ns-resize touch-none opacity-100 transition-opacity md:opacity-0 md:group-hover:opacity-100"
       >
         <span className="mx-auto mt-[5px] block h-px w-6 rounded bg-amber-500/70" />
       </button>
