@@ -236,6 +236,19 @@ export function MentionTextarea({
           );
           return;
         }
+
+        const exactMentionMatch = filteredAgents.find(
+          (agent) => agent.toLowerCase() === mentionFilter.toLowerCase()
+        );
+
+        if (e.key === " " && exactMentionMatch) {
+          // Auto-complete exact mention on space to avoid browser spellcheck/autocorrect
+          // interfering with tokens like @michael.
+          e.preventDefault();
+          insertMention(exactMentionMatch);
+          return;
+        }
+
         if (e.key === "Enter" || e.key === "Tab") {
           e.preventDefault();
           insertMention(filteredAgents[selectedIndex]);
@@ -287,7 +300,16 @@ export function MentionTextarea({
 
       onKeyDown?.(e);
     },
-    [showMentions, filteredAgents, selectedIndex, insertMention, syncValue, onKeyDown, disabled]
+    [
+      showMentions,
+      filteredAgents,
+      mentionFilter,
+      selectedIndex,
+      insertMention,
+      syncValue,
+      onKeyDown,
+      disabled,
+    ]
   );
 
   // Close dropdown on click outside
@@ -349,8 +371,8 @@ export function MentionTextarea({
           className={`w-full min-h-[36px] max-h-[96px] overflow-y-auto rounded-lg border border-divider bg-white dark:bg-[#080808] px-3 py-2 text-base md:text-sm text-foreground dark:text-[#CCCCCC] outline-none focus:border-primary transition-colors ${
             classNames?.inputWrapper || ""
           } ${disabled ? "opacity-50 cursor-not-allowed" : ""}`}
-          spellCheck
-          autoCorrect="on"
+          spellCheck={!showMentions}
+          autoCorrect={showMentions ? "off" : "on"}
           autoCapitalize="off"
           onInput={handleInput}
           onKeyDown={handleKeyDown}
