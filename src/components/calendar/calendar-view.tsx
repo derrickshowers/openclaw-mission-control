@@ -3,16 +3,9 @@
 import { useState, useEffect, useCallback, useMemo, useRef, type CSSProperties } from "react";
 import { Button } from "@heroui/react";
 import {
-  startOfMonth,
-  endOfMonth,
-  startOfWeek,
-  endOfWeek,
   eachDayOfInterval,
   format,
-  isSameMonth,
   isToday,
-  addMonths,
-  subMonths,
   addWeeks,
   subWeeks,
   startOfWeek as getWeekStart,
@@ -59,8 +52,6 @@ interface CalendarEvent {
   color?: string;
   created_by?: string;
 }
-
-type ViewMode = "month" | "week";
 
 type TimeGridItem = {
   id: string;
@@ -249,7 +240,6 @@ function positionedItemStyle(item: PositionedTimeGridItem, top: number, height: 
 
 export function CalendarView() {
   const [currentDate, setCurrentDate] = useState(new Date());
-  const [viewMode, setViewMode] = useState<ViewMode>("week");
   const [events, setEvents] = useState<CalendarEvent[]>([]);
   const [notionTasks, setNotionTasks] = useState<PersonalTask[]>([]);
   const [selectedEvent, setSelectedEvent] = useState<CalendarEvent | null>(null);
@@ -274,18 +264,10 @@ export function CalendarView() {
   );
 
   const calendarDays = useMemo(() => {
-    if (viewMode === "month") {
-      const monthStart = startOfMonth(currentDate);
-      const monthEnd = endOfMonth(currentDate);
-      const calStart = startOfWeek(monthStart, { weekStartsOn: 0 });
-      const calEnd = endOfWeek(monthEnd, { weekStartsOn: 0 });
-      return eachDayOfInterval({ start: calStart, end: calEnd });
-    }
-
     const weekStart = getWeekStart(currentDate, { weekStartsOn: 0 });
     const weekEnd = getWeekEnd(currentDate, { weekStartsOn: 0 });
     return eachDayOfInterval({ start: weekStart, end: weekEnd });
-  }, [currentDate, viewMode]);
+  }, [currentDate]);
 
   const weekStart = calendarDays[0];
   const weekEnd = calendarDays[6];
@@ -333,32 +315,22 @@ export function CalendarView() {
   }, [resizePreview]);
 
   useEffect(() => {
-    if (viewMode !== "week" || !weekScrollRef.current) return;
+    if (!weekScrollRef.current) return;
 
     const currentMinutes = minutesOfDay(new Date());
     const targetTop = Math.max(0, minuteToPixels(currentMinutes) - 220);
     weekScrollRef.current.scrollTop = targetTop;
-  }, [viewMode, weekStartKey]);
+  }, [weekStartKey]);
 
   const navigate = (direction: "prev" | "next") => {
-    if (viewMode === "month") {
-      setCurrentDate((d) => (direction === "next" ? addMonths(d, 1) : subMonths(d, 1)));
-      return;
-    }
-
     setCurrentDate((d) => (direction === "next" ? addWeeks(d, 1) : subWeeks(d, 1)));
   };
 
   const goToday = () => setCurrentDate(new Date());
 
-  const getEventsForDay = (day: Date): CalendarEvent[] => {
-    const dayStr = format(day, "yyyy-MM-dd");
-    return events.filter((e) => e.start_date.startsWith(dayStr));
-  };
-
   const weekItems = useMemo(() => {
     const byDay = Array.from({ length: 7 }, () => [] as TimeGridItem[]);
-    if (viewMode !== "week" || !weekStart || !weekEnd) {
+    if (!weekStart || !weekEnd) {
       return byDay.map((dayItems) => applyOverlapLayout(dayItems));
     }
 
@@ -415,7 +387,7 @@ export function CalendarView() {
     }
 
     return byDay.map((dayItems) => applyOverlapLayout(dayItems));
-  }, [events, notionTasks, syncingTaskIds, errorTaskIds, viewMode, weekStart, weekEnd]);
+  }, [events, notionTasks, syncingTaskIds, errorTaskIds, weekStart, weekEnd]);
 
   const buildDragPreview = useCallback(
     (taskId: string, dayIndex: number, translatedTop?: number): DragPreview | null => {
@@ -769,9 +741,7 @@ export function CalendarView() {
       <div className="mb-3 flex items-center justify-between">
         <div className="flex items-center gap-3">
           <h2 className="text-lg font-semibold">
-            {viewMode === "month"
-              ? format(currentDate, "MMMM yyyy")
-              : `Week of ${format(calendarDays[0], "MMM d")} – ${format(calendarDays[6], "MMM d, yyyy")}`}
+            {`Week of ${format(calendarDays[0], "MMM d")} – ${format(calendarDays[6], "MMM d, yyyy")}`}
           </h2>
           {loading && <span className="text-xs text-foreground-500">Loading…</span>}
         </div>
@@ -807,37 +777,11 @@ export function CalendarView() {
             </Button>
           </div>
 
-          <div className="ml-2 flex">
-            <Button
-              size="sm"
-              variant="flat"
-              className={`rounded-r-none border border-gray-200 text-xs dark:border-[#222222] ${
-                viewMode === "month"
-                  ? "bg-primary/10 text-primary border-primary/40 dark:bg-[#1A1A1A] dark:text-white dark:border-[#333333]"
-                  : "bg-white text-foreground-500 hover:bg-gray-50 dark:bg-[#080808] dark:text-[#888888] dark:hover:bg-[#111111]"
-              }`}
-              onPress={() => setViewMode("month")}
-            >
-              Month
-            </Button>
-            <Button
-              size="sm"
-              variant="flat"
-              className={`rounded-l-none border border-gray-200 border-l-0 text-xs dark:border-[#222222] ${
-                viewMode === "week"
-                  ? "bg-primary/10 text-primary border-primary/40 dark:bg-[#1A1A1A] dark:text-white dark:border-[#333333]"
-                  : "bg-white text-foreground-500 hover:bg-gray-50 dark:bg-[#080808] dark:text-[#888888] dark:hover:bg-[#111111]"
-              }`}
-              onPress={() => setViewMode("week")}
-            >
-              Week
-            </Button>
-          </div>
+
         </div>
       </div>
 
-      {viewMode === "week" ? (
-        <div className="flex min-h-0 flex-1 flex-col overflow-hidden rounded-md border border-gray-200 bg-white dark:border-[#222222] dark:bg-[#0A0A0A]">
+      <div className="flex min-h-0 flex-1 flex-col overflow-hidden rounded-md border border-gray-200 bg-white dark:border-[#222222] dark:bg-[#0A0A0A]">
           <div className="grid grid-cols-[72px_repeat(7,minmax(140px,1fr))] border-b border-gray-200 dark:border-[#222222]">
             <div className="border-r border-gray-200 px-2 py-2 text-right text-[11px] font-mono text-foreground-400 dark:border-[#222222]">
               HRS
@@ -917,78 +861,6 @@ export function CalendarView() {
             </div>
           </DndContext>
         </div>
-      ) : (
-        <>
-          {/* Day Headers */}
-          <div className="grid grid-cols-7 border-b border-[#333333]">
-            {["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"].map((day) => (
-              <div
-                key={day}
-                className="px-2 py-1.5 text-right text-xs font-medium text-[#888888]"
-              >
-                {day}
-              </div>
-            ))}
-          </div>
-
-          {/* Month Grid */}
-          <div
-            className="grid flex-1 grid-cols-7"
-            style={{ gridTemplateRows: `repeat(${Math.ceil(calendarDays.length / 7)}, minmax(0, 1fr))` }}
-          >
-            {calendarDays.map((day) => {
-              const dayEvents = getEventsForDay(day);
-              const inMonth = isSameMonth(day, currentDate);
-              const today = isToday(day);
-
-              return (
-                <div
-                  key={day.toISOString()}
-                  className={`min-h-[82px] border-b border-r border-[#333333] p-1 transition-colors hover:bg-[#0c0c0c] ${
-                    inMonth ? "bg-[#080808]" : "bg-[#111111]"
-                  }`}
-                >
-                  <div className="mb-0.5 flex justify-end">
-                    <span
-                      className={`px-1.5 py-0.5 text-xs ${
-                        today
-                          ? "rounded-full bg-white font-medium text-black"
-                          : inMonth
-                            ? "text-[#888888]"
-                            : "text-[#555555]"
-                      }`}
-                    >
-                      {format(day, "d")}
-                    </span>
-                  </div>
-
-                  <div className="space-y-0.5">
-                    {dayEvents.slice(0, 3).map((event) => (
-                      <button
-                        key={event.id}
-                        onClick={() => setSelectedEvent(event)}
-                        className="flex w-full cursor-pointer items-center gap-1 truncate rounded-sm border border-primary-500/20 bg-primary-500/10 px-1.5 py-0.5 text-left text-xs text-primary-600 transition-colors hover:border-primary-500/30 hover:bg-primary-500/20 dark:text-primary-400"
-                        title={event.title}
-                      >
-                        {event.recurrence ? (
-                          <Repeat size={10} strokeWidth={1.5} className="flex-shrink-0 text-primary-500/70" />
-                        ) : (
-                          <Clock size={10} strokeWidth={1.5} className="flex-shrink-0 text-primary-500/70" />
-                        )}
-                        <span className="truncate">{event.title}</span>
-                      </button>
-                    ))}
-
-                    {dayEvents.length > 3 && (
-                      <span className="px-1 text-[10px] text-[#555555]">+{dayEvents.length - 3} more</span>
-                    )}
-                  </div>
-                </div>
-              );
-            })}
-          </div>
-        </>
-      )}
 
       {selectedEvent && (
         <EventDrawer event={selectedEvent} onClose={() => setSelectedEvent(null)} />
