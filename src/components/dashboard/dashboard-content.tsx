@@ -422,12 +422,12 @@ function PersonalBacklogWidget({
   return (
     <Card className="border border-divider bg-content1/50 backdrop-blur-xl shadow-[0_8px_30px_rgba(0,0,0,0.06)] dark:shadow-[0_8px_30px_rgba(0,0,0,0.35)]">
       <CardHeader className="border-b border-divider px-4 py-2.5">
-        <div className="flex w-full items-center justify-between gap-2">
+        <div className="flex w-full flex-col items-start gap-2 sm:flex-row sm:items-center sm:justify-between">
           <span className="flex items-center gap-2 text-xs font-medium uppercase tracking-wider text-foreground-400">
             <User size={16} strokeWidth={1.5} className="text-foreground-300" />
             Personal Backlog (Notion)
           </span>
-          <div className="flex items-center gap-1.5 flex-shrink-0">
+          <div className="flex flex-wrap items-center gap-1.5">
             {overdue > 0 && (
               <span className="rounded-sm border border-danger/20 bg-danger/10 px-1.5 py-0.5 font-mono text-[11px] text-danger">
                 {overdue} overdue
@@ -451,9 +451,16 @@ function PersonalBacklogWidget({
         </div>
       </CardHeader>
       <CardBody className="p-3">
-        <p className="mb-2 mt-1 px-2 text-xs font-semibold uppercase tracking-wider text-foreground-400">
-          Priority Actions
-        </p>
+        {actionable.length > 0 && (
+          <div className="mb-2 mt-1 px-2 flex flex-wrap items-center justify-between gap-2">
+            <p className="text-xs font-semibold uppercase tracking-wider text-foreground-400">
+              Priority Actions
+            </p>
+            <p className="text-[10px] text-foreground-500 font-mono">
+              {overdue > 0 ? "Start here: oldest overdue" : dueToday > 0 ? "Start here: due today" : "Start here: next up"}
+            </p>
+          </div>
+        )}
 
         {actionable.length === 0 ? (
           <div className="rounded-md border border-dashed border-divider px-3 py-4 text-center">
@@ -482,11 +489,11 @@ function PersonalBacklogWidget({
               return (
                 <div
                   key={task.id}
-                  className="group -mx-2 flex items-center justify-between rounded-sm px-2 py-1.5 transition-colors hover:bg-default-100/60"
+                  className="group -mx-2 flex items-center justify-between rounded-md px-2 py-2 transition-colors hover:bg-content2"
                 >
                   <div className="flex items-center gap-2 min-w-0">
                     <Icon size={14} strokeWidth={1.5} className={`flex-shrink-0 ${iconColor}`} />
-                    <span className="truncate text-xs text-foreground-300 group-hover:text-foreground transition-colors">
+                    <span className="truncate text-[13px] font-medium text-foreground-700 dark:text-foreground-300 group-hover:text-foreground transition-colors">
                       {task.title}
                     </span>
                   </div>
@@ -501,7 +508,7 @@ function PersonalBacklogWidget({
 
         <a
           href="/tasks?scope=personal"
-          className={`mt-3 flex w-full items-center justify-center rounded-md border px-3 py-2 text-[11px] font-medium transition-colors ${ctaClass}`}
+          className={`mt-4 flex w-full items-center justify-center rounded-md border px-4 py-2.5 text-[12px] font-medium transition-colors ${ctaClass}`}
         >
           {ctaLabel}
         </a>
