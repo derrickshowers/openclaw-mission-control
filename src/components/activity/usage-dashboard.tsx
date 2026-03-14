@@ -78,6 +78,9 @@ interface LogRow {
   task_run_seq?: number | null;
   task_run_status?: string | null;
   task_display_parent?: string | null;
+  task_has_run_rows?: boolean | null;
+  task_is_legacy?: boolean | null;
+  task_row_kind?: "run" | "legacy" | null;
 }
 
 // Muted colors for each agent
@@ -102,6 +105,8 @@ const PERIOD_OPTIONS = [
 
 type PeriodKey = typeof PERIOD_OPTIONS[number]["value"];
 const ACTIVE_WINDOW_MINUTES = 15;
+const RECENT_LOG_FETCH_LIMIT = 80;
+const RECENT_LOG_DISPLAY_LIMIT = 40;
 
 interface ResolvedRange {
   start: Date;
@@ -332,6 +337,16 @@ export function UsageDashboard() {
   const resolvedRange = useMemo(() => resolveRange(period), [period]);
   // Auto-derived interval based on period
   const interval = useMemo(() => intervalForPeriod(period), [period]);
+  const hiddenLegacyTaskRowCount = useMemo(
+    () => recentLogs.filter((row) => row.source === "task" && !!row.task_id && !!row.task_is_legacy && !!row.task_has_run_rows).length,
+    [recentLogs],
+  );
+  const visibleRecentLogs = useMemo(
+    () => recentLogs
+      .filter((row) => !(row.source === "task" && !!row.task_id && !!row.task_is_legacy && !!row.task_has_run_rows))
+      .slice(0, RECENT_LOG_DISPLAY_LIMIT),
+    [recentLogs],
+  );
 
   const fetchData = useCallback(async () => {
     setLoading(true);
@@ -349,7 +364,7 @@ export function UsageDashboard() {
         fetch(`/api/mc/usage/summary?${summaryParams.toString()}`),
         fetch(`/api/mc/usage/chart?${rangeParams.toString()}&interval=${interval}&tzOffset=${tzOffset}`),
         fetch(`/api/mc/usage/breakdown?${rangeParams.toString()}`),
-        fetch(`/api/mc/usage/log?limit=40`),
+        fetch(`/api/mc/usage/log?limit=${RECENT_LOG_FETCH_LIMIT}`),
       ]);
 
       const summaryData = await summaryRes.json();
@@ -645,6 +660,11 @@ export function UsageDashboard() {
       <div className="rounded border border-divider bg-white dark:bg-[#0A0A0A]">
         <div className="border-b border-divider px-4 py-2.5 flex items-center gap-2">
           <p className="text-xs text-foreground-400 uppercase tracking-wider">Recent Sessions</p>
+          {hiddenLegacyTaskRowCount > 0 && (
+            <span className="rounded border border-divider bg-gray-50 dark:bg-[#111111] px-1.5 py-0.5 text-[10px] font-mono text-foreground-400">
+              hiding {hiddenLegacyTaskRowCount} legacy duplicate{hiddenLegacyTaskRowCount === 1 ? "" : "s"}
+            </span>
+          )}
           <Tooltip
             content={
               <div className="max-w-xs text-xs leading-relaxed">
@@ -660,7 +680,7 @@ export function UsageDashboard() {
             </button>
           </Tooltip>
         </div>
-        {recentLogs.length === 0 ? (
+        {visibleRecentLogs.length === 0 ? (
           <div className="flex h-16 items-center justify-center">
             <p className="text-xs text-foreground-300">No recent sessions</p>
           </div>
@@ -684,7 +704,7 @@ export function UsageDashboard() {
                 </tr>
               </thead>
               <tbody className="divide-y divide-divider dark:divide-[#161616]">
-                {recentLogs.map((row) => {
+                {visibleRecentLogs.map((row) => {
                   const isTaskScoped = row.source === "task" && !!row.task_id;
                   const rawStatus = String(row.status || "unknown").toLowerCase();
                   const rowMutedClass = rawStatus.startsWith("active")
@@ -697,6 +717,7 @@ export function UsageDashboard() {
 
                   // Task run status badge (from task_runs table)
                   const taskRunStatus = row.task_run_status;
+                  const isLegacyTaskRow = isTaskScoped && !!row.task_is_legacy;
                   const taskRunStatusTone = taskRunStatus === "active"
                     ? "bg-blue-50 dark:bg-blue-500/10 text-blue-700 dark:text-blue-300 border border-blue-200 dark:border-blue-500/25"
                     : taskRunStatus === "done"
@@ -738,6 +759,11 @@ export function UsageDashboard() {
                               <span className="font-mono text-indigo-600 dark:text-indigo-300 font-medium">
                                 Task {row.task_id!.slice(0, 8)}
                               </span>
+                              {isLegacyTaskRow && (
+                                <span className="rounded bg-gray-100 dark:bg-[#1f1f1f] px-1 py-px text-[10px] font-mono text-foreground-400">
+                                  legacy
+                                </span>
+                              )}
                             </div>
                             {row.task_title && (
                               <span className="text-foreground-400 dark:text-[#999999] truncate pl-[18px]" title={row.task_title}>
@@ -759,7 +785,11 @@ export function UsageDashboard() {
                         )}
                       </td>
                       <td className="px-4 py-1 text-xs font-mono text-foreground-400">
-                        {isTaskScoped && row.task_run_seq != null ? `Run ${row.task_run_seq}` : <span className="text-foreground-300">—</span>}
+                        {isTaskScoped && row.task_run_seq != null
+                          ? `Run ${row.task_run_seq}`
+                          : isLegacyTaskRow
+                            ? <span className="text-foreground-400">Legacy</span>
+                            : <span className="text-foreground-300">—</span>}
                       </td>
                       <td className="px-4 py-1 text-xs">
                         {taskRunStatus && taskRunStatusLabel ? (
