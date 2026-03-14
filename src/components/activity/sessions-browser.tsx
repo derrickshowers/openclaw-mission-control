@@ -223,7 +223,13 @@ export function SessionsBrowser({ formatTokens, formatCost, formatLocalTime, age
 
   const loadFacets = useCallback(async () => {
     try {
-      const params = buildQuery({ forFacets: true });
+      // Keep facets broad so selecting one option does not collapse the
+      // available options list to only that current selection.
+      const params = new URLSearchParams();
+      if (dateBounds.dateFrom) params.set("dateFrom", dateBounds.dateFrom);
+      if (dateBounds.dateTo) params.set("dateTo", dateBounds.dateTo);
+      params.set("hideLegacyDuplicates", "1");
+
       const res = await fetch(`/api/mc/usage/sessions/facets?${params.toString()}`);
       if (!res.ok) throw new Error(`Failed to fetch facets (${res.status})`);
       const data = await res.json() as SessionFacets;
@@ -235,7 +241,7 @@ export function SessionsBrowser({ formatTokens, formatCost, formatLocalTime, age
     } catch (e: any) {
       console.error("Failed to load session facets", e);
     }
-  }, [buildQuery]);
+  }, [dateBounds.dateFrom, dateBounds.dateTo]);
 
   const loadSessions = useCallback(async (opts?: { reset?: boolean; cursor?: string | null }) => {
     const isReset = opts?.reset ?? false;
@@ -367,7 +373,7 @@ export function SessionsBrowser({ formatTokens, formatCost, formatLocalTime, age
 
     const text = part.text || "";
     return (
-      <div key={`text-${idx}`} className="leading-relaxed text-[13px] text-gray-100">
+      <div key={`text-${idx}`} className="leading-relaxed text-[13px] text-foreground dark:text-gray-100">
         <div className="prose prose-invert max-w-none prose-p:my-1 prose-pre:my-2 prose-pre:border prose-pre:border-white/10 prose-pre:bg-black prose-code:font-mono prose-code:text-[12px] prose-code:text-gray-200">
           <ReactMarkdown>{text}</ReactMarkdown>
         </div>
@@ -415,7 +421,7 @@ export function SessionsBrowser({ formatTokens, formatCost, formatLocalTime, age
     return (
       <div key={item.id} className={`rounded border p-3 ${isUser ? "border-white/10 bg-white/5" : "border-transparent bg-transparent"}`}>
         <div className="mb-2 flex items-center justify-between">
-          <span className={`text-[11px] font-medium uppercase tracking-wide ${isUser ? "text-gray-300" : "text-violet-300"}`}>
+          <span className={`text-[11px] font-medium uppercase tracking-wide ${isUser ? "text-foreground dark:text-gray-300" : "text-violet-600 dark:text-violet-300"}`}>
             {isUser ? "User" : "Assistant"}
           </span>
           <span className="text-[10px] text-gray-500">{formatLocalTime(item.timestamp)}</span>
@@ -448,6 +454,7 @@ export function SessionsBrowser({ formatTokens, formatCost, formatLocalTime, age
             aria-label="Filter by agent"
             selectedKeys={new Set(agentFilter)}
             selectionMode="multiple"
+            disallowEmptySelection={false}
             onSelectionChange={(keys) => {
               if (keys === "all") return;
               setAgentFilter(Array.from(keys).map(String));
@@ -456,7 +463,7 @@ export function SessionsBrowser({ formatTokens, formatCost, formatLocalTime, age
             variant="bordered"
             placeholder="Agent"
             className="max-w-[220px]"
-            classNames={{ trigger: "h-8 min-h-8 border-white/10 bg-[#080808]" }}
+            classNames={{ trigger: "h-8 min-h-8 border-divider bg-white dark:border-white/10 dark:bg-[#080808]" }}
           >
             {facets.agents.map((agent) => (
               <SelectItem key={agent.id} textValue={agent.label}>
@@ -469,6 +476,7 @@ export function SessionsBrowser({ formatTokens, formatCost, formatLocalTime, age
             aria-label="Filter by model"
             selectedKeys={new Set(modelFilter)}
             selectionMode="multiple"
+            disallowEmptySelection={false}
             onSelectionChange={(keys) => {
               if (keys === "all") return;
               setModelFilter(Array.from(keys).map(String));
@@ -477,7 +485,7 @@ export function SessionsBrowser({ formatTokens, formatCost, formatLocalTime, age
             variant="bordered"
             placeholder="Model"
             className="max-w-[280px]"
-            classNames={{ trigger: "h-8 min-h-8 border-white/10 bg-[#080808]" }}
+            classNames={{ trigger: "h-8 min-h-8 border-divider bg-white dark:border-white/10 dark:bg-[#080808]" }}
           >
             {facets.models.map((model) => (
               <SelectItem key={model.id} textValue={model.label}>
@@ -499,7 +507,7 @@ export function SessionsBrowser({ formatTokens, formatCost, formatLocalTime, age
             size="sm"
             variant="bordered"
             className="max-w-[170px]"
-            classNames={{ trigger: "h-8 min-h-8 border-white/10 bg-[#080808]" }}
+            classNames={{ trigger: "h-8 min-h-8 border-divider bg-white dark:border-white/10 dark:bg-[#080808]" }}
           >
             <SelectItem key="today">Today</SelectItem>
             <SelectItem key="last7">Last 7 days</SelectItem>
@@ -514,14 +522,14 @@ export function SessionsBrowser({ formatTokens, formatCost, formatLocalTime, age
                 type="date"
                 value={customFrom}
                 onChange={(e) => setCustomFrom(e.target.value)}
-                className="h-8 rounded border border-white/10 bg-[#080808] px-2 text-xs text-gray-200"
+                className="h-8 rounded border border-divider bg-white px-2 text-xs text-foreground dark:border-white/10 dark:bg-[#080808] dark:text-gray-200"
               />
               <span className="text-xs text-gray-500">to</span>
               <input
                 type="date"
                 value={customTo}
                 onChange={(e) => setCustomTo(e.target.value)}
-                className="h-8 rounded border border-white/10 bg-[#080808] px-2 text-xs text-gray-200"
+                className="h-8 rounded border border-divider bg-white px-2 text-xs text-foreground dark:border-white/10 dark:bg-[#080808] dark:text-gray-200"
               />
             </div>
           ) : null}
@@ -529,7 +537,7 @@ export function SessionsBrowser({ formatTokens, formatCost, formatLocalTime, age
           {hasActiveFilters ? (
             <button
               onClick={resetFilters}
-              className="ml-auto text-xs text-gray-500 transition hover:text-gray-200"
+              className="ml-auto text-xs text-gray-500 transition hover:text-foreground dark:hover:text-gray-200"
             >
               Clear filters
             </button>
@@ -539,7 +547,7 @@ export function SessionsBrowser({ formatTokens, formatCost, formatLocalTime, age
         <div className="mt-3 md:hidden">
           <button
             onClick={() => setMobileFiltersOpen(true)}
-            className="inline-flex items-center gap-1 rounded border border-white/10 bg-[#080808] px-2.5 py-1.5 text-xs text-gray-300"
+            className="inline-flex items-center gap-1 rounded border border-divider bg-white px-2.5 py-1.5 text-xs text-foreground-500 dark:border-white/10 dark:bg-[#080808] dark:text-gray-300"
           >
             <Filter size={12} /> Filters
             {hasActiveFilters ? <span className="ml-1 rounded bg-white/10 px-1 text-[10px]">active</span> : null}
@@ -552,7 +560,7 @@ export function SessionsBrowser({ formatTokens, formatCost, formatLocalTime, age
       ) : loading ? (
         <div className="space-y-2 px-4 py-4">
           {[0, 1, 2, 3, 4].map((n) => (
-            <div key={n} className="h-10 animate-pulse rounded bg-white/5" />
+            <div key={n} className="h-10 animate-pulse rounded bg-gray-100 dark:bg-white/5" />
           ))}
         </div>
       ) : sessions.length === 0 ? (
@@ -562,7 +570,7 @@ export function SessionsBrowser({ formatTokens, formatCost, formatLocalTime, age
           <div className="hidden overflow-x-auto md:block">
             <table className="w-full text-sm">
               <thead>
-                <tr className="border-b border-white/10 text-left text-[10px] uppercase tracking-wider text-gray-500">
+                <tr className="border-b border-divider text-left text-[10px] uppercase tracking-wider text-gray-500 dark:border-white/10">
                   <th className="px-4 py-2 font-medium">Agent</th>
                   <th className="px-4 py-2 font-medium">Model</th>
                   <th className="px-4 py-2 font-medium">Task Context</th>
@@ -571,7 +579,7 @@ export function SessionsBrowser({ formatTokens, formatCost, formatLocalTime, age
                   <th className="px-4 py-2 font-medium text-right">Cost</th>
                 </tr>
               </thead>
-              <tbody className="divide-y divide-white/5">
+              <tbody className="divide-y divide-divider dark:divide-white/5">
                 {sessions.map((row) => {
                   const canOpen = row.detail_available;
                   return (
@@ -580,7 +588,7 @@ export function SessionsBrowser({ formatTokens, formatCost, formatLocalTime, age
                       onClick={() => {
                         if (canOpen) void openSessionDetail(row);
                       }}
-                      className={`transition ${canOpen ? "cursor-pointer hover:bg-white/5" : "cursor-default opacity-60"}`}
+                      className={`transition ${canOpen ? "cursor-pointer hover:bg-gray-50 dark:hover:bg-white/5" : "cursor-default opacity-60"}`}
                     >
                       <td className="px-4 py-2">
                         <div className="flex items-center gap-2">
@@ -601,13 +609,13 @@ export function SessionsBrowser({ formatTokens, formatCost, formatLocalTime, age
                           </span>
                         )}
                       </td>
-                      <td className="px-4 py-2 text-xs text-gray-300" title={row.last_activity_at || ""}>
+                      <td className="px-4 py-2 text-xs text-foreground-500 dark:text-gray-300" title={row.last_activity_at || ""}>
                         {formatRelative(row.last_activity_at)}
                       </td>
-                      <td className="px-4 py-2 text-right font-mono text-xs text-gray-300">
+                      <td className="px-4 py-2 text-right font-mono text-xs text-foreground-500 dark:text-gray-300">
                         {formatTokens(row.usage_total_tokens || 0)}
                       </td>
-                      <td className="px-4 py-2 text-right font-mono text-xs text-gray-300">
+                      <td className="px-4 py-2 text-right font-mono text-xs text-foreground-500 dark:text-gray-300">
                         {row.cost_source === "none" ? "—" : row.cost_source === "unpriced" ? "unpriced" : formatCost(row.cost_usd || 0)}
                       </td>
                     </tr>
@@ -626,24 +634,24 @@ export function SessionsBrowser({ formatTokens, formatCost, formatLocalTime, age
                   onClick={() => {
                     if (canOpen) void openSessionDetail(row);
                   }}
-                  className={`w-full rounded border border-white/10 bg-[#080808] p-3 text-left ${canOpen ? "" : "opacity-60"}`}
+                  className={`w-full rounded border border-divider bg-white p-3 text-left dark:border-white/10 dark:bg-[#080808] ${canOpen ? "" : "opacity-60"}`}
                 >
                   <div className="flex items-center justify-between">
                     <div className="flex items-center gap-2">
                       <span className="h-2 w-2 rounded-full" style={{ backgroundColor: agentColors[row.agent] || "#888" }} />
-                      <span className="text-xs font-medium capitalize text-gray-200">{row.agent}</span>
+                      <span className="text-xs font-medium capitalize text-foreground dark:text-gray-200">{row.agent}</span>
                     </div>
                     <span className="text-[10px] text-gray-500">{formatRelative(row.last_activity_at)}</span>
                   </div>
-                  <div className="mt-2 text-[11px] text-gray-400">{row.model_label || row.model || "Unknown"}</div>
+                  <div className="mt-2 text-[11px] text-foreground-400 dark:text-gray-400">{row.model_label || row.model || "Unknown"}</div>
                   <div className="mt-2 grid grid-cols-2 gap-2 text-[11px] text-gray-400">
                     <div>
                       <span className="block text-gray-500">Usage</span>
-                      <span className="font-mono text-gray-200">{formatTokens(row.usage_total_tokens || 0)}</span>
+                      <span className="font-mono text-foreground dark:text-gray-200">{formatTokens(row.usage_total_tokens || 0)}</span>
                     </div>
                     <div>
                       <span className="block text-gray-500">Cost</span>
-                      <span className="font-mono text-gray-200">{row.cost_source === "none" ? "—" : row.cost_source === "unpriced" ? "unpriced" : formatCost(row.cost_usd || 0)}</span>
+                      <span className="font-mono text-foreground dark:text-gray-200">{row.cost_source === "none" ? "—" : row.cost_source === "unpriced" ? "unpriced" : formatCost(row.cost_usd || 0)}</span>
                     </div>
                   </div>
                 </button>
@@ -651,12 +659,12 @@ export function SessionsBrowser({ formatTokens, formatCost, formatLocalTime, age
             })}
           </div>
 
-          <div className="border-t border-white/10 px-4 py-3">
+          <div className="border-t border-divider px-4 py-3 dark:border-white/10">
             {pageInfo?.hasMore ? (
               <button
                 onClick={() => void loadSessions({ cursor: pageInfo.nextCursor })}
                 disabled={loadingMore}
-                className="w-full rounded border border-white/10 bg-[#080808] px-3 py-2 text-xs text-gray-200 transition hover:bg-white/5 disabled:cursor-not-allowed disabled:opacity-60"
+                className="w-full rounded border border-divider bg-white px-3 py-2 text-xs text-foreground transition hover:bg-gray-50 disabled:cursor-not-allowed disabled:opacity-60 dark:border-white/10 dark:bg-[#080808] dark:text-gray-200 dark:hover:bg-white/5"
               >
                 {loadingMore ? "Loading…" : `Load more sessions (${sessions.length} of ${pageInfo.totalCount})`}
               </button>
@@ -672,17 +680,18 @@ export function SessionsBrowser({ formatTokens, formatCost, formatLocalTime, age
         onOpenChange={(open) => setMobileFiltersOpen(open)}
         placement="bottom"
         classNames={{
-          base: "bg-[#080808] border border-white/10",
-          closeButton: "text-gray-400 hover:text-white",
+          base: "bg-white border border-divider dark:bg-[#080808] dark:border-white/10",
+          closeButton: "text-foreground-400 hover:text-foreground dark:text-gray-400 dark:hover:text-white",
         }}
       >
         <ModalContent>
-          <ModalHeader className="border-b border-white/10 text-sm">Filters</ModalHeader>
+          <ModalHeader className="border-b border-divider text-sm dark:border-white/10">Filters</ModalHeader>
           <ModalBody className="space-y-3 py-4">
             <Select
               aria-label="Filter agents"
               selectedKeys={new Set(agentFilter)}
               selectionMode="multiple"
+              disallowEmptySelection={false}
               onSelectionChange={(keys) => {
                 if (keys === "all") return;
                 setAgentFilter(Array.from(keys).map(String));
@@ -699,6 +708,7 @@ export function SessionsBrowser({ formatTokens, formatCost, formatLocalTime, age
               aria-label="Filter models"
               selectedKeys={new Set(modelFilter)}
               selectionMode="multiple"
+              disallowEmptySelection={false}
               onSelectionChange={(keys) => {
                 if (keys === "all") return;
                 setModelFilter(Array.from(keys).map(String));
@@ -735,22 +745,22 @@ export function SessionsBrowser({ formatTokens, formatCost, formatLocalTime, age
                   type="date"
                   value={customFrom}
                   onChange={(e) => setCustomFrom(e.target.value)}
-                  className="h-9 rounded border border-white/10 bg-[#080808] px-2 text-xs text-gray-200"
+                  className="h-9 rounded border border-divider bg-white px-2 text-xs text-foreground dark:border-white/10 dark:bg-[#080808] dark:text-gray-200"
                 />
                 <input
                   type="date"
                   value={customTo}
                   onChange={(e) => setCustomTo(e.target.value)}
-                  className="h-9 rounded border border-white/10 bg-[#080808] px-2 text-xs text-gray-200"
+                  className="h-9 rounded border border-divider bg-white px-2 text-xs text-foreground dark:border-white/10 dark:bg-[#080808] dark:text-gray-200"
                 />
               </div>
             ) : null}
 
             <div className="flex items-center justify-between pt-2">
-              <button onClick={resetFilters} className="text-xs text-gray-400">Clear</button>
+              <button onClick={resetFilters} className="text-xs text-foreground-400 dark:text-gray-400">Clear</button>
               <button
                 onClick={() => setMobileFiltersOpen(false)}
-                className="rounded border border-white/10 px-3 py-1.5 text-xs text-gray-100"
+                className="rounded border border-divider px-3 py-1.5 text-xs text-foreground dark:border-white/10 dark:text-gray-100"
               >
                 Apply
               </button>
@@ -772,23 +782,23 @@ export function SessionsBrowser({ formatTokens, formatCost, formatLocalTime, age
         scrollBehavior="inside"
         backdrop="blur"
         classNames={{
-          base: "h-screen max-h-screen w-full max-w-full rounded-none border-0 bg-[#080808] md:h-[85vh] md:max-h-[85vh] md:max-w-5xl md:rounded-md md:border md:border-white/10",
-          closeButton: "text-gray-400 hover:text-white",
+          base: "h-screen max-h-screen w-full max-w-full rounded-none border-0 bg-white dark:bg-[#080808] md:h-[85vh] md:max-h-[85vh] md:max-w-5xl md:rounded-md md:border md:border-divider md:dark:border-white/10",
+          closeButton: "text-foreground-400 hover:text-foreground dark:text-gray-400 dark:hover:text-white",
           body: "p-0",
-          header: "sticky top-0 z-10 border-b border-white/10 bg-[#080808]",
+          header: "sticky top-0 z-10 border-b border-divider bg-white dark:border-white/10 dark:bg-[#080808]",
         }}
       >
         <ModalContent>
           <ModalHeader className="flex items-center justify-between gap-3 py-3">
             <div>
-              <div className="text-sm font-medium text-gray-100">
+              <div className="text-sm font-medium text-foreground dark:text-gray-100">
                 {selectedSession?.agent ? `${selectedSession.agent} session` : "Session detail"}
               </div>
-              <div className="text-xs text-gray-400">
+              <div className="text-xs text-foreground-400 dark:text-gray-400">
                 {selectedSession?.task_title || selectedSession?.display_name || selectedSession?.session_key || selectedSession?.session_id || ""}
               </div>
             </div>
-            <div className="text-right text-[11px] font-mono text-gray-400">
+            <div className="text-right text-[11px] font-mono text-foreground-400 dark:text-gray-400">
               <div>{selectedSession ? formatTokens(selectedSession.usage_total_tokens || 0) : 0} tokens</div>
               <div>{selectedSession ? formatCost(selectedSession.cost_usd || 0) : "$0.00"}</div>
             </div>
@@ -796,7 +806,7 @@ export function SessionsBrowser({ formatTokens, formatCost, formatLocalTime, age
 
           <ModalBody className="overflow-y-auto p-4 md:p-6">
             {detailLoading ? (
-              <div className="flex items-center justify-center py-10 text-xs text-gray-400">Loading session thread…</div>
+              <div className="flex items-center justify-center py-10 text-xs text-foreground-400 dark:text-gray-400">Loading session thread…</div>
             ) : detailError ? (
               <div className="rounded border border-danger-500/30 bg-danger-500/10 px-3 py-2 text-xs text-danger-400">{detailError}</div>
             ) : detail ? (
@@ -805,7 +815,7 @@ export function SessionsBrowser({ formatTokens, formatCost, formatLocalTime, age
                   <button
                     onClick={() => void loadOlderThreadItems()}
                     disabled={detailLoadingOlder}
-                    className="w-full rounded border border-white/10 bg-[#060606] px-3 py-2 text-xs text-gray-300 hover:bg-white/5 disabled:opacity-60"
+                    className="w-full rounded border border-divider bg-white px-3 py-2 text-xs text-foreground-500 hover:bg-gray-50 disabled:opacity-60 dark:border-white/10 dark:bg-[#060606] dark:text-gray-300 dark:hover:bg-white/5"
                   >
                     {detailLoadingOlder ? "Loading older messages…" : "Load older messages"}
                   </button>
