@@ -12,9 +12,10 @@ import {
   ResponsiveContainer,
   Legend,
 } from "recharts";
-import { Zap, DollarSign, Users, TrendingUp, CircleHelp, ListChecks } from "lucide-react";
+import { Zap, DollarSign, Users, TrendingUp, CircleHelp } from "lucide-react";
 import { formatLocalTime as formatLocalTimeShared } from "@/lib/dates";
 import { useTheme } from "next-themes";
+import { SessionsBrowser } from "@/components/activity/sessions-browser";
 
 interface Summary {
   total_input_tokens: number;
@@ -50,39 +51,6 @@ interface BreakdownRow {
   requests: number;
 }
 
-interface LogRow {
-  id: string | number;
-  agent: string;
-  model: string | null;
-  input_tokens: number;
-  cached_input_tokens?: number;
-  output_tokens: number;
-  llm_calls?: number;
-  cost_usd: number;
-  cost_source?: "exact" | "partial" | "unpriced" | "none";
-  session_key: string | null;
-  session_id?: string | null;
-  session_type?: string | null;
-  source: string;
-  status: string;
-  display_name?: string | null;
-  label?: string | null;
-  context_tokens?: number | null;
-  total_tokens?: number | null;
-  fullness_pct?: number | null;
-  created_at: string | null;
-  updated_at?: string | null;
-  // Task-scoped session enrichment
-  task_id?: string | null;
-  task_title?: string | null;
-  task_run_seq?: number | null;
-  task_run_status?: string | null;
-  task_display_parent?: string | null;
-  task_has_run_rows?: boolean | null;
-  task_is_legacy?: boolean | null;
-  task_row_kind?: "run" | "legacy" | null;
-}
-
 // Muted colors for each agent
 const AGENT_COLORS: Record<string, string> = {
   frank: "#6366f1",       // indigo
@@ -104,9 +72,6 @@ const PERIOD_OPTIONS = [
 ] as const;
 
 type PeriodKey = typeof PERIOD_OPTIONS[number]["value"];
-const ACTIVE_WINDOW_MINUTES = 15;
-const RECENT_LOG_FETCH_LIMIT = 40;
-
 interface ResolvedRange {
   start: Date;
   end: Date;
@@ -328,7 +293,6 @@ export function UsageDashboard() {
   const [summary, setSummary] = useState<Summary | null>(null);
   const [chartData, setChartData] = useState<any[]>([]);
   const [breakdown, setBreakdown] = useState<BreakdownRow[]>([]);
-  const [recentLogs, setRecentLogs] = useState<LogRow[]>([]);
   const [loading, setLoading] = useState(true);
   const [lastUpdatedAt, setLastUpdatedAt] = useState<Date | null>(null);
   const { theme } = useTheme();
@@ -349,21 +313,18 @@ export function UsageDashboard() {
       const summaryParams = new URLSearchParams(rangeParams);
       summaryParams.set("periodDays", String(range.periodDays));
 
-      const [summaryRes, chartRes, breakdownRes, logRes] = await Promise.all([
+      const [summaryRes, chartRes, breakdownRes] = await Promise.all([
         fetch(`/api/mc/usage/summary?${summaryParams.toString()}`),
         fetch(`/api/mc/usage/chart?${rangeParams.toString()}&interval=${interval}&tzOffset=${tzOffset}`),
         fetch(`/api/mc/usage/breakdown?${rangeParams.toString()}`),
-        fetch(`/api/mc/usage/log?limit=${RECENT_LOG_FETCH_LIMIT}&hideLegacyDuplicates=1`),
       ]);
 
       const summaryData = await summaryRes.json();
       const chartRows: ChartRow[] = await chartRes.json();
       const breakdownData = await breakdownRes.json();
-      const logData = await logRes.json();
 
       setSummary(summaryData);
       setBreakdown(Array.isArray(breakdownData) ? breakdownData : []);
-      setRecentLogs(Array.isArray(logData) ? logData : []);
 
       // Transform chart data: pivot agent rows into { date, frank: N, tom: N, ... }
       const dateMap = new Map<string, any>();
@@ -645,193 +606,12 @@ export function UsageDashboard() {
         )}
       </div>
 
-      {/* Recent Sessions Table */}
-      <div className="rounded border border-divider bg-white dark:bg-[#0A0A0A]">
-        <div className="border-b border-divider px-4 py-2.5 flex items-center gap-2">
-          <p className="text-xs text-foreground-400 uppercase tracking-wider">Recent Sessions</p>
-          <Tooltip
-            content={
-              <div className="max-w-xs text-xs leading-relaxed">
-                <div><strong>Status</strong>: the primary task/run lifecycle for that row (`dispatched`, `active`, `handoff`, `blocked`, `done`, etc.).</div>
-                <div className="mt-1"><strong>Run</strong>: which worker run you are looking at for that task/agent pair.</div>
-                <div className="mt-1"><strong>Session liveness</strong> is no longer a separate explicit status here — inactive / expired / reset sessions are shown by row treatment (dimmed/grayed) so the main signal stays on task/run state.</div>
-              </div>
-            }
-            placement="right"
-          >
-            <button className="text-foreground-300 hover:text-foreground-500" aria-label="Session status help">
-              <CircleHelp size={13} strokeWidth={1.75} />
-            </button>
-          </Tooltip>
-        </div>
-        {recentLogs.length === 0 ? (
-          <div className="flex h-16 items-center justify-center">
-            <p className="text-xs text-foreground-300">No recent sessions</p>
-          </div>
-        ) : (
-          <div className="overflow-x-auto">
-            <table className="w-full">
-              <thead>
-                <tr className="border-b border-divider text-left text-[10px] text-foreground-300 uppercase tracking-wider">
-                  <th className="px-4 py-1.5 font-medium">Time</th>
-                  <th className="px-4 py-1.5 font-medium">Agent</th>
-                  <th className="px-4 py-1.5 font-medium">Scope</th>
-                  <th className="px-4 py-1.5 font-medium">Run</th>
-                  <th className="px-4 py-1.5 font-medium">Status</th>
-                  <th className="px-4 py-1.5 font-medium">Model</th>
-                  <th className="px-4 py-1.5 font-medium text-right">Calls</th>
-                  <th className="px-4 py-1.5 font-medium text-right">Context</th>
-                  <th className="px-4 py-1.5 font-medium text-right">Input</th>
-                  <th className="px-4 py-1.5 font-medium text-right">Cached</th>
-                  <th className="px-4 py-1.5 font-medium text-right">Output</th>
-                  <th className="px-4 py-1.5 font-medium text-right">Cost</th>
-                </tr>
-              </thead>
-              <tbody className="divide-y divide-divider dark:divide-[#161616]">
-                {recentLogs.map((row) => {
-                  const isTaskScoped = row.source === "task" && !!row.task_id;
-                  const rawStatus = String(row.status || "unknown").toLowerCase();
-                  const rowMutedClass = rawStatus.startsWith("active")
-                    ? ""
-                    : rawStatus.includes("inactive")
-                      ? "opacity-65 saturate-75"
-                      : rawStatus === "deleted" || rawStatus === "reset" || rawStatus === "expired"
-                        ? "opacity-45 saturate-50"
-                        : "opacity-75";
-
-                  // Task run status badge (from task_runs table)
-                  const taskRunStatus = row.task_run_status;
-                  const isLegacyTaskRow = isTaskScoped && !!row.task_is_legacy;
-                  const taskRunStatusTone = taskRunStatus === "active"
-                    ? "bg-blue-50 dark:bg-blue-500/10 text-blue-700 dark:text-blue-300 border border-blue-200 dark:border-blue-500/25"
-                    : taskRunStatus === "done"
-                      ? "bg-success-50 dark:bg-green-500/10 text-success-700 dark:text-green-300 border border-success-200 dark:border-green-500/25"
-                      : taskRunStatus === "dispatched"
-                        ? "bg-purple-50 dark:bg-purple-500/10 text-purple-700 dark:text-purple-300 border border-purple-200 dark:border-purple-500/25"
-                        : taskRunStatus === "stalled" || taskRunStatus === "failed"
-                          ? "bg-danger-50 dark:bg-red-500/10 text-danger-700 dark:text-red-300 border border-danger-200 dark:border-red-500/25"
-                          : taskRunStatus === "handoff" || taskRunStatus === "blocked"
-                            ? "bg-warning-50 dark:bg-amber-500/10 text-warning-700 dark:text-amber-300 border border-warning-200 dark:border-amber-500/25"
-                            : taskRunStatus === "superseded"
-                              ? "bg-gray-100 dark:bg-[#1f1f1f] text-foreground-500 dark:text-[#b0b0b0] border border-divider dark:border-[#3a3a3a]"
-                              : "";
-                  const taskRunStatusLabel = taskRunStatus ? taskRunStatus.replace(/[_-]+/g, " ") : null;
-
-                  return (
-                    <tr
-                      key={row.id}
-                      title={rawStatus.replace(/[_-]+/g, " ")}
-                      className={`hover:bg-gray-50 dark:hover:bg-[#0D0D0D] transition-colors ${rowMutedClass} ${isTaskScoped ? "border-l-2 border-l-indigo-400 dark:border-l-indigo-500/60" : ""}`}
-                    >
-                      <td className="px-4 py-1 text-xs font-mono text-foreground-300">
-                        {row.created_at ? formatLocalTime(row.created_at) : "-"}
-                      </td>
-                      <td className="px-4 py-1">
-                        <div className="flex items-center gap-1.5">
-                          <div
-                            className="h-1.5 w-1.5 rounded-full"
-                            style={{ backgroundColor: AGENT_COLORS[row.agent] || "#888888" }}
-                          />
-                          <span className="text-xs text-foreground-500 dark:text-[#CCCCCC] capitalize">{row.agent || "-"}</span>
-                        </div>
-                      </td>
-                      <td className="max-w-[340px] px-4 py-1 text-xs">
-                        {isTaskScoped ? (
-                          <div className="flex flex-col gap-0.5">
-                            <div className="flex items-center gap-1.5">
-                              <ListChecks size={12} strokeWidth={1.75} className="text-indigo-500 dark:text-indigo-400 shrink-0" />
-                              <span className="font-mono text-indigo-600 dark:text-indigo-300 font-medium">
-                                Task {row.task_id!.slice(0, 8)}
-                              </span>
-                              {isLegacyTaskRow && (
-                                <span className="rounded bg-gray-100 dark:bg-[#1f1f1f] px-1 py-px text-[10px] font-mono text-foreground-400">
-                                  legacy
-                                </span>
-                              )}
-                            </div>
-                            {row.task_title && (
-                              <span className="text-foreground-400 dark:text-[#999999] truncate pl-[18px]" title={row.task_title}>
-                                {row.task_title}
-                              </span>
-                            )}
-                          </div>
-                        ) : (
-                          <div className="flex items-center gap-1.5">
-                            <span className="font-mono text-foreground-400 truncate" title={row.display_name || row.label || row.session_key || row.session_id || "-"}>
-                              {row.display_name || row.label || row.session_key || row.session_id || "-"}
-                            </span>
-                            {row.source && row.source !== "other" && (
-                              <span className="rounded bg-gray-100 dark:bg-[#1f1f1f] px-1 py-px text-[10px] font-mono text-foreground-400">
-                                {row.source}
-                              </span>
-                            )}
-                          </div>
-                        )}
-                      </td>
-                      <td className="px-4 py-1 text-xs font-mono text-foreground-400">
-                        {isTaskScoped && row.task_run_seq != null
-                          ? `Run ${row.task_run_seq}`
-                          : isLegacyTaskRow
-                            ? <span className="text-foreground-400">Legacy</span>
-                            : <span className="text-foreground-300">—</span>}
-                      </td>
-                      <td className="px-4 py-1 text-xs">
-                        {taskRunStatus && taskRunStatusLabel ? (
-                          <span className={`inline-flex items-center whitespace-nowrap rounded-md px-1.5 py-0.5 text-[10px] font-medium ${taskRunStatusTone}`}>
-                            {taskRunStatusLabel}
-                          </span>
-                        ) : (
-                          <span className="text-foreground-300">—</span>
-                        )}
-                      </td>
-                      <td className="px-4 py-1 text-xs font-mono text-foreground-400">{row.model || "-"}</td>
-                      <td className="px-4 py-1 text-right text-xs font-mono text-foreground-500 dark:text-[#CCCCCC]">
-                        {row.llm_calls != null ? formatTokens(row.llm_calls) : "-"}
-                      </td>
-                      <td className="px-4 py-1 text-right text-xs">
-                        {row.fullness_pct != null && row.total_tokens != null && row.context_tokens ? (
-                          <div className="inline-flex items-center justify-end gap-2" title={`${formatTokens(row.total_tokens)} / ${formatTokens(row.context_tokens)} (${row.fullness_pct.toFixed(1)}%)`}>
-                            <div className="h-1 w-14 overflow-hidden rounded-full bg-gray-200 dark:bg-[#222222]">
-                              <div
-                                className="h-full rounded-full"
-                                style={{
-                                  width: `${Math.min(Math.max(row.fullness_pct, 0), 100)}%`,
-                                  backgroundColor: row.fullness_pct > 85 ? "#ef4444" : row.fullness_pct > 60 ? "#f59e0b" : "#8b5cf6",
-                                }}
-                              />
-                            </div>
-                            <span className="w-10 text-right font-mono text-foreground-500 dark:text-[#CCCCCC]">{Math.round(row.fullness_pct)}%</span>
-                          </div>
-                        ) : (
-                          <span className="font-mono text-foreground-300">—</span>
-                        )}
-                      </td>
-                      <td className="px-4 py-1 text-right text-xs font-mono text-foreground-500 dark:text-[#CCCCCC]">
-                        {row.input_tokens != null ? formatTokens(row.input_tokens) : "-"}
-                      </td>
-                      <td className="px-4 py-1 text-right text-xs font-mono text-foreground-400">
-                        {row.cached_input_tokens != null ? formatTokens(row.cached_input_tokens) : "-"}
-                      </td>
-                      <td className="px-4 py-1 text-right text-xs font-mono text-foreground-400">
-                        {row.output_tokens != null ? formatTokens(row.output_tokens) : "-"}
-                      </td>
-                      <td className="px-4 py-1 text-right text-xs font-mono text-foreground-400">
-                        {row.cost_source === "none" ? (
-                          <span className="text-foreground-300">-</span>
-                        ) : row.cost_source === "unpriced" ? (
-                          <span className="text-warning-500">unpriced</span>
-                        ) : (
-                          formatCost(row.cost_usd || 0)
-                        )}
-                      </td>
-                    </tr>
-                  );
-                })}
-              </tbody>
-            </table>
-          </div>
-        )}
-      </div>
+      <SessionsBrowser
+        formatTokens={formatTokens}
+        formatCost={formatCost}
+        formatLocalTime={formatLocalTime}
+        agentColors={AGENT_COLORS}
+      />
     </div>
   );
 }
