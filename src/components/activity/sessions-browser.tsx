@@ -87,6 +87,7 @@ interface ThreadItem {
     cacheRead: number;
     totalTokens: number;
     costUsd: number;
+    stopReason?: string | null;
   };
 }
 
