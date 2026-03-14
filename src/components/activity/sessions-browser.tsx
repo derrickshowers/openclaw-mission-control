@@ -78,6 +78,7 @@ interface ThreadItem {
   toolName?: string | null;
   toolCallId?: string | null;
   isError?: boolean;
+  stopReason?: string | null;
   details?: unknown;
   parts: ThreadPart[];
   usage?: {
@@ -144,6 +145,16 @@ function formatRelative(ts: string | null): string {
   if (hr < 24) return `${hr}h ago`;
   const day = Math.round(hr / 24);
   return `${day}d ago`;
+}
+
+function formatStopReason(stopReason: string | null | undefined): string | null {
+  if (!stopReason) return null;
+  const normalized = stopReason
+    .replace(/([a-z])([A-Z])/g, "$1 $2")
+    .replace(/[_-]+/g, " ")
+    .trim();
+  if (!normalized) return null;
+  return normalized.charAt(0).toUpperCase() + normalized.slice(1);
 }
 
 export function SessionsBrowser({ formatTokens, formatCost, formatLocalTime, agentColors }: SessionsBrowserProps) {
@@ -353,19 +364,22 @@ export function SessionsBrowser({ formatTokens, formatCost, formatLocalTime, age
   const renderPart = useCallback((part: ThreadPart, idx: number) => {
     if (part.type === "tool_call") {
       return (
-        <details key={`tool-call-${idx}`} className="rounded border border-white/10 bg-black/40 p-2 text-xs font-mono text-gray-300">
-          <summary className="cursor-pointer list-none text-[11px] text-gray-400">
+        <details
+          key={`tool-call-${idx}`}
+          className="rounded border border-divider bg-gray-50 p-2 text-xs font-mono text-foreground-600 dark:border-white/10 dark:bg-black/40 dark:text-gray-300"
+        >
+          <summary className="cursor-pointer list-none text-[11px] text-foreground-500 dark:text-gray-400">
             <span className="mr-1">⚙️</span>
             {part.toolName || "tool"}
           </summary>
-          <pre className="mt-2 overflow-x-auto rounded border border-white/10 bg-black p-2 text-[11px] text-gray-300">{safeJson(part.arguments)}</pre>
+          <pre className="mt-2 overflow-x-auto rounded border border-divider bg-white p-2 text-[11px] text-foreground-700 dark:border-white/10 dark:bg-black dark:text-gray-300">{safeJson(part.arguments)}</pre>
         </details>
       );
     }
 
     if (part.type === "json") {
       return (
-        <pre key={`json-${idx}`} className="overflow-x-auto rounded border border-white/10 bg-black p-2 text-[11px] text-gray-300">
+        <pre key={`json-${idx}`} className="overflow-x-auto rounded border border-divider bg-white p-2 text-[11px] text-foreground-700 dark:border-white/10 dark:bg-black dark:text-gray-300">
           {safeJson(part.value)}
         </pre>
       );
@@ -374,7 +388,7 @@ export function SessionsBrowser({ formatTokens, formatCost, formatLocalTime, age
     const text = part.text || "";
     return (
       <div key={`text-${idx}`} className="leading-relaxed text-[13px] text-foreground dark:text-gray-100">
-        <div className="prose prose-invert max-w-none prose-p:my-1 prose-pre:my-2 prose-pre:border prose-pre:border-white/10 prose-pre:bg-black prose-code:font-mono prose-code:text-[12px] prose-code:text-gray-200">
+        <div className="prose prose-sm max-w-none prose-p:my-1 prose-pre:my-2 prose-pre:border prose-pre:border-divider prose-pre:bg-gray-50 prose-code:font-mono prose-code:text-[12px] prose-code:text-foreground-700 dark:prose-invert dark:prose-pre:border-white/10 dark:prose-pre:bg-black dark:prose-code:text-gray-200">
           <ReactMarkdown>{text}</ReactMarkdown>
         </div>
       </div>
@@ -384,20 +398,20 @@ export function SessionsBrowser({ formatTokens, formatCost, formatLocalTime, age
   const renderThreadItem = useCallback((item: ThreadItem) => {
     if (item.kind === "tool_result") {
       return (
-        <div key={item.id} className="rounded border border-white/10 bg-black/40 p-3">
+        <div key={item.id} className="rounded border border-divider bg-gray-50/80 p-3 dark:border-white/10 dark:bg-black/40">
           <div className="mb-2 flex items-center justify-between">
-            <div className="text-[11px] font-mono text-gray-400">
+            <div className="text-[11px] font-mono text-foreground-500 dark:text-gray-400">
               ⚙️ {item.toolName || "tool"} result
-              {item.isError ? <span className="ml-2 text-red-400">error</span> : null}
+              {item.isError ? <span className="ml-2 text-red-500 dark:text-red-400">error</span> : null}
             </div>
-            <span className="text-[10px] text-gray-500">{formatLocalTime(item.timestamp)}</span>
+            <span className="text-[10px] text-gray-500 dark:text-gray-500">{formatLocalTime(item.timestamp)}</span>
           </div>
           <details>
-            <summary className="cursor-pointer text-[11px] text-gray-400">Show payload</summary>
+            <summary className="cursor-pointer text-[11px] text-foreground-500 dark:text-gray-400">Show payload</summary>
             <div className="mt-2 space-y-2">
               {item.parts.map(renderPart)}
               {item.details ? (
-                <pre className="overflow-x-auto rounded border border-white/10 bg-black p-2 text-[11px] text-gray-300">{safeJson(item.details)}</pre>
+                <pre className="overflow-x-auto rounded border border-divider bg-white p-2 text-[11px] text-foreground-700 dark:border-white/10 dark:bg-black dark:text-gray-300">{safeJson(item.details)}</pre>
               ) : null}
             </div>
           </details>
@@ -407,7 +421,7 @@ export function SessionsBrowser({ formatTokens, formatCost, formatLocalTime, age
 
     if (item.kind === "meta") {
       return (
-        <div key={item.id} className="rounded border border-white/10 bg-white/5 p-2 text-[11px] text-gray-400">
+        <div key={item.id} className="rounded border border-divider bg-gray-50 p-2 text-[11px] text-foreground-500 dark:border-white/10 dark:bg-white/5 dark:text-gray-400">
           <div className="mb-1 flex items-center justify-between">
             <span className="font-mono uppercase tracking-wide">{item.eventType || "meta"}</span>
             <span>{formatLocalTime(item.timestamp)}</span>
@@ -418,20 +432,23 @@ export function SessionsBrowser({ formatTokens, formatCost, formatLocalTime, age
     }
 
     const isUser = item.role === "user";
+    const stopReasonLabel = formatStopReason(item.stopReason);
+
     return (
-      <div key={item.id} className={`rounded border p-3 ${isUser ? "border-white/10 bg-white/5" : "border-transparent bg-transparent"}`}>
+      <div key={item.id} className={`rounded border p-3 ${isUser ? "border-divider bg-gray-50/60 dark:border-white/10 dark:bg-white/5" : "border-transparent bg-transparent"}`}>
         <div className="mb-2 flex items-center justify-between">
-          <span className={`text-[11px] font-medium uppercase tracking-wide ${isUser ? "text-foreground dark:text-gray-300" : "text-violet-600 dark:text-violet-300"}`}>
+          <span className={`text-[11px] font-medium uppercase tracking-wide ${isUser ? "text-foreground dark:text-gray-300" : "text-violet-700 dark:text-violet-300"}`}>
             {isUser ? "User" : "Assistant"}
           </span>
-          <span className="text-[10px] text-gray-500">{formatLocalTime(item.timestamp)}</span>
+          <span className="text-[10px] text-gray-500 dark:text-gray-500">{formatLocalTime(item.timestamp)}</span>
         </div>
 
         <div className="space-y-2">{item.parts.map(renderPart)}</div>
 
         {item.usage ? (
-          <div className="mt-2 border-t border-white/10 pt-2 text-[10px] font-mono text-gray-500">
+          <div className="mt-2 border-t border-divider pt-2 text-[10px] font-mono text-foreground-500 dark:border-white/10 dark:text-gray-500">
             in {formatTokens(item.usage.input)} · cached {formatTokens(item.usage.cacheRead)} · out {formatTokens(item.usage.output)} · total {formatTokens(item.usage.totalTokens)}
+            {stopReasonLabel ? ` · stop ${stopReasonLabel}` : ""}
             {item.usage.costUsd > 0 ? ` · ${formatCost(item.usage.costUsd)}` : ""}
           </div>
         ) : null}
@@ -798,9 +815,20 @@ export function SessionsBrowser({ formatTokens, formatCost, formatLocalTime, age
                 {selectedSession?.task_title || selectedSession?.display_name || selectedSession?.session_key || selectedSession?.session_id || ""}
               </div>
             </div>
-            <div className="text-right text-[11px] font-mono text-foreground-400 dark:text-gray-400">
-              <div>{selectedSession ? formatTokens(selectedSession.usage_total_tokens || 0) : 0} tokens</div>
-              <div>{selectedSession ? formatCost(selectedSession.cost_usd || 0) : "$0.00"}</div>
+            <div className="grid gap-0.5 text-right text-[11px] font-mono text-foreground-500 dark:text-gray-400">
+              <div>Total {selectedSession ? formatTokens(selectedSession.usage_total_tokens || 0) : "0"}</div>
+              <div>In {selectedSession ? formatTokens(selectedSession.input_tokens || 0) : "0"}</div>
+              <div>Cached {selectedSession ? formatTokens(selectedSession.cached_input_tokens || 0) : "0"}</div>
+              <div>Out {selectedSession ? formatTokens(selectedSession.output_tokens || 0) : "0"}</div>
+              <div>
+                Cost {selectedSession
+                  ? (selectedSession.cost_source === "none"
+                    ? "—"
+                    : selectedSession.cost_source === "unpriced"
+                      ? "unpriced"
+                      : formatCost(selectedSession.cost_usd || 0))
+                  : "$0.00"}
+              </div>
             </div>
           </ModalHeader>
 
