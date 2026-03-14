@@ -816,19 +816,21 @@ export function SessionsBrowser({ formatTokens, formatCost, formatLocalTime, age
                 {selectedSession?.task_title || selectedSession?.display_name || selectedSession?.session_key || selectedSession?.session_id || ""}
               </div>
             </div>
-            <div className="grid gap-0.5 text-right text-[11px] font-mono text-foreground-500 dark:text-gray-400">
-              <div>Total {selectedSession ? formatTokens(selectedSession.usage_total_tokens || 0) : "0"}</div>
-              <div>In {selectedSession ? formatTokens(selectedSession.input_tokens || 0) : "0"}</div>
-              <div>Cached {selectedSession ? formatTokens(selectedSession.cached_input_tokens || 0) : "0"}</div>
-              <div>Out {selectedSession ? formatTokens(selectedSession.output_tokens || 0) : "0"}</div>
-              <div>
-                Cost {selectedSession
-                  ? (selectedSession.cost_source === "none"
-                    ? "—"
-                    : selectedSession.cost_source === "unpriced"
-                      ? "unpriced"
-                      : formatCost(selectedSession.cost_usd || 0))
-                  : "$0.00"}
+            <div className="text-right text-[11px] font-mono text-foreground-500 dark:text-gray-400">
+              <div className="inline-flex flex-wrap justify-end gap-x-2 gap-y-1">
+                <span>Total {selectedSession ? formatTokens(selectedSession.usage_total_tokens || 0) : "0"}</span>
+                <span>In {selectedSession ? formatTokens(selectedSession.input_tokens || 0) : "0"}</span>
+                <span>Cached {selectedSession ? formatTokens(selectedSession.cached_input_tokens || 0) : "0"}</span>
+                <span>Out {selectedSession ? formatTokens(selectedSession.output_tokens || 0) : "0"}</span>
+                <span>
+                  Cost {selectedSession
+                    ? (selectedSession.cost_source === "none"
+                      ? "—"
+                      : selectedSession.cost_source === "unpriced"
+                        ? "unpriced"
+                        : formatCost(selectedSession.cost_usd || 0))
+                    : "$0.00"}
+                </span>
               </div>
             </div>
           </ModalHeader>
