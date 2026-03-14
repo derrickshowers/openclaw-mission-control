@@ -411,8 +411,8 @@ export function PersonalTaskList({ initialTasks }: PersonalTaskListProps) {
   ];
 
   return (
-    <div className="space-y-4 font-sans">
-      <div className="flex flex-col gap-3 px-1 lg:flex-row lg:items-center lg:justify-between">
+    <div className="flex h-full flex-col gap-4 font-sans">
+      <div className="flex shrink-0 flex-col gap-3 px-1 lg:flex-row lg:items-center lg:justify-between">
         <div className="flex flex-wrap items-center gap-2 rounded-md border border-zinc-200 dark:border-white/10 bg-white dark:bg-[#080808] p-1">
           {filterButtons.map((option) => {
             const isActive = filter === option.key;
@@ -423,8 +423,8 @@ export function PersonalTaskList({ initialTasks }: PersonalTaskListProps) {
                 onClick={() => setFilter(option.key)}
                 className={
                   isActive
-                    ? "rounded-sm border border-zinc-200 dark:border-white/10 bg-zinc-200 dark:bg-white/10 px-3 py-1 text-[12px] text-zinc-900 dark:text-zinc-100"
-                    : "rounded-sm px-3 py-1 text-[12px] text-zinc-500 hover:bg-zinc-100 dark:bg-white/5 hover:text-zinc-700 dark:text-zinc-300"
+                    ? "min-h-[36px] min-w-[64px] rounded-md border border-zinc-200 bg-zinc-200 px-4 py-2 text-[13px] text-zinc-900 dark:border-white/10 dark:bg-white/10 dark:text-zinc-100"
+                    : "min-h-[36px] min-w-[64px] rounded-md px-4 py-2 text-[13px] text-zinc-500 hover:bg-zinc-100 hover:text-zinc-700 dark:text-zinc-300 dark:hover:bg-white/5"
                 }
               >
                 {option.label}
@@ -449,7 +449,7 @@ export function PersonalTaskList({ initialTasks }: PersonalTaskListProps) {
               onPress={() => handleSync("incremental")}
               isLoading={isSyncing}
               startContent={!isSyncing && <RefreshCw size={13} />}
-              className="h-7 rounded-sm border border-zinc-200 dark:border-white/10 bg-zinc-100 dark:bg-white/5 px-3 font-mono text-[11px] text-zinc-800 dark:text-zinc-200"
+              className="h-9 min-w-[80px] rounded-md border border-zinc-200 bg-zinc-100 px-4 font-mono text-[12px] text-zinc-800 dark:border-white/10 dark:bg-white/5 dark:text-zinc-200"
             >
               {isSyncing ? "Syncing..." : "Sync"}
             </Button>
@@ -460,7 +460,7 @@ export function PersonalTaskList({ initialTasks }: PersonalTaskListProps) {
                 variant="flat"
                 onPress={() => handleSync("full")}
                 isLoading={isSyncing}
-                className="h-7 w-7 min-w-0 rounded-sm border border-zinc-200 dark:border-white/10 bg-zinc-100 dark:bg-white/5"
+                className="h-9 w-9 min-w-0 rounded-md border border-zinc-200 bg-zinc-100 dark:border-white/10 dark:bg-white/5"
               >
                 <ArrowUpCircle size={13} className="rotate-180 text-zinc-700 dark:text-zinc-300" />
               </Button>
@@ -469,7 +469,7 @@ export function PersonalTaskList({ initialTasks }: PersonalTaskListProps) {
         </div>
       </div>
 
-      <div className="hidden md:block">
+      <div className="hidden flex-1 overflow-y-auto pb-8 md:block">
       <Card className="rounded-md border border-zinc-200 dark:border-white/10 bg-white dark:bg-[#080808] shadow-none">
         <Table
           aria-label="Personal tasks table"
@@ -532,7 +532,7 @@ export function PersonalTaskList({ initialTasks }: PersonalTaskListProps) {
       </Card>
       </div>
 
-      <div className="flex flex-col gap-3 md:hidden">
+      <div className="flex flex-1 touch-pan-y flex-col gap-3 overflow-y-auto overscroll-y-contain px-1 pb-20 [webkit-overflow-scrolling:touch] md:hidden">
         {isLoading && filteredTasks.length === 0 && (
           <div className="flex justify-center py-8"><Spinner size="sm" /></div>
         )}
