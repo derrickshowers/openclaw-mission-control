@@ -6,6 +6,14 @@ export async function POST(request: NextRequest) {
 }
 
 export async function GET(request: NextRequest) {
+  const params = new URLSearchParams();
   const limit = request.nextUrl.searchParams.get("limit") || "25";
-  return proxyRequest(request, `/usage/log?limit=${encodeURIComponent(limit)}`);
+  params.set("limit", limit);
+
+  const hideLegacyDuplicates = request.nextUrl.searchParams.get("hideLegacyDuplicates");
+  if (hideLegacyDuplicates) {
+    params.set("hideLegacyDuplicates", hideLegacyDuplicates);
+  }
+
+  return proxyRequest(request, `/usage/log?${params.toString()}`);
 }

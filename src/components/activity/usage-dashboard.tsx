@@ -105,8 +105,7 @@ const PERIOD_OPTIONS = [
 
 type PeriodKey = typeof PERIOD_OPTIONS[number]["value"];
 const ACTIVE_WINDOW_MINUTES = 15;
-const RECENT_LOG_FETCH_LIMIT = 80;
-const RECENT_LOG_DISPLAY_LIMIT = 40;
+const RECENT_LOG_FETCH_LIMIT = 40;
 
 interface ResolvedRange {
   start: Date;
@@ -337,16 +336,6 @@ export function UsageDashboard() {
   const resolvedRange = useMemo(() => resolveRange(period), [period]);
   // Auto-derived interval based on period
   const interval = useMemo(() => intervalForPeriod(period), [period]);
-  const hiddenLegacyTaskRowCount = useMemo(
-    () => recentLogs.filter((row) => row.source === "task" && !!row.task_id && !!row.task_is_legacy && !!row.task_has_run_rows).length,
-    [recentLogs],
-  );
-  const visibleRecentLogs = useMemo(
-    () => recentLogs
-      .filter((row) => !(row.source === "task" && !!row.task_id && !!row.task_is_legacy && !!row.task_has_run_rows))
-      .slice(0, RECENT_LOG_DISPLAY_LIMIT),
-    [recentLogs],
-  );
 
   const fetchData = useCallback(async () => {
     setLoading(true);
@@ -364,7 +353,7 @@ export function UsageDashboard() {
         fetch(`/api/mc/usage/summary?${summaryParams.toString()}`),
         fetch(`/api/mc/usage/chart?${rangeParams.toString()}&interval=${interval}&tzOffset=${tzOffset}`),
         fetch(`/api/mc/usage/breakdown?${rangeParams.toString()}`),
-        fetch(`/api/mc/usage/log?limit=${RECENT_LOG_FETCH_LIMIT}`),
+        fetch(`/api/mc/usage/log?limit=${RECENT_LOG_FETCH_LIMIT}&hideLegacyDuplicates=1`),
       ]);
 
       const summaryData = await summaryRes.json();
@@ -660,11 +649,6 @@ export function UsageDashboard() {
       <div className="rounded border border-divider bg-white dark:bg-[#0A0A0A]">
         <div className="border-b border-divider px-4 py-2.5 flex items-center gap-2">
           <p className="text-xs text-foreground-400 uppercase tracking-wider">Recent Sessions</p>
-          {hiddenLegacyTaskRowCount > 0 && (
-            <span className="rounded border border-divider bg-gray-50 dark:bg-[#111111] px-1.5 py-0.5 text-[10px] font-mono text-foreground-400">
-              hiding {hiddenLegacyTaskRowCount} legacy duplicate{hiddenLegacyTaskRowCount === 1 ? "" : "s"}
-            </span>
-          )}
           <Tooltip
             content={
               <div className="max-w-xs text-xs leading-relaxed">
@@ -680,7 +664,7 @@ export function UsageDashboard() {
             </button>
           </Tooltip>
         </div>
-        {visibleRecentLogs.length === 0 ? (
+        {recentLogs.length === 0 ? (
           <div className="flex h-16 items-center justify-center">
             <p className="text-xs text-foreground-300">No recent sessions</p>
           </div>
@@ -704,7 +688,7 @@ export function UsageDashboard() {
                 </tr>
               </thead>
               <tbody className="divide-y divide-divider dark:divide-[#161616]">
-                {visibleRecentLogs.map((row) => {
+                {recentLogs.map((row) => {
                   const isTaskScoped = row.source === "task" && !!row.task_id;
                   const rawStatus = String(row.status || "unknown").toLowerCase();
                   const rowMutedClass = rawStatus.startsWith("active")
