@@ -275,3 +275,12 @@ html.standalone-mode .standalone-shell {
 html.standalone-mode .standalone-main {
   padding-bottom: calc(5rem + env(safe-area-inset-bottom, 0px));
 }
+
+/* Hide scrollbar for elements with scrollbar-hide */
+.scrollbar-hide::-webkit-scrollbar {
+    display: none;
+}
+.scrollbar-hide {
+    -ms-overflow-style: none;
+    scrollbar-width: none;
+}

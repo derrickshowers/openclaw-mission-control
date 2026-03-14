@@ -103,7 +103,7 @@ export function MobileNav() {
 
       {/* Bottom Nav Bar */}
       <nav className="fixed inset-x-0 bottom-0 z-30 border-t border-divider bg-white dark:bg-[#080808] pb-safe shadow-[0_-1px_10px_rgba(0,0,0,0.05)] dark:shadow-none">
-        <div className="flex items-center justify-around py-2">
+        <div className="flex items-center justify-around py-1.5">
           {primaryItems.map(({ href, label, Icon }) => {
             const isActive =
               href === "/"

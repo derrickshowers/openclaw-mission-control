@@ -45,10 +45,10 @@ export function TasksContainer({
           onSelectionChange={handleScopeChange}
           variant="underlined"
           classNames={{
-            tabList: "gap-6 w-full relative rounded-none p-0 border-b border-divider",
+            tabList: "gap-3 sm:gap-6 w-full relative rounded-none p-0 border-b border-divider overflow-x-auto overflow-y-hidden scrollbar-hide",
             cursor: "w-full bg-[#8b5cf6]",
-            tab: "max-w-fit px-0 h-12",
-            tabContent: "group-data-[selected=true]:text-[#8b5cf6]"
+            tab: "max-w-fit px-0 h-10 sm:h-12",
+            tabContent: "group-data-[selected=true]:text-[#8b5cf6] whitespace-nowrap"
           }}
         >
           <Tab
