@@ -72,6 +72,8 @@ const PERIOD_OPTIONS = [
 ] as const;
 
 type PeriodKey = typeof PERIOD_OPTIONS[number]["value"];
+type MetricKey = "tokens" | "cost";
+
 interface ResolvedRange {
   start: Date;
   end: Date;
@@ -164,6 +166,10 @@ function formatTokens(n: number): string {
 function formatCost(n: number): string {
   if (n < 0.01) return `$${n.toFixed(4)}`;
   return `$${n.toFixed(2)}`;
+}
+
+function getMetricDataKey(agent: string, metric: MetricKey): string {
+  return `${agent}__${metric}`;
 }
 
 function formatHourKey(date: Date): string {
@@ -261,22 +267,33 @@ interface CustomTooltipProps {
   payload?: any[];
   label?: string;
   interval?: string;
+  metric: MetricKey;
 }
 
-function CustomTooltip({ active, payload, label, interval }: CustomTooltipProps) {
+function CustomTooltip({ active, payload, label, interval, metric }: CustomTooltipProps) {
   if (!active || !payload?.length) return null;
   const displayLabel = formatTooltipLabel(label || "", interval || "day");
+  const formatValue = metric === "cost" ? formatCost : formatTokens;
+  const totalValue = payload.reduce((acc, entry) => acc + Number(entry.value || 0), 0);
 
   return (
-    <div className="rounded border border-divider bg-white dark:bg-[#080808] p-2 text-xs font-mono">
-      <p className="text-foreground-400 mb-1">{displayLabel}</p>
-      {payload.map((entry: any, i: number) => (
-        <div key={i} className="flex items-center gap-2">
-          <div className="h-2 w-2 rounded-full" style={{ backgroundColor: entry.color }} />
-          <span className="text-foreground-500 dark:text-[#CCCCCC] capitalize">{entry.dataKey}</span>
-          <span className="text-foreground dark:text-white ml-auto">{formatTokens(entry.value)}</span>
-        </div>
-      ))}
+    <div className="rounded border border-divider bg-white dark:bg-[#080808] p-2 text-xs font-mono shadow-md min-w-[150px]">
+      <p className="text-foreground-400 mb-2 border-b border-divider pb-1">{displayLabel}</p>
+
+      <div className="flex flex-col gap-1.5 mb-2">
+        {payload.map((entry: any, i: number) => (
+          <div key={i} className="flex items-center gap-2">
+            <div className="h-2 w-2 rounded-full" style={{ backgroundColor: entry.color }} />
+            <span className="text-foreground-500 dark:text-[#CCCCCC] capitalize">{entry.name || entry.dataKey}</span>
+            <span className="text-foreground dark:text-white ml-auto">{formatValue(Number(entry.value || 0))}</span>
+          </div>
+        ))}
+      </div>
+
+      <div className="flex items-center gap-2 border-t border-divider pt-1.5 mt-1 font-semibold">
+        <span className="text-foreground-400">Total</span>
+        <span className="text-foreground dark:text-white ml-auto">{formatValue(totalValue)}</span>
+      </div>
     </div>
   );
 }
@@ -290,6 +307,7 @@ const INTERVAL_LABELS: Record<string, string> = {
 
 export function UsageDashboard() {
   const [period, setPeriod] = useState<PeriodKey>("7d");
+  const [metric, setMetric] = useState<MetricKey>("tokens");
   const [summary, setSummary] = useState<Summary | null>(null);
   const [chartData, setChartData] = useState<any[]>([]);
   const [breakdown, setBreakdown] = useState<BreakdownRow[]>([]);
@@ -326,7 +344,8 @@ export function UsageDashboard() {
       setSummary(summaryData);
       setBreakdown(Array.isArray(breakdownData) ? breakdownData : []);
 
-      // Transform chart data: pivot agent rows into { date, frank: N, tom: N, ... }
+      // Transform chart data: pivot agent rows into
+      // { date, frank__tokens: N, frank__cost: N, ... }
       const dateMap = new Map<string, any>();
 
       // For hourly view, pre-seed a continuous local-hour series so Recharts
@@ -358,18 +377,29 @@ export function UsageDashboard() {
         if (!dateMap.has(row.date)) {
           dateMap.set(row.date, { date: row.date });
         }
+
         const entry = dateMap.get(row.date)!;
         const cached = row.cached_input_tokens || 0;
-        entry[row.agent] = (entry[row.agent] || 0) + row.input_tokens + cached + row.output_tokens;
+        const tokenKey = getMetricDataKey(row.agent, "tokens");
+        const costKey = getMetricDataKey(row.agent, "cost");
+
+        entry[tokenKey] = (entry[tokenKey] || 0) + row.input_tokens + cached + row.output_tokens;
+        entry[costKey] = (entry[costKey] || 0) + (row.cost_usd || 0);
       }
 
-      const chartAgents = Array.from(new Set(chartRows.map((r) => r.agent)));
+      const chartAgents = Array.from(new Set([
+        ...chartRows.map((r) => r.agent),
+        ...(Array.isArray(breakdownData) ? breakdownData.map((r: BreakdownRow) => r.agent) : []),
+      ]));
       const sortedData = Array.from(dateMap.values())
         .sort((a, b) => String(a.date).localeCompare(String(b.date)));
 
       for (const entry of sortedData) {
         for (const agent of chartAgents) {
-          if (entry[agent] === undefined) entry[agent] = 0;
+          const tokenKey = getMetricDataKey(agent, "tokens");
+          const costKey = getMetricDataKey(agent, "cost");
+          if (entry[tokenKey] === undefined) entry[tokenKey] = 0;
+          if (entry[costKey] === undefined) entry[costKey] = 0;
         }
       }
 
@@ -490,10 +520,31 @@ export function UsageDashboard() {
 
       {/* Chart */}
       <div className="rounded border border-divider bg-white dark:bg-[#0A0A0A] p-4">
-        <p className="text-xs text-foreground-400 mb-3 uppercase tracking-wider">
-          Token Usage by Agent
-          <span className="text-foreground-300"> · {INTERVAL_LABELS[interval] || interval}</span>
-        </p>
+        <div className="mb-3 flex items-center justify-between gap-2">
+          <p className="text-xs text-foreground-400 uppercase tracking-wider">
+            {metric === "cost" ? "Cost" : "Token Usage"} by Agent
+            <span className="text-foreground-300"> · {INTERVAL_LABELS[interval] || interval}</span>
+          </p>
+          <Select
+            selectedKeys={[metric]}
+            onSelectionChange={(keys) => {
+              const v = Array.from(keys)[0] as MetricKey | undefined;
+              if (v) setMetric(v);
+            }}
+            variant="bordered"
+            size="sm"
+            className="w-[100px] h-7 min-h-7"
+            classNames={{
+              trigger: "border-divider bg-transparent dark:bg-[#080808] h-7 min-h-7 px-2 rounded text-xs text-foreground-400 shadow-none",
+              value: "text-xs text-foreground-400",
+              popoverContent: "min-w-[100px]",
+            }}
+            disallowEmptySelection
+          >
+            <SelectItem key="tokens">Tokens</SelectItem>
+            <SelectItem key="cost">Cost</SelectItem>
+          </Select>
+        </div>
         {chartData.length === 0 ? (
           <div className="flex h-48 items-center justify-center">
             <p className="text-xs text-foreground-300">
@@ -515,9 +566,9 @@ export function UsageDashboard() {
                 tick={{ fill: chartColors.text, fontSize: 11, fontFamily: "monospace" }}
                 axisLine={false}
                 tickLine={false}
-                tickFormatter={formatTokens}
+                tickFormatter={metric === "cost" ? formatCost : formatTokens}
               />
-              <RechartsTooltip content={<CustomTooltip interval={interval} />} />
+              <RechartsTooltip content={<CustomTooltip interval={interval} metric={metric} />} />
               <Legend
                 wrapperStyle={{ fontSize: "11px", fontFamily: "monospace" }}
                 formatter={(value: string) => (
@@ -528,8 +579,9 @@ export function UsageDashboard() {
                 <Area
                   key={agent}
                   type="monotone"
-                  dataKey={agent}
-                  stackId="tokens"
+                  dataKey={getMetricDataKey(agent, metric)}
+                  name={agent}
+                  stackId={metric}
                   stroke={AGENT_COLORS[agent] || "#888888"}
                   fill={AGENT_COLORS[agent] || "#888888"}
                   fillOpacity={0.3}
