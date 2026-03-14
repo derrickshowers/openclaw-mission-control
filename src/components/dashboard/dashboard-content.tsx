@@ -2,10 +2,10 @@
 
 import { useState } from "react";
 import { Button, Card, CardBody, CardHeader, Chip } from "@heroui/react";
-import { Crown, Crosshair, Landmark, Zap, Palette, Bot, Users, ListChecks, ArrowRight, ShieldAlert, User } from "lucide-react";
+import { Crown, Crosshair, Landmark, Zap, Palette, Bot, Users, ListChecks, ArrowRight, ShieldAlert, User, TriangleAlert, Clock, Calendar } from "lucide-react";
 import { api } from "@/lib/api";
 import type { LucideIcon } from "lucide-react";
-import type { Task } from "@/lib/api";
+import type { Task, PersonalTask } from "@/lib/api";
 import { timeAgo as timeAgoUtil } from "@/lib/dates";
 import { normalizeAgentId, resolveAgentAvatarUrl } from "@/lib/agents";
 
@@ -20,6 +20,7 @@ interface ActivityEntry {
 
 interface DashboardContentProps {
   personalSummary?: any;
+  personalTasks?: PersonalTask[];
   tasks: Task[];
   agents: any[];
   status: any;
@@ -81,7 +82,7 @@ const activityStateConfig: Record<string, { color: "success" | "warning" | "defa
   uninitialized: { color: "default", label: "none" },
 };
 
-export function DashboardContent({ tasks, agents, status, recentActivity, personalSummary }: DashboardContentProps) {
+export function DashboardContent({ tasks, agents, status, recentActivity, personalSummary, personalTasks = [] }: DashboardContentProps) {
   const inProgress = tasks.filter((t) => t.status === "in_progress");
   const blocked = tasks.filter((t) => t.status === "blocked");
   const done = tasks.filter((t) => t.status === "done");
@@ -237,59 +238,12 @@ export function DashboardContent({ tasks, agents, status, recentActivity, person
             )}
           </CardBody>
         </Card>
-      {/* Personal Summary Widget */}
+      {/* Personal Backlog Widget */}
       {personalSummary && (
-        <Card className="border border-divider bg-content1/50 backdrop-blur-xl shadow-[0_8px_30px_rgba(0,0,0,0.06)] dark:shadow-[0_8px_30px_rgba(0,0,0,0.35)]">
-          <CardHeader className="border-b border-divider px-4 py-2.5">
-            <div className="flex w-full items-center justify-between">
-              <span className="flex items-center gap-2 text-xs font-medium uppercase tracking-wider text-foreground-400">
-                <User size={16} strokeWidth={1.5} className="text-foreground-300" />
-                Personal Backlog (Notion)
-              </span>
-              {personalSummary.last_synced_at && (
-                <span className="text-[10px] text-foreground-400 font-mono">
-                  Synced {timeAgo(personalSummary.last_synced_at)}
-                </span>
-              )}
-            </div>
-          </CardHeader>
-          <CardBody className="p-3">
-            <div className="grid grid-cols-3 gap-2 mb-4">
-              <div className="rounded-lg bg-content2/50 p-2 text-center border border-divider">
-                <p className="text-[10px] uppercase text-foreground-400">Overdue</p>
-                <p className={`text-lg font-bold ${personalSummary.overdue > 0 ? 'text-danger' : 'text-foreground'}`}>
-                  {personalSummary.overdue}
-                </p>
-              </div>
-              <div className="rounded-lg bg-content2/50 p-2 text-center border border-divider">
-                <p className="text-[10px] uppercase text-foreground-400">Today</p>
-                <p className="text-lg font-bold text-primary">{personalSummary.due_today}</p>
-              </div>
-              <div className="rounded-lg bg-content2/50 p-2 text-center border border-divider">
-                <p className="text-[10px] uppercase text-foreground-400">Open</p>
-                <p className="text-lg font-bold">{personalSummary.in_progress + personalSummary.backlog + personalSummary.blocked}</p>
-              </div>
-            </div>
-            
-            <div className="space-y-2">
-              <div className="flex items-center justify-between text-xs px-1 font-mono">
-                <span className="text-foreground-400">Delegated items</span>
-                <span className="font-medium text-primary">{personalSummary.linked_open ?? personalSummary.delegated ?? 0} active</span>
-              </div>
-              <Button 
-                as="a" 
-                href="/tasks?scope=personal" 
-                variant="flat" 
-                size="sm" 
-                fullWidth 
-                className="mt-2 text-xs"
-                endContent={<ArrowRight size={14} />}
-              >
-                View Personal Tasks
-              </Button>
-            </div>
-          </CardBody>
-        </Card>
+        <PersonalBacklogWidget
+          personalSummary={personalSummary}
+          personalTasks={personalTasks}
+        />
       )}
 
       </div>
@@ -375,6 +329,188 @@ export function DashboardContent({ tasks, agents, status, recentActivity, person
     </div>
   );
 }
+
+// ── Personal Backlog helpers ──────────────────────────────────────────────────
+
+type TaskUrgency = "overdue" | "today" | "other";
+
+function getTaskUrgency(task: PersonalTask): TaskUrgency {
+  const now = new Date();
+  const today = new Date(now.getFullYear(), now.getMonth(), now.getDate());
+
+  if (task.due_at) {
+    const due = new Date(task.due_at);
+    const dueDay = new Date(due.getFullYear(), due.getMonth(), due.getDate());
+    if (dueDay < today) return "overdue";
+    if (dueDay.getTime() === today.getTime()) return "today";
+  }
+  return "other";
+}
+
+function urgencyOrder(u: TaskUrgency): number {
+  if (u === "overdue") return 0;
+  if (u === "today") return 1;
+  return 2;
+}
+
+function formatTaskMeta(task: PersonalTask, urgency: TaskUrgency): string {
+  if (urgency === "overdue" && task.due_at) {
+    const ms = Date.now() - new Date(task.due_at).getTime();
+    const days = Math.floor(ms / 86400000);
+    return days <= 0 ? "Overdue" : `Overdue ${days}d`;
+  }
+  if (urgency === "today") return "Today";
+  if (task.due_at) {
+    return `Due ${formatShortDate(task.due_at)}`;
+  }
+  if (task.scheduled_at) {
+    return `Scheduled ${formatShortDate(task.scheduled_at)}`;
+  }
+  return "Open";
+}
+
+function formatShortDate(iso: string): string {
+  const d = new Date(iso);
+  return d.toLocaleDateString("en-US", { month: "short", day: "numeric" });
+}
+
+function sortedActionableTasks(tasks: PersonalTask[]): PersonalTask[] {
+  const actionable = tasks.filter(
+    (t) => t.status !== "done" && t.sync_state === "active"
+  );
+  return [...actionable].sort((a, b) => {
+    const ua = urgencyOrder(getTaskUrgency(a));
+    const ub = urgencyOrder(getTaskUrgency(b));
+    if (ua !== ub) return ua - ub;
+    const ta = a.due_at ?? a.scheduled_at ?? a.updated_at;
+    const tb = b.due_at ?? b.scheduled_at ?? b.updated_at;
+    return new Date(ta).getTime() - new Date(tb).getTime();
+  });
+}
+
+function PersonalBacklogWidget({
+  personalSummary,
+  personalTasks,
+}: {
+  personalSummary: any;
+  personalTasks: PersonalTask[];
+}) {
+  const overdue: number = personalSummary.overdue ?? 0;
+  const dueToday: number = personalSummary.due_today ?? 0;
+  const open: number =
+    (personalSummary.in_progress ?? 0) +
+    (personalSummary.backlog ?? 0) +
+    (personalSummary.blocked ?? 0);
+  const delegated: number =
+    personalSummary.linked_open ?? personalSummary.delegated ?? 0;
+
+  const actionable = sortedActionableTasks(personalTasks).slice(0, 5);
+
+  let ctaLabel: string;
+  let ctaClass: string;
+  if (overdue > 0) {
+    ctaLabel = `Review ${overdue} Overdue Task${overdue !== 1 ? "s" : ""} →`;
+    ctaClass = "border-danger/20 bg-danger/10 text-danger hover:bg-danger/20";
+  } else if (dueToday > 0) {
+    ctaLabel = `Plan ${dueToday} Task${dueToday !== 1 ? "s" : ""} Due Today →`;
+    ctaClass = "border-divider bg-content2/70 text-foreground hover:bg-content2";
+  } else {
+    ctaLabel = "View Open Backlog →";
+    ctaClass = "border-transparent text-foreground-400 hover:bg-content2/70 hover:text-foreground";
+  }
+
+  return (
+    <Card className="border border-divider bg-content1/50 backdrop-blur-xl shadow-[0_8px_30px_rgba(0,0,0,0.06)] dark:shadow-[0_8px_30px_rgba(0,0,0,0.35)]">
+      <CardHeader className="border-b border-divider px-4 py-2.5">
+        <div className="flex w-full items-center justify-between gap-2">
+          <span className="flex items-center gap-2 text-xs font-medium uppercase tracking-wider text-foreground-400">
+            <User size={16} strokeWidth={1.5} className="text-foreground-300" />
+            Personal Backlog (Notion)
+          </span>
+          <div className="flex items-center gap-1.5 flex-shrink-0">
+            {overdue > 0 && (
+              <span className="rounded-sm border border-danger/20 bg-danger/10 px-1.5 py-0.5 font-mono text-[11px] text-danger">
+                {overdue} overdue
+              </span>
+            )}
+            {dueToday > 0 && (
+              <span className="rounded-sm border border-divider bg-content2/70 px-1.5 py-0.5 font-mono text-[11px] text-foreground-400">
+                {dueToday} today
+              </span>
+            )}
+            <span className="text-[11px] text-foreground-500 font-mono">{open} open</span>
+            {delegated > 0 && (
+              <span className="text-[11px] text-foreground-500 font-mono">{delegated} delegated</span>
+            )}
+            {personalSummary.last_synced_at && (
+              <span className="text-[11px] text-foreground-500 font-mono">
+                synced {timeAgo(personalSummary.last_synced_at)}
+              </span>
+            )}
+          </div>
+        </div>
+      </CardHeader>
+      <CardBody className="p-3">
+        <p className="mb-2 mt-1 px-2 text-xs font-semibold uppercase tracking-wider text-foreground-400">
+          Priority Actions
+        </p>
+
+        {actionable.length === 0 ? (
+          <div className="rounded-md border border-dashed border-divider px-3 py-4 text-center">
+            <p className="text-xs text-foreground-400 font-mono">Inbox zero. Enjoy the silence.</p>
+          </div>
+        ) : (
+          <div>
+            {actionable.map((task) => {
+              const urgency = getTaskUrgency(task);
+              const meta = formatTaskMeta(task, urgency);
+              const isOverdue = urgency === "overdue";
+              const isToday = urgency === "today";
+
+              const iconColor = isOverdue
+                ? "text-danger"
+                : isToday
+                ? "text-primary"
+                : "text-foreground-400";
+              const metaColor = isOverdue
+                ? "text-danger-400"
+                : isToday
+                ? "text-primary-400"
+                : "text-foreground-400";
+              const Icon = isOverdue ? TriangleAlert : isToday ? Clock : Calendar;
+
+              return (
+                <div
+                  key={task.id}
+                  className="group -mx-2 flex items-center justify-between rounded-sm px-2 py-1.5 transition-colors hover:bg-default-100/60"
+                >
+                  <div className="flex items-center gap-2 min-w-0">
+                    <Icon size={14} strokeWidth={1.5} className={`flex-shrink-0 ${iconColor}`} />
+                    <span className="truncate text-xs text-foreground-300 group-hover:text-foreground transition-colors">
+                      {task.title}
+                    </span>
+                  </div>
+                  <span className={`flex-shrink-0 ml-3 text-[10px] font-mono ${metaColor}`}>
+                    {meta}
+                  </span>
+                </div>
+              );
+            })}
+          </div>
+        )}
+
+        <a
+          href="/tasks?scope=personal"
+          className={`mt-3 flex w-full items-center justify-center rounded-md border px-3 py-2 text-[11px] font-medium transition-colors ${ctaClass}`}
+        >
+          {ctaLabel}
+        </a>
+      </CardBody>
+    </Card>
+  );
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
 
 function StatCard({ label, value }: { label: string; value: number }) {
   return (
