@@ -450,10 +450,10 @@ export function DashboardContent({ tasks: initialTasks, agents, personalTasks: i
   const teamPulse = useMemo(() => {
     return agents.map((agent: any) => {
       const id = normalizeAgentId(agent.name);
-      const currentTask = teamFocusTasks.find((task) => normalizeAgentId(task.assignee) === id);
+      const fallbackTask = teamFocusTasks.find((task) => normalizeAgentId(task.assignee) === id);
       return {
         ...agent,
-        currentTask,
+        currentTask: agent.currentTask || fallbackTask || null,
       };
     });
   }, [agents, teamFocusTasks]);
