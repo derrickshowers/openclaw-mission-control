@@ -19,8 +19,7 @@ import {
   type Task,
   type TodayNonNegotiable,
 } from "@/lib/api";
-import { formatLocal, parseUTC, timeAgo } from "@/lib/dates";
-import { normalizeAgentId } from "@/lib/agents";
+import { parseUTC, timeAgo } from "@/lib/dates";
 import { useSSE } from "@/hooks/use-sse";
 import { TaskDrawer } from "@/components/tasks/task-drawer";
 import { PersonalTaskDrawer } from "@/components/tasks/personal-task-drawer";
@@ -86,11 +85,67 @@ function sortTasksByUpdatedDesc(tasks: Task[]) {
   );
 }
 
+const DATE_ONLY_VALUE_RE = /^(\d{4})-(\d{2})-(\d{2})(?:T00:00:00(?:\.000)?Z)?$/;
+
+function parseCalendarDate(dateValue: string | null | undefined) {
+  if (!dateValue) return null;
+
+  const trimmed = dateValue.trim();
+  const dateOnlyMatch = trimmed.match(DATE_ONLY_VALUE_RE);
+  if (dateOnlyMatch) {
+    return new Date(
+      Number(dateOnlyMatch[1]),
+      Number(dateOnlyMatch[2]) - 1,
+      Number(dateOnlyMatch[3])
+    );
+  }
+
+  const parsed = parseUTC(trimmed);
+  return Number.isNaN(parsed.getTime()) ? null : parsed;
+}
+
+function dayDiffFromNow(dateValue: string | null | undefined, now: Date) {
+  const parsed = parseCalendarDate(dateValue);
+  if (!parsed) return null;
+
+  const valueDay = startOfLocalDay(parsed).getTime();
+  const nowDay = startOfLocalDay(now).getTime();
+  return Math.round((valueDay - nowDay) / 86_400_000);
+}
+
+function formatDueLabel(dateValue: string | null | undefined, now: Date) {
+  const parsed = parseCalendarDate(dateValue);
+  if (!parsed) return "";
+
+  const diff = dayDiffFromNow(dateValue, now);
+  if (diff !== null && diff >= 0 && diff <= 5) {
+    return parsed.toLocaleDateString("en-US", { weekday: "short" });
+  }
+
+  return parsed.toLocaleDateString("en-US", { month: "short", day: "numeric" });
+}
+
+function formatScheduledLabel(dateValue: string | null | undefined) {
+  const parsed = parseCalendarDate(dateValue);
+  if (!parsed) return "";
+
+  if (DATE_ONLY_VALUE_RE.test(dateValue?.trim() || "")) {
+    return parsed.toLocaleDateString("en-US", { month: "short", day: "numeric" });
+  }
+
+  return parsed.toLocaleString("en-US", {
+    month: "short",
+    day: "numeric",
+    hour: "numeric",
+    minute: "2-digit",
+  });
+}
+
 function comparePersonalTasks(a: PersonalTask, b: PersonalTask) {
-  const aScheduled = a.scheduled_at ? parseUTC(a.scheduled_at).getTime() : Number.POSITIVE_INFINITY;
-  const bScheduled = b.scheduled_at ? parseUTC(b.scheduled_at).getTime() : Number.POSITIVE_INFINITY;
-  const aDue = a.due_at ? parseUTC(a.due_at).getTime() : Number.POSITIVE_INFINITY;
-  const bDue = b.due_at ? parseUTC(b.due_at).getTime() : Number.POSITIVE_INFINITY;
+  const aScheduled = a.scheduled_at ? parseCalendarDate(a.scheduled_at)?.getTime() ?? Number.POSITIVE_INFINITY : Number.POSITIVE_INFINITY;
+  const bScheduled = b.scheduled_at ? parseCalendarDate(b.scheduled_at)?.getTime() ?? Number.POSITIVE_INFINITY : Number.POSITIVE_INFINITY;
+  const aDue = a.due_at ? parseCalendarDate(a.due_at)?.getTime() ?? Number.POSITIVE_INFINITY : Number.POSITIVE_INFINITY;
+  const bDue = b.due_at ? parseCalendarDate(b.due_at)?.getTime() ?? Number.POSITIVE_INFINITY : Number.POSITIVE_INFINITY;
 
   if (aScheduled !== bScheduled) return aScheduled - bScheduled;
   if (aDue !== bDue) return aDue - bDue;
@@ -98,21 +153,21 @@ function comparePersonalTasks(a: PersonalTask, b: PersonalTask) {
 }
 
 function isSameLocalDay(dateValue: string | null | undefined, target: Date) {
-  if (!dateValue) return false;
-  const d = parseUTC(dateValue);
+  const parsed = parseCalendarDate(dateValue);
+  if (!parsed) return false;
   return (
-    d.getFullYear() === target.getFullYear() &&
-    d.getMonth() === target.getMonth() &&
-    d.getDate() === target.getDate()
+    parsed.getFullYear() === target.getFullYear() &&
+    parsed.getMonth() === target.getMonth() &&
+    parsed.getDate() === target.getDate()
   );
 }
 
 function isWithinNextSevenDays(dateValue: string | null | undefined, now: Date) {
-  if (!dateValue) return false;
-  const d = parseUTC(dateValue);
+  const parsed = parseCalendarDate(dateValue);
+  if (!parsed) return false;
   const start = startOfLocalDay(now).getTime();
   const end = addLocalDays(startOfLocalDay(now), 8).getTime();
-  const value = d.getTime();
+  const value = parsed.getTime();
   return value >= start && value < end;
 }
 
@@ -184,7 +239,7 @@ function TeamTaskCard({
             )}
           </div>
           <Button size="sm" variant="flat" className={flatButtonClass} onPress={() => onOpen(task)}>
-            Open drawer
+            Open
           </Button>
         </div>
       </CardBody>
@@ -348,6 +403,7 @@ export function DashboardContent({ tasks: initialTasks, agents, personalTasks: i
               href="https://www.notion.so/showersfam/Good-Morning-193e7abcffbf8089a06ed63144d0d82d"
               target="_blank"
               rel="noreferrer"
+              size="sm"
               variant="flat"
               className={flatButtonClass}
             >
@@ -360,6 +416,7 @@ export function DashboardContent({ tasks: initialTasks, agents, personalTasks: i
               href="https://www.notion.so/showersfam/End-of-Day-Follow-ups-195e7abcffbf809380f1d2e391a60e3f"
               target="_blank"
               rel="noreferrer"
+              size="sm"
               variant="flat"
               className={flatButtonClass}
             >
@@ -372,58 +429,47 @@ export function DashboardContent({ tasks: initialTasks, agents, personalTasks: i
       <div className="grid gap-4 xl:grid-cols-[1.45fr_0.95fr]">
         <section className="space-y-3">
           <div>
-            <h2 className="text-[11px] font-mono uppercase tracking-[0.14em] text-zinc-500">Brain Channels</h2>
-            <p className="mt-1 text-[13px] text-zinc-500">Currently airing notes, front and center.</p>
+            <h2 className="text-[11px] font-mono uppercase tracking-[0.14em] text-zinc-500">Today’s Non-Negotiables</h2>
+            <p className="mt-1 text-[13px] text-zinc-500">Only items dated today in Notion.</p>
           </div>
-          <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
-            {todayLoading ? (
-              <Card className="rounded-md border border-zinc-200 bg-white shadow-none dark:border-white/10 dark:bg-[#080808] sm:col-span-2 lg:col-span-3">
-                <CardBody className="flex min-h-[180px] items-center justify-center p-4"><Spinner size="sm" /></CardBody>
-              </Card>
-            ) : brainChannels.length === 0 ? (
-              <Card className="rounded-md border border-zinc-200 bg-white shadow-none dark:border-white/10 dark:bg-[#080808] sm:col-span-2 lg:col-span-3">
-                <CardBody className="p-4 text-[13px] text-zinc-500">No active brain channels.</CardBody>
-              </Card>
-            ) : (
-              brainChannels.map((channel) => (
-                <button
-                  key={channel.id}
-                  type="button"
-                  onClick={() => setSelectedBrainChannelId(channel.id)}
-                  className="group flex aspect-[1.1/1] flex-col overflow-hidden rounded-md border border-zinc-200 bg-white text-left transition-colors hover:bg-zinc-50 dark:border-white/10 dark:bg-[#080808] dark:hover:bg-white/[0.03]"
-                >
-                  <div className="relative h-28 w-full shrink-0 bg-zinc-100 dark:bg-white/[0.04]">
-                    {channel.cover_url ? (
-                      <img src={channel.cover_url} alt="" className="h-full w-full object-cover" />
-                    ) : null}
-                  </div>
-                  <div className="flex flex-1 flex-col justify-between gap-3 p-3">
-                    <div className="flex items-start justify-between gap-2">
-                      <h3 className="line-clamp-2 text-sm font-medium text-zinc-900 dark:text-zinc-100">{channel.title}</h3>
-                      {channel.source_url && (
-                        <a
-                          href={channel.source_url}
-                          target="_blank"
-                          rel="noreferrer"
-                          onClick={(event) => event.stopPropagation()}
-                          className="shrink-0 text-zinc-500 hover:text-zinc-800 dark:hover:text-zinc-200"
-                        >
-                          <ExternalLink size={14} />
-                        </a>
-                      )}
-                    </div>
-                    <div className="flex items-center gap-2">
-                      {channel.type && (
-                        <Chip size="sm" variant="flat" className="h-5 border border-zinc-200 bg-zinc-100 text-[10px] uppercase dark:border-white/10 dark:bg-white/5">
-                          {channel.type}
-                        </Chip>
-                      )}
-                    </div>
-                  </div>
-                </button>
-              ))
-            )}
-          </div>
+          <Card className="rounded-md border border-zinc-200 bg-white shadow-none dark:border-white/10 dark:bg-[#080808]">
+            <CardBody className="gap-2 p-3">
+              {todayLoading ? (
+                <div className="flex justify-center py-4"><Spinner size="sm" /></div>
+              ) : nonNegotiables.length === 0 ? (
+                <p className="px-1 py-2 text-[13px] text-zinc-500">No non-negotiables for today.</p>
+              ) : (
+                nonNegotiables.map((item) => (
+                  <label
+                    key={item.id}
+                    className="flex cursor-pointer items-center gap-3 rounded-sm border border-transparent px-2 py-2 hover:bg-zinc-50 dark:hover:bg-white/[0.03]"
+                  >
+                    <Checkbox
+                      isSelected={item.completed}
+                      onValueChange={async (checked) => {
+                        setNonNegotiables((prev) =>
+                          prev.map((entry) => (entry.id === item.id ? { ...entry, completed: checked } : entry))
+                        );
+                        try {
+                          const updated = await api.updateTodayNonNegotiable(item.id, checked);
+                          setNonNegotiables((prev) =>
+                            prev.map((entry) => (entry.id === item.id ? updated : entry))
+                          );
+                        } catch {
+                          setNonNegotiables((prev) =>
+                            prev.map((entry) => (entry.id === item.id ? { ...entry, completed: !checked } : entry))
+                          );
+                        }
+                      }}
+                    />
+                    <span className={`flex-1 text-[13px] ${item.completed ? "text-zinc-400 line-through" : "text-zinc-700 dark:text-zinc-200"}`}>
+                      {item.title}
+                    </span>
+                  </label>
+                ))
+              )}
+            </CardBody>
+          </Card>
         </section>
 
         <section className="space-y-3">
@@ -455,6 +501,62 @@ export function DashboardContent({ tasks: initialTasks, agents, personalTasks: i
         </section>
       </div>
 
+      <section className="space-y-3">
+        <div>
+          <h2 className="text-[11px] font-mono uppercase tracking-[0.14em] text-zinc-500">Brain Channels</h2>
+          <p className="mt-1 text-[13px] text-zinc-500">Currently airing notes, front and center.</p>
+        </div>
+        <div className="grid grid-cols-2 gap-3 lg:grid-cols-4">
+          {todayLoading ? (
+            <Card className="col-span-2 rounded-md border border-zinc-200 bg-white shadow-none dark:border-white/10 dark:bg-[#080808] lg:col-span-4">
+              <CardBody className="flex min-h-[180px] items-center justify-center p-4"><Spinner size="sm" /></CardBody>
+            </Card>
+          ) : brainChannels.length === 0 ? (
+            <Card className="col-span-2 rounded-md border border-zinc-200 bg-white shadow-none dark:border-white/10 dark:bg-[#080808] lg:col-span-4">
+              <CardBody className="p-4 text-[13px] text-zinc-500">No active brain channels.</CardBody>
+            </Card>
+          ) : (
+            brainChannels.map((channel) => (
+              <button
+                key={channel.id}
+                type="button"
+                onClick={() => setSelectedBrainChannelId(channel.id)}
+                className="group flex min-h-[184px] flex-col overflow-hidden rounded-md border border-zinc-200 bg-white text-left transition-colors hover:bg-zinc-50 dark:border-white/10 dark:bg-[#080808] dark:hover:bg-white/[0.03]"
+              >
+                <div className="relative h-20 w-full shrink-0 bg-zinc-100 dark:bg-white/[0.04] sm:h-24">
+                  {channel.cover_url ? (
+                    <img src={channel.cover_url} alt="" className="h-full w-full object-cover" />
+                  ) : null}
+                </div>
+                <div className="flex flex-1 flex-col justify-between gap-3 p-3">
+                  <div className="flex items-start justify-between gap-2">
+                    <h3 className="line-clamp-2 text-sm font-medium text-zinc-900 dark:text-zinc-100">{channel.title}</h3>
+                    {channel.source_url && (
+                      <a
+                        href={channel.source_url}
+                        target="_blank"
+                        rel="noreferrer"
+                        onClick={(event) => event.stopPropagation()}
+                        className="shrink-0 text-zinc-500 hover:text-zinc-800 dark:hover:text-zinc-200"
+                      >
+                        <ExternalLink size={14} />
+                      </a>
+                    )}
+                  </div>
+                  <div className="flex items-center gap-2">
+                    {channel.type && (
+                      <Chip size="sm" variant="flat" className="h-5 whitespace-nowrap border border-zinc-200 bg-zinc-100 text-[10px] uppercase dark:border-white/10 dark:bg-white/5">
+                        {channel.type}
+                      </Chip>
+                    )}
+                  </div>
+                </div>
+              </button>
+            ))
+          )}
+        </div>
+      </section>
+
       <div className="grid gap-4 xl:grid-cols-[1.45fr_0.95fr]">
         <div className="space-y-4">
           <section className="space-y-3">
@@ -465,22 +567,22 @@ export function DashboardContent({ tasks: initialTasks, agents, personalTasks: i
 
             <Card className="rounded-md border border-zinc-200 bg-white shadow-none dark:border-white/10 dark:bg-[#080808]">
               <CardBody className="gap-3 p-4">
-                <div className="grid gap-3 md:grid-cols-[1.3fr_160px_160px_auto]">
-                  <Input
-                    value={newTaskTitle}
-                    onValueChange={setNewTaskTitle}
-                    placeholder="Create a new Notion task…"
-                    variant="flat"
-                    classNames={{
-                      inputWrapper: "rounded-sm border border-zinc-200 bg-zinc-100 shadow-none dark:border-white/10 dark:bg-white/5",
-                    }}
-                    onKeyDown={(event) => {
-                      if (event.key === "Enter" && !event.shiftKey) {
-                        event.preventDefault();
-                        void handleCreateTask();
-                      }
-                    }}
-                  />
+                <Input
+                  value={newTaskTitle}
+                  onValueChange={setNewTaskTitle}
+                  placeholder="Create a new Notion task…"
+                  variant="flat"
+                  classNames={{
+                    inputWrapper: "rounded-sm border border-zinc-200 bg-zinc-100 shadow-none dark:border-white/10 dark:bg-white/5",
+                  }}
+                  onKeyDown={(event) => {
+                    if (event.key === "Enter" && !event.shiftKey) {
+                      event.preventDefault();
+                      void handleCreateTask();
+                    }
+                  }}
+                />
+                <div className="grid gap-3 md:grid-cols-2">
                   <Input
                     type="date"
                     label="Scheduled"
@@ -503,11 +605,6 @@ export function DashboardContent({ tasks: initialTasks, agents, personalTasks: i
                       inputWrapper: "rounded-sm border border-zinc-200 bg-zinc-100 shadow-none dark:border-white/10 dark:bg-white/5",
                     }}
                   />
-                  <div className="flex items-end">
-                    <Button color="primary" className="w-full rounded-sm" onPress={handleCreateTask} isLoading={creatingTask}>
-                      Add
-                    </Button>
-                  </div>
                 </div>
                 <Textarea
                   minRows={2}
@@ -519,6 +616,11 @@ export function DashboardContent({ tasks: initialTasks, agents, personalTasks: i
                     inputWrapper: "rounded-sm border border-zinc-200 bg-zinc-100 shadow-none dark:border-white/10 dark:bg-white/5",
                   }}
                 />
+                <div className="flex justify-end">
+                  <Button color="primary" className="min-w-[96px] rounded-sm" onPress={handleCreateTask} isLoading={creatingTask}>
+                    Add
+                  </Button>
+                </div>
               </CardBody>
             </Card>
 
@@ -534,37 +636,41 @@ export function DashboardContent({ tasks: initialTasks, agents, personalTasks: i
                   return (
                     <Card key={task.id} className="rounded-md border border-zinc-200 bg-white shadow-none dark:border-white/10 dark:bg-[#080808]">
                       <CardBody className="gap-3 p-4">
-                        <div className="flex flex-col gap-3 lg:flex-row lg:items-start lg:justify-between">
-                          <div className="min-w-0">
+                        <div className="flex items-start gap-3">
+                          <div className="min-w-0 flex-1">
                             <div className="flex flex-wrap items-center gap-2">
                               <h3 className="text-sm font-medium text-zinc-900 dark:text-zinc-100">{task.title}</h3>
-                              <Chip size="sm" variant="flat" color={statusChipColor(task.status)} className="h-5 text-[10px] uppercase">
+                              <Chip size="sm" variant="flat" color={statusChipColor(task.status)} className="h-5 whitespace-nowrap text-[10px] uppercase">
                                 {(task.source_status || task.status).replace("_", " ")}
                               </Chip>
                               {dueToday && (
-                                <Chip size="sm" variant="flat" color="primary" className="h-5 text-[10px] uppercase">
-                                  <CalendarCheck size={12} className="mr-1" />
-                                  Due today
+                                <Chip size="sm" variant="flat" color="danger" className="h-5 whitespace-nowrap text-[10px] uppercase">
+                                  <span className="inline-flex items-center gap-1 whitespace-nowrap">
+                                    <CalendarCheck size={12} />
+                                    Due today
+                                  </span>
                                 </Chip>
                               )}
                               {dueTomorrow && (
-                                <Chip size="sm" variant="flat" color="warning" className="h-5 text-[10px] uppercase">
-                                  <TriangleAlert size={12} className="mr-1" />
-                                  Due tomorrow
+                                <Chip size="sm" variant="flat" color="warning" className="h-5 whitespace-nowrap text-[10px] uppercase">
+                                  <span className="inline-flex items-center gap-1 whitespace-nowrap">
+                                    <TriangleAlert size={12} />
+                                    Due tomorrow
+                                  </span>
                                 </Chip>
                               )}
                             </div>
                             <div className="mt-2 flex flex-wrap items-center gap-x-4 gap-y-1 text-[12px] text-zinc-500">
                               {task.scheduled_at && (
-                                <span className="inline-flex items-center gap-1.5">
+                                <span className="inline-flex items-center gap-1.5 whitespace-nowrap">
                                   <Clock3 size={13} />
-                                  Scheduled {formatLocal(task.scheduled_at, { month: "short", day: "numeric", hour: "numeric", minute: "2-digit" })}
+                                  Scheduled {formatScheduledLabel(task.scheduled_at)}
                                 </span>
                               )}
                               {task.due_at && (
-                                <span className="inline-flex items-center gap-1.5">
+                                <span className={`inline-flex items-center gap-1.5 whitespace-nowrap ${dueToday ? "text-rose-600 dark:text-rose-400" : dueTomorrow ? "text-amber-600 dark:text-amber-400" : "text-zinc-500"}`}>
                                   {dueTomorrow ? <TriangleAlert size={13} /> : <AlertCircle size={13} />}
-                                  Due {formatLocal(task.due_at, { month: "short", day: "numeric" })}
+                                  Due {formatDueLabel(task.due_at, now)}
                                 </span>
                               )}
                             </div>
@@ -574,7 +680,7 @@ export function DashboardContent({ tasks: initialTasks, agents, personalTasks: i
                               </p>
                             )}
                           </div>
-                          <div className="flex flex-wrap items-center gap-2">
+                          <div className="ml-auto flex shrink-0 flex-wrap justify-end gap-2 self-start">
                             <Button
                               size="sm"
                               variant="flat"
@@ -604,50 +710,6 @@ export function DashboardContent({ tasks: initialTasks, agents, personalTasks: i
             </div>
           </section>
 
-          <section className="space-y-3">
-            <div>
-              <h2 className="text-[11px] font-mono uppercase tracking-[0.14em] text-zinc-500">Today’s Non-Negotiables</h2>
-              <p className="mt-1 text-[13px] text-zinc-500">Only items dated today in Notion.</p>
-            </div>
-            <Card className="rounded-md border border-zinc-200 bg-white shadow-none dark:border-white/10 dark:bg-[#080808]">
-              <CardBody className="gap-2 p-3">
-                {todayLoading ? (
-                  <div className="flex justify-center py-4"><Spinner size="sm" /></div>
-                ) : nonNegotiables.length === 0 ? (
-                  <p className="px-1 py-2 text-[13px] text-zinc-500">No non-negotiables for today.</p>
-                ) : (
-                  nonNegotiables.map((item) => (
-                    <label
-                      key={item.id}
-                      className="flex cursor-pointer items-center gap-3 rounded-sm border border-transparent px-2 py-2 hover:bg-zinc-50 dark:hover:bg-white/[0.03]"
-                    >
-                      <Checkbox
-                        isSelected={item.completed}
-                        onValueChange={async (checked) => {
-                          setNonNegotiables((prev) =>
-                            prev.map((entry) => (entry.id === item.id ? { ...entry, completed: checked } : entry))
-                          );
-                          try {
-                            const updated = await api.updateTodayNonNegotiable(item.id, checked);
-                            setNonNegotiables((prev) =>
-                              prev.map((entry) => (entry.id === item.id ? updated : entry))
-                            );
-                          } catch {
-                            setNonNegotiables((prev) =>
-                              prev.map((entry) => (entry.id === item.id ? { ...entry, completed: !checked } : entry))
-                            );
-                          }
-                        }}
-                      />
-                      <span className={`flex-1 text-[13px] ${item.completed ? "text-zinc-400 line-through" : "text-zinc-700 dark:text-zinc-200"}`}>
-                        {item.title}
-                      </span>
-                    </label>
-                  ))
-                )}
-              </CardBody>
-            </Card>
-          </section>
         </div>
 
         <div className="space-y-4">

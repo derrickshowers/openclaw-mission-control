@@ -559,13 +559,26 @@ const attentionConfig: Record<string, { color: "danger"; label: string }> = {
   aborted_last_run: { color: "danger", label: "Aborted last run" },
 };
 
-function formatModel(model?: string): string {
+function formatModel(model?: string | { primary?: string; fallbacks?: string[] } | null): string {
   if (!model) return "";
+
+  const rawModel =
+    typeof model === "string"
+      ? model
+      : typeof model.primary === "string"
+        ? model.primary
+        : Array.isArray(model.fallbacks) && typeof model.fallbacks[0] === "string"
+          ? model.fallbacks[0]
+          : "";
+
+  if (!rawModel) return "";
+
   // e.g. "anthropic/claude-opus-4-6" → "Claude Opus 4.6"
-  const name = model.split("/").pop() || model;
+  const name = rawModel.split("/").pop() || rawModel;
   return name
     .replace(/^claude-/, "Claude ")
     .replace(/^gemini-/, "Gemini ")
+    .replace(/^gpt-/, "GPT ")
     .replace(/-/g, " ")
     .replace(/(\d+) (\d+)/, "$1.$2")
     .replace(/\b\w/g, (c) => c.toUpperCase());
