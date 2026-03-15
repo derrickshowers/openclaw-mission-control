@@ -1,32 +1,26 @@
 "use client";
 
 import { useCallback, useEffect, useMemo, useState } from "react";
-import { useSession } from "next-auth/react";
-import {
-  Button,
-  Card,
-  CardBody,
-  Checkbox,
-  Chip,
-  Input,
-  Spinner,
-  Textarea,
-} from "@heroui/react";
+import { Button, Card, CardBody, Checkbox, Chip, Input, Spinner, Textarea } from "@heroui/react";
 import {
   AlertCircle,
   CalendarCheck,
-  CheckCircle2,
   Clock3,
   ExternalLink,
-  MessageSquare,
   Play,
-  RefreshCw,
   SquarePen,
   TriangleAlert,
 } from "lucide-react";
-import { api, type BrainChannelDetail, type BrainChannelSummary, type PersonalTask, type Task, type TaskComment, type TodayNonNegotiable } from "@/lib/api";
+import {
+  api,
+  type BrainChannelDetail,
+  type BrainChannelSummary,
+  type PersonalTask,
+  type Task,
+  type TodayNonNegotiable,
+} from "@/lib/api";
 import { formatLocal, parseUTC, timeAgo } from "@/lib/dates";
-import { normalizeAgentId, resolveAgentAvatarUrl } from "@/lib/agents";
+import { normalizeAgentId } from "@/lib/agents";
 import { useSSE } from "@/hooks/use-sse";
 import { TaskDrawer } from "@/components/tasks/task-drawer";
 import { PersonalTaskDrawer } from "@/components/tasks/personal-task-drawer";
@@ -37,6 +31,9 @@ interface DashboardContentProps {
   agents: any[];
   personalTasks: PersonalTask[];
 }
+
+const flatButtonClass =
+  "rounded-sm border border-zinc-200 bg-zinc-100 text-zinc-800 dark:border-white/10 dark:bg-white/5 dark:text-zinc-200";
 
 function toLocalDateKey(date: Date) {
   const y = date.getFullYear();
@@ -141,17 +138,6 @@ function formatUsd(value: number) {
   return `$${value.toFixed(2)}`;
 }
 
-function roleForAgent(agentName?: string | null) {
-  const id = normalizeAgentId(agentName);
-  if (id === "frank") return "Orchestrator";
-  if (id === "tom") return "Lead Architect";
-  if (id === "michael") return "Engineer";
-  if (id === "joanna") return "Product / UX";
-  if (id === "elena") return "Platform";
-  if (id === "derrick") return "Founder";
-  return "Agent";
-}
-
 function statusChipColor(status: Task["status"] | PersonalTask["status"]) {
   if (status === "blocked") return "danger" as const;
   if (status === "in_progress") return "primary" as const;
@@ -159,73 +145,21 @@ function statusChipColor(status: Task["status"] | PersonalTask["status"]) {
   return "default" as const;
 }
 
-function commentSort(items: TaskComment[]) {
-  return [...items].sort(
-    (a, b) => parseUTC(b.created_at).getTime() - parseUTC(a.created_at).getTime()
-  );
-}
-
 function TeamTaskCard({
   task,
-  author,
   onOpen,
 }: {
   task: Task;
-  author: string;
   onOpen: (task: Task) => void;
 }) {
-  const [comments, setComments] = useState<TaskComment[]>([]);
-  const [loading, setLoading] = useState(true);
-  const [reply, setReply] = useState("");
-  const [sending, setSending] = useState(false);
-  const { lastEvent } = useSSE(["comment.created"]);
-
-  const loadComments = useCallback(() => {
-    setLoading(true);
-    api
-      .getComments(task.id)
-      .then((rows) => setComments(commentSort(rows)))
-      .catch(() => setComments([]))
-      .finally(() => setLoading(false));
-  }, [task.id]);
-
-  useEffect(() => {
-    loadComments();
-  }, [loadComments]);
-
-  useEffect(() => {
-    if (!lastEvent || lastEvent.event !== "comment.created") return;
-    if (lastEvent.data?.comment?.task_id !== task.id) return;
-    setComments((prev) => {
-      const next = lastEvent.data.comment as TaskComment;
-      if (prev.some((comment) => comment.id === next.id)) return prev;
-      return commentSort([next, ...prev]);
-    });
-  }, [lastEvent, task.id]);
-
-  const handleSend = async () => {
-    const content = reply.trim();
-    if (!content) return;
-    setSending(true);
-    try {
-      const created = await api.addComment(task.id, author, content);
-      setComments((prev) => {
-        if (prev.some((comment) => comment.id === created.id)) return prev;
-        return commentSort([created, ...prev]);
-      });
-      setReply("");
-    } finally {
-      setSending(false);
-    }
-  };
-
-  const blockedTone = task.status === "blocked"
-    ? "border-l-2 border-l-amber-500 bg-amber-500/[0.06]"
-    : "border-l-2 border-l-transparent";
+  const tone =
+    task.status === "blocked"
+      ? "border-l-2 border-l-amber-500 bg-amber-500/[0.05]"
+      : "border-l-2 border-l-emerald-500/70";
 
   return (
-    <Card className={`rounded-md border border-zinc-200 bg-white shadow-none dark:border-white/10 dark:bg-[#080808] ${blockedTone}`}>
-      <CardBody className="gap-4 p-4">
+    <Card className={`rounded-md border border-zinc-200 bg-white shadow-none dark:border-white/10 dark:bg-[#080808] ${tone}`}>
+      <CardBody className="gap-3 p-4">
         <div className="flex items-start justify-between gap-3">
           <div className="min-w-0">
             <div className="flex flex-wrap items-center gap-2">
@@ -244,79 +178,14 @@ function TeamTaskCard({
               {task.project?.name ? ` • ${task.project.name}` : ""}
             </p>
             {task.description && (
-              <p className="mt-2 line-clamp-3 text-[13px] text-zinc-600 dark:text-zinc-300">
+              <p className="mt-2 line-clamp-2 text-[13px] text-zinc-600 dark:text-zinc-300">
                 {task.description}
               </p>
             )}
           </div>
-          <Button
-            size="sm"
-            variant="flat"
-            className="rounded-sm border border-zinc-200 bg-zinc-100 text-zinc-800 dark:border-white/10 dark:bg-white/5 dark:text-zinc-200"
-            onPress={() => onOpen(task)}
-          >
-            Open
+          <Button size="sm" variant="flat" className={flatButtonClass} onPress={() => onOpen(task)}>
+            Open drawer
           </Button>
-        </div>
-
-        <div className="space-y-2 rounded-sm border border-zinc-200 bg-zinc-50 p-3 dark:border-white/10 dark:bg-white/[0.03]">
-          <div className="flex items-center justify-between">
-            <div className="flex items-center gap-2 text-[11px] font-mono uppercase tracking-wide text-zinc-500">
-              <MessageSquare size={13} />
-              Comment thread
-            </div>
-            <button
-              type="button"
-              className="text-[11px] text-zinc-500 hover:text-zinc-800 dark:hover:text-zinc-200"
-              onClick={loadComments}
-            >
-              Refresh
-            </button>
-          </div>
-
-          {loading ? (
-            <div className="flex justify-center py-4"><Spinner size="sm" /></div>
-          ) : comments.length === 0 ? (
-            <p className="text-[12px] text-zinc-500">No comments yet.</p>
-          ) : (
-            <div className="space-y-2">
-              {comments.slice(0, 4).map((comment) => (
-                <div key={comment.id} className="rounded-sm border border-zinc-200 bg-white px-3 py-2 dark:border-white/10 dark:bg-[#0d0d0d]">
-                  <div className="flex items-center justify-between gap-2">
-                    <span className="font-mono text-[10px] uppercase tracking-wide text-zinc-500">{comment.author}</span>
-                    <span className="text-[10px] text-zinc-500">{timeAgo(comment.created_at)}</span>
-                  </div>
-                  <p className="mt-1 whitespace-pre-wrap text-[13px] leading-relaxed text-zinc-700 dark:text-zinc-200">
-                    {comment.content}
-                  </p>
-                </div>
-              ))}
-            </div>
-          )}
-
-          <div className="flex flex-col gap-2 pt-1 sm:flex-row">
-            <Textarea
-              minRows={2}
-              value={reply}
-              onValueChange={setReply}
-              placeholder="Reply right here…"
-              variant="flat"
-              className="flex-1"
-              classNames={{
-                inputWrapper: "rounded-sm border border-zinc-200 bg-white shadow-none dark:border-white/10 dark:bg-[#0d0d0d]",
-                input: "text-[13px] text-zinc-800 dark:text-zinc-200",
-              }}
-            />
-            <Button
-              size="sm"
-              color="primary"
-              className="rounded-sm"
-              onPress={handleSend}
-              isLoading={sending}
-            >
-              Send
-            </Button>
-          </div>
         </div>
       </CardBody>
     </Card>
@@ -324,7 +193,6 @@ function TeamTaskCard({
 }
 
 export function DashboardContent({ tasks: initialTasks, agents, personalTasks: initialPersonalTasks }: DashboardContentProps) {
-  const { data: session } = useSession();
   const [tasks, setTasks] = useState<Task[]>(initialTasks);
   const [personalTasks, setPersonalTasks] = useState<PersonalTask[]>(initialPersonalTasks);
   const [selectedTask, setSelectedTask] = useState<Task | null>(null);
@@ -340,11 +208,6 @@ export function DashboardContent({ tasks: initialTasks, agents, personalTasks: i
   const [newTaskScheduledAt, setNewTaskScheduledAt] = useState(toLocalDateKey(new Date()));
   const [newTaskDueAt, setNewTaskDueAt] = useState(nextFridayDateKey());
   const [newTaskNotes, setNewTaskNotes] = useState("");
-
-  const viewer = useMemo(() => {
-    const first = session?.user?.name?.split(" ")[0];
-    return normalizeAgentId(first) || "derrick";
-  }, [session?.user?.name]);
 
   const refreshTeamTasks = useCallback(async () => {
     const [assigned, blocked, done] = await Promise.all([
@@ -383,9 +246,10 @@ export function DashboardContent({ tasks: initialTasks, agents, personalTasks: i
       for (const row of Array.isArray(usageRows) ? usageRows : []) {
         const provider = providerFromModel(String(row.model || "other"));
         const entry = grouped.get(provider) || { provider, tokens: 0, cost: 0 };
-        const totalTokens = row.total_tokens !== undefined
-          ? Number(row.total_tokens || 0)
-          : Number(row.input_tokens || 0) + Number(row.cached_input_tokens || 0) + Number(row.output_tokens || 0);
+        const totalTokens =
+          row.total_tokens !== undefined
+            ? Number(row.total_tokens || 0)
+            : Number(row.input_tokens || 0) + Number(row.cached_input_tokens || 0) + Number(row.output_tokens || 0);
         entry.tokens += totalTokens;
         entry.cost += Number(row.cost_usd || 0);
         grouped.set(provider, entry);
@@ -398,17 +262,8 @@ export function DashboardContent({ tasks: initialTasks, agents, personalTasks: i
   }, []);
 
   useEffect(() => {
-    refreshTodayData();
+    void refreshTodayData();
   }, [refreshTodayData]);
-
-  useEffect(() => {
-    const interval = setInterval(() => {
-      void refreshTodayData();
-      void refreshPersonalTasks();
-      void refreshTeamTasks();
-    }, 60_000);
-    return () => clearInterval(interval);
-  }, [refreshTodayData, refreshPersonalTasks, refreshTeamTasks]);
 
   const { lastEvent } = useSSE([
     "personal_task.updated",
@@ -431,10 +286,8 @@ export function DashboardContent({ tasks: initialTasks, agents, personalTasks: i
   }, [lastEvent, refreshPersonalTasks, refreshTeamTasks]);
 
   const now = new Date();
-  const teamFocusTasks = useMemo(() => {
-    return sortTasksByUpdatedDesc(
-      tasks.filter((task) => (normalizeAgentId(task.assignee) === "derrick" && task.status !== "done") || (task.status === "blocked" && !!task.assignee))
-    );
+  const blockedTasks = useMemo(() => {
+    return sortTasksByUpdatedDesc(tasks.filter((task) => task.status === "blocked" && !!task.assignee)).slice(0, 6);
   }, [tasks]);
 
   const recentCompletedTasks = useMemo(() => {
@@ -446,17 +299,6 @@ export function DashboardContent({ tasks: initialTasks, agents, personalTasks: i
       .filter((task) => isSameLocalDay(task.scheduled_at, now) || (!task.scheduled_at && isWithinNextSevenDays(task.due_at, now)))
       .sort(comparePersonalTasks);
   }, [personalTasks, now]);
-
-  const teamPulse = useMemo(() => {
-    return agents.map((agent: any) => {
-      const id = normalizeAgentId(agent.name);
-      const fallbackTask = teamFocusTasks.find((task) => normalizeAgentId(task.assignee) === id);
-      return {
-        ...agent,
-        currentTask: agent.currentTask || fallbackTask || null,
-      };
-    });
-  }, [agents, teamFocusTasks]);
 
   const handleCreateTask = async () => {
     const title = newTaskTitle.trim();
@@ -497,129 +339,124 @@ export function DashboardContent({ tasks: initialTasks, agents, personalTasks: i
   const endOfDayVisible = now.getHours() >= 17;
 
   return (
-    <div className="mx-auto flex max-w-[1280px] flex-col gap-4 pb-24">
-      <div className="grid gap-3 lg:grid-cols-[1.5fr_1fr]">
-        <Card className="rounded-md border border-zinc-200 bg-white shadow-none dark:border-white/10 dark:bg-[#080808]">
-          <CardBody className="flex flex-col gap-3 p-4 sm:flex-row sm:items-center sm:justify-between">
-            <div>
-              <p className="text-[11px] font-mono uppercase tracking-[0.14em] text-zinc-500">Today</p>
-              <h1 className="mt-1 text-lg font-semibold text-zinc-900 dark:text-zinc-100">High-signal view for what matters now</h1>
-            </div>
-            <div className="flex flex-wrap items-center gap-2">
-              {morningPlanningVisible && (
-                <Button
-                  as="a"
-                  href="https://www.notion.so/showersfam/Good-Morning-193e7abcffbf8089a06ed63144d0d82d"
-                  target="_blank"
-                  rel="noreferrer"
-                  color="primary"
-                  className="rounded-sm"
-                >
-                  Morning Planning
-                </Button>
-              )}
-              {endOfDayVisible && (
-                <Button
-                  as="a"
-                  href="https://www.notion.so/showersfam/End-of-Day-Follow-ups-195e7abcffbf809380f1d2e391a60e3f"
-                  target="_blank"
-                  rel="noreferrer"
-                  color="primary"
-                  variant="flat"
-                  className="rounded-sm border border-zinc-200 dark:border-white/10"
-                >
-                  End of Day Follow-ups
-                </Button>
-              )}
-              <Button
-                size="sm"
-                variant="flat"
-                className="rounded-sm border border-zinc-200 bg-zinc-100 dark:border-white/10 dark:bg-white/5"
-                startContent={<RefreshCw size={14} />}
-                onPress={() => {
-                  void refreshTodayData();
-                  void refreshPersonalTasks();
-                  void refreshTeamTasks();
-                }}
-              >
-                Refresh
-              </Button>
-            </div>
-          </CardBody>
-        </Card>
+    <div className="mx-auto flex max-w-[1280px] flex-col gap-5 pb-24">
+      {(morningPlanningVisible || endOfDayVisible) && (
+        <div className="flex flex-wrap items-center justify-end gap-2">
+          {morningPlanningVisible && (
+            <Button
+              as="a"
+              href="https://www.notion.so/showersfam/Good-Morning-193e7abcffbf8089a06ed63144d0d82d"
+              target="_blank"
+              rel="noreferrer"
+              variant="flat"
+              className={flatButtonClass}
+            >
+              Morning Planning
+            </Button>
+          )}
+          {endOfDayVisible && (
+            <Button
+              as="a"
+              href="https://www.notion.so/showersfam/End-of-Day-Follow-ups-195e7abcffbf809380f1d2e391a60e3f"
+              target="_blank"
+              rel="noreferrer"
+              variant="flat"
+              className={flatButtonClass}
+            >
+              End of Day Follow-ups
+            </Button>
+          )}
+        </div>
+      )}
 
-        <Card className="rounded-md border border-zinc-200 bg-white shadow-none dark:border-white/10 dark:bg-[#080808]">
-          <CardBody className="gap-3 p-4">
-            <div className="flex items-center justify-between">
-              <div>
-                <p className="text-[11px] font-mono uppercase tracking-[0.14em] text-zinc-500">Today’s Model Usage</p>
-                <p className="mt-1 text-[12px] text-zinc-500">Tokens and cost by provider since local midnight.</p>
-              </div>
-            </div>
+      <div className="grid gap-4 xl:grid-cols-[1.45fr_0.95fr]">
+        <section className="space-y-3">
+          <div>
+            <h2 className="text-[11px] font-mono uppercase tracking-[0.14em] text-zinc-500">Brain Channels</h2>
+            <p className="mt-1 text-[13px] text-zinc-500">Currently airing notes, front and center.</p>
+          </div>
+          <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
             {todayLoading ? (
-              <div className="flex justify-center py-4"><Spinner size="sm" /></div>
-            ) : usageByProvider.length === 0 ? (
-              <p className="text-[13px] text-zinc-500">No usage logged yet today.</p>
+              <Card className="rounded-md border border-zinc-200 bg-white shadow-none dark:border-white/10 dark:bg-[#080808] sm:col-span-2 lg:col-span-3">
+                <CardBody className="flex min-h-[180px] items-center justify-center p-4"><Spinner size="sm" /></CardBody>
+              </Card>
+            ) : brainChannels.length === 0 ? (
+              <Card className="rounded-md border border-zinc-200 bg-white shadow-none dark:border-white/10 dark:bg-[#080808] sm:col-span-2 lg:col-span-3">
+                <CardBody className="p-4 text-[13px] text-zinc-500">No active brain channels.</CardBody>
+              </Card>
             ) : (
-              <div className="grid grid-cols-1 gap-2 sm:grid-cols-2">
-                {usageByProvider.map((row) => (
-                  <div key={row.provider} className="rounded-sm border border-zinc-200 bg-zinc-50 px-3 py-2 dark:border-white/10 dark:bg-white/[0.03]">
-                    <div className="flex items-center justify-between gap-2">
-                      <span className="font-mono text-[11px] uppercase tracking-wide text-zinc-500">{row.provider}</span>
-                      <span className="text-[12px] font-medium text-zinc-800 dark:text-zinc-100">{formatUsd(row.cost)}</span>
-                    </div>
-                    <p className="mt-1 text-[13px] text-zinc-600 dark:text-zinc-300">{formatCompactNumber(row.tokens)} tokens</p>
+              brainChannels.map((channel) => (
+                <button
+                  key={channel.id}
+                  type="button"
+                  onClick={() => setSelectedBrainChannelId(channel.id)}
+                  className="group flex aspect-[1.1/1] flex-col overflow-hidden rounded-md border border-zinc-200 bg-white text-left transition-colors hover:bg-zinc-50 dark:border-white/10 dark:bg-[#080808] dark:hover:bg-white/[0.03]"
+                >
+                  <div className="relative h-28 w-full shrink-0 bg-zinc-100 dark:bg-white/[0.04]">
+                    {channel.cover_url ? (
+                      <img src={channel.cover_url} alt="" className="h-full w-full object-cover" />
+                    ) : null}
                   </div>
-                ))}
-              </div>
+                  <div className="flex flex-1 flex-col justify-between gap-3 p-3">
+                    <div className="flex items-start justify-between gap-2">
+                      <h3 className="line-clamp-2 text-sm font-medium text-zinc-900 dark:text-zinc-100">{channel.title}</h3>
+                      {channel.source_url && (
+                        <a
+                          href={channel.source_url}
+                          target="_blank"
+                          rel="noreferrer"
+                          onClick={(event) => event.stopPropagation()}
+                          className="shrink-0 text-zinc-500 hover:text-zinc-800 dark:hover:text-zinc-200"
+                        >
+                          <ExternalLink size={14} />
+                        </a>
+                      )}
+                    </div>
+                    <div className="flex items-center gap-2">
+                      {channel.type && (
+                        <Chip size="sm" variant="flat" className="h-5 border border-zinc-200 bg-zinc-100 text-[10px] uppercase dark:border-white/10 dark:bg-white/5">
+                          {channel.type}
+                        </Chip>
+                      )}
+                    </div>
+                  </div>
+                </button>
+              ))
             )}
-          </CardBody>
-        </Card>
+          </div>
+        </section>
+
+        <section className="space-y-3">
+          <div>
+            <h2 className="text-[11px] font-mono uppercase tracking-[0.14em] text-zinc-500">Today’s Model Usage</h2>
+            <p className="mt-1 text-[13px] text-zinc-500">Tokens and cost by provider since local midnight.</p>
+          </div>
+          <Card className="rounded-md border border-zinc-200 bg-white shadow-none dark:border-white/10 dark:bg-[#080808]">
+            <CardBody className="gap-3 p-4">
+              {todayLoading ? (
+                <div className="flex min-h-[180px] items-center justify-center"><Spinner size="sm" /></div>
+              ) : usageByProvider.length === 0 ? (
+                <p className="text-[13px] text-zinc-500">No usage logged yet today.</p>
+              ) : (
+                <div className="grid grid-cols-1 gap-2 sm:grid-cols-2 xl:grid-cols-1">
+                  {usageByProvider.map((row) => (
+                    <div key={row.provider} className="rounded-sm border border-zinc-200 bg-zinc-50 px-3 py-2 dark:border-white/10 dark:bg-white/[0.03]">
+                      <div className="flex items-center justify-between gap-2">
+                        <span className="font-mono text-[11px] uppercase tracking-wide text-zinc-500">{row.provider}</span>
+                        <span className="text-[12px] font-medium text-zinc-800 dark:text-zinc-100">{formatUsd(row.cost)}</span>
+                      </div>
+                      <p className="mt-1 text-[13px] text-zinc-600 dark:text-zinc-300">{formatCompactNumber(row.tokens)} tokens</p>
+                    </div>
+                  ))}
+                </div>
+              )}
+            </CardBody>
+          </Card>
+        </section>
       </div>
 
-      <div className="grid gap-4 xl:grid-cols-[1.45fr_1fr]">
+      <div className="grid gap-4 xl:grid-cols-[1.45fr_0.95fr]">
         <div className="space-y-4">
-          <section className="space-y-3">
-            <div className="flex items-center justify-between">
-              <div>
-                <h2 className="text-[11px] font-mono uppercase tracking-[0.14em] text-zinc-500">Team Tasks</h2>
-                <p className="mt-1 text-[13px] text-zinc-500">Assigned to Derrick or blocked anywhere on the team.</p>
-              </div>
-              <Chip size="sm" variant="flat" className="h-5 border border-zinc-200 bg-zinc-100 text-[10px] uppercase dark:border-white/10 dark:bg-white/5">
-                {teamFocusTasks.length} active
-              </Chip>
-            </div>
-            <div className="space-y-3">
-              {teamFocusTasks.length === 0 ? (
-                <Card className="rounded-md border border-zinc-200 bg-white shadow-none dark:border-white/10 dark:bg-[#080808]">
-                  <CardBody className="p-4 text-[13px] text-zinc-500">No active team tasks to review.</CardBody>
-                </Card>
-              ) : (
-                teamFocusTasks.map((task) => (
-                  <TeamTaskCard key={task.id} task={task} author={viewer} onOpen={setSelectedTask} />
-                ))
-              )}
-            </div>
-          </section>
-
-          <section className="space-y-3">
-            <div>
-              <h2 className="text-[11px] font-mono uppercase tracking-[0.14em] text-zinc-500">Recently Completed</h2>
-              <p className="mt-1 text-[13px] text-zinc-500">Quick review of recently finished work and the associated comments.</p>
-            </div>
-            <div className="space-y-3">
-              {recentCompletedTasks.length === 0 ? (
-                <Card className="rounded-md border border-zinc-200 bg-white shadow-none dark:border-white/10 dark:bg-[#080808]">
-                  <CardBody className="p-4 text-[13px] text-zinc-500">Nothing wrapped recently.</CardBody>
-                </Card>
-              ) : (
-                recentCompletedTasks.map((task) => (
-                  <TeamTaskCard key={task.id} task={task} author={viewer} onOpen={setSelectedTask} />
-                ))
-              )}
-            </div>
-          </section>
-
           <section className="space-y-3">
             <div>
               <h2 className="text-[11px] font-mono uppercase tracking-[0.14em] text-zinc-500">Notion Tasks</h2>
@@ -741,7 +578,7 @@ export function DashboardContent({ tasks: initialTasks, agents, personalTasks: i
                             <Button
                               size="sm"
                               variant="flat"
-                              className="rounded-sm border border-zinc-200 bg-zinc-100 text-zinc-800 dark:border-white/10 dark:bg-white/5 dark:text-zinc-200"
+                              className={flatButtonClass}
                               startContent={<Play size={14} />}
                               onPress={() => void handleStartWork(task)}
                               isLoading={startingTaskId === task.id}
@@ -751,7 +588,7 @@ export function DashboardContent({ tasks: initialTasks, agents, personalTasks: i
                             <Button
                               size="sm"
                               variant="flat"
-                              className="rounded-sm border border-zinc-200 bg-zinc-100 text-zinc-800 dark:border-white/10 dark:bg-white/5 dark:text-zinc-200"
+                              className={flatButtonClass}
                               startContent={<SquarePen size={14} />}
                               onPress={() => setSelectedPersonalTaskId(task.id)}
                             >
@@ -766,9 +603,7 @@ export function DashboardContent({ tasks: initialTasks, agents, personalTasks: i
               )}
             </div>
           </section>
-        </div>
 
-        <div className="space-y-4">
           <section className="space-y-3">
             <div>
               <h2 className="text-[11px] font-mono uppercase tracking-[0.14em] text-zinc-500">Today’s Non-Negotiables</h2>
@@ -789,12 +624,18 @@ export function DashboardContent({ tasks: initialTasks, agents, personalTasks: i
                       <Checkbox
                         isSelected={item.completed}
                         onValueChange={async (checked) => {
-                          setNonNegotiables((prev) => prev.map((entry) => entry.id === item.id ? { ...entry, completed: checked } : entry));
+                          setNonNegotiables((prev) =>
+                            prev.map((entry) => (entry.id === item.id ? { ...entry, completed: checked } : entry))
+                          );
                           try {
                             const updated = await api.updateTodayNonNegotiable(item.id, checked);
-                            setNonNegotiables((prev) => prev.map((entry) => entry.id === item.id ? updated : entry));
+                            setNonNegotiables((prev) =>
+                              prev.map((entry) => (entry.id === item.id ? updated : entry))
+                            );
                           } catch {
-                            setNonNegotiables((prev) => prev.map((entry) => entry.id === item.id ? { ...entry, completed: !checked } : entry));
+                            setNonNegotiables((prev) =>
+                              prev.map((entry) => (entry.id === item.id ? { ...entry, completed: !checked } : entry))
+                            );
                           }
                         }}
                       />
@@ -807,86 +648,53 @@ export function DashboardContent({ tasks: initialTasks, agents, personalTasks: i
               </CardBody>
             </Card>
           </section>
+        </div>
 
+        <div className="space-y-4">
           <section className="space-y-3">
             <div>
-              <h2 className="text-[11px] font-mono uppercase tracking-[0.14em] text-zinc-500">Brain Channels</h2>
-              <p className="mt-1 text-[13px] text-zinc-500">Currently airing notes, straight from Notion.</p>
+              <h2 className="text-[11px] font-mono uppercase tracking-[0.14em] text-zinc-500">Team Tasks</h2>
+              <p className="mt-1 text-[13px] text-zinc-500">Quieter by design: blocked work and recent completions only.</p>
             </div>
-            <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-1">
-              {todayLoading ? (
-                <Card className="rounded-md border border-zinc-200 bg-white shadow-none dark:border-white/10 dark:bg-[#080808]"><CardBody className="p-4"><Spinner size="sm" /></CardBody></Card>
-              ) : brainChannels.length === 0 ? (
-                <Card className="rounded-md border border-zinc-200 bg-white shadow-none dark:border-white/10 dark:bg-[#080808]"><CardBody className="p-4 text-[13px] text-zinc-500">No active brain channels.</CardBody></Card>
-              ) : (
-                brainChannels.map((channel) => (
-                  <button
-                    key={channel.id}
-                    type="button"
-                    onClick={() => setSelectedBrainChannelId(channel.id)}
-                    className="overflow-hidden rounded-md border border-zinc-200 bg-white text-left transition-colors hover:bg-zinc-50 dark:border-white/10 dark:bg-[#080808] dark:hover:bg-white/[0.03]"
-                  >
-                    {channel.cover_url && (
-                      <img src={channel.cover_url} alt="" className="h-20 w-full object-cover" />
-                    )}
-                    <div className="space-y-2 p-3">
-                      <div className="flex items-start justify-between gap-2">
-                        <h3 className="text-sm font-medium text-zinc-900 dark:text-zinc-100">{channel.title}</h3>
-                        {channel.source_url && (
-                          <a
-                            href={channel.source_url}
-                            target="_blank"
-                            rel="noreferrer"
-                            onClick={(event) => event.stopPropagation()}
-                            className="text-zinc-500 hover:text-zinc-800 dark:hover:text-zinc-200"
-                          >
-                            <ExternalLink size={14} />
-                          </a>
-                        )}
-                      </div>
-                      {channel.type && (
-                        <Chip size="sm" variant="flat" className="h-5 border border-zinc-200 bg-zinc-100 text-[10px] uppercase dark:border-white/10 dark:bg-white/5">
-                          {channel.type}
-                        </Chip>
-                      )}
-                    </div>
-                  </button>
-                ))
-              )}
+            <div className="space-y-4">
+              <div className="space-y-3">
+                <div className="flex items-center justify-between">
+                  <h3 className="text-[11px] font-mono uppercase tracking-[0.14em] text-zinc-500">Blocked</h3>
+                  <Chip size="sm" variant="flat" className="h-5 border border-zinc-200 bg-zinc-100 text-[10px] uppercase dark:border-white/10 dark:bg-white/5">
+                    {blockedTasks.length}
+                  </Chip>
+                </div>
+                <div className="space-y-3">
+                  {blockedTasks.length === 0 ? (
+                    <Card className="rounded-md border border-zinc-200 bg-white shadow-none dark:border-white/10 dark:bg-[#080808]">
+                      <CardBody className="p-4 text-[13px] text-zinc-500">No blocked tasks right now.</CardBody>
+                    </Card>
+                  ) : (
+                    blockedTasks.map((task) => <TeamTaskCard key={task.id} task={task} onOpen={setSelectedTask} />)
+                  )}
+                </div>
+              </div>
+
+              <div className="space-y-3">
+                <div className="flex items-center justify-between">
+                  <h3 className="text-[11px] font-mono uppercase tracking-[0.14em] text-zinc-500">Recently Completed</h3>
+                  <Chip size="sm" variant="flat" className="h-5 border border-zinc-200 bg-zinc-100 text-[10px] uppercase dark:border-white/10 dark:bg-white/5">
+                    {recentCompletedTasks.length}
+                  </Chip>
+                </div>
+                <div className="space-y-3">
+                  {recentCompletedTasks.length === 0 ? (
+                    <Card className="rounded-md border border-zinc-200 bg-white shadow-none dark:border-white/10 dark:bg-[#080808]">
+                      <CardBody className="p-4 text-[13px] text-zinc-500">Nothing wrapped recently.</CardBody>
+                    </Card>
+                  ) : (
+                    recentCompletedTasks.map((task) => <TeamTaskCard key={task.id} task={task} onOpen={setSelectedTask} />)
+                  )}
+                </div>
+              </div>
             </div>
           </section>
 
-          <section className="space-y-3">
-            <div>
-              <h2 className="text-[11px] font-mono uppercase tracking-[0.14em] text-zinc-500">Team Pulse</h2>
-              <p className="mt-1 text-[13px] text-zinc-500">Who’s carrying what right now.</p>
-            </div>
-            <Card className="rounded-md border border-zinc-200 bg-white shadow-none dark:border-white/10 dark:bg-[#080808]">
-              <CardBody className="gap-2 p-3">
-                {teamPulse.map((agent: any) => {
-                  const avatar = resolveAgentAvatarUrl(agent.name, agent.avatarUrl);
-                  return (
-                    <div key={agent.name} className="flex items-center gap-3 rounded-sm px-1 py-2">
-                      {avatar ? (
-                        <img src={avatar} alt={agent.name} className="h-8 w-8 rounded-full object-cover" />
-                      ) : (
-                        <div className="h-8 w-8 rounded-full bg-zinc-200 dark:bg-white/10" />
-                      )}
-                      <div className="min-w-0 flex-1">
-                        <div className="flex items-center gap-2">
-                          <span className="text-sm font-medium capitalize text-zinc-900 dark:text-zinc-100">{agent.name}</span>
-                          <span className="text-[10px] font-mono uppercase tracking-wide text-zinc-500">{roleForAgent(agent.name)}</span>
-                        </div>
-                        <p className="truncate text-[12px] text-zinc-500">
-                          {agent.currentTask ? agent.currentTask.title : "No task in this slice"}
-                        </p>
-                      </div>
-                    </div>
-                  );
-                })}
-              </CardBody>
-            </Card>
-          </section>
         </div>
       </div>
 
@@ -896,7 +704,7 @@ export function DashboardContent({ tasks: initialTasks, agents, personalTasks: i
           isOpen={!!selectedTask}
           onClose={() => setSelectedTask(null)}
           onUpdate={(updated) => {
-            setTasks((prev) => prev.map((task) => task.id === updated.id ? updated : task));
+            setTasks((prev) => prev.map((task) => (task.id === updated.id ? updated : task)));
             setSelectedTask(updated);
           }}
         />
@@ -922,7 +730,7 @@ export function DashboardContent({ tasks: initialTasks, agents, personalTasks: i
         isOpen={!!selectedBrainChannelId}
         onClose={() => setSelectedBrainChannelId(null)}
         onSaved={(updated: BrainChannelDetail) => {
-          setBrainChannels((prev) => prev.map((channel) => channel.id === updated.id ? updated : channel));
+          setBrainChannels((prev) => prev.map((channel) => (channel.id === updated.id ? updated : channel)));
         }}
       />
     </div>
