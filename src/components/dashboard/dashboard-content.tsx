@@ -152,6 +152,29 @@ function comparePersonalTasks(a: PersonalTask, b: PersonalTask) {
   return parseUTC(b.updated_at).getTime() - parseUTC(a.updated_at).getTime();
 }
 
+function hasScheduledTime(dateValue: string | null | undefined) {
+  if (!dateValue) return false;
+  return !DATE_ONLY_VALUE_RE.test(dateValue.trim());
+}
+
+function todayTaskSortBucket(task: PersonalTask) {
+  if (hasScheduledTime(task.scheduled_at)) return 0;
+  if (task.scheduled_at) return 1;
+  return 2;
+}
+
+function compareTodayPersonalTasks(a: PersonalTask, b: PersonalTask) {
+  const aDone = a.status === "done";
+  const bDone = b.status === "done";
+  if (aDone !== bDone) return aDone ? 1 : -1;
+
+  const aBucket = todayTaskSortBucket(a);
+  const bBucket = todayTaskSortBucket(b);
+  if (aBucket !== bBucket) return aBucket - bBucket;
+
+  return comparePersonalTasks(a, b);
+}
+
 function isSameLocalDay(dateValue: string | null | undefined, target: Date) {
   const parsed = parseCalendarDate(dateValue);
   if (!parsed) return false;
@@ -278,13 +301,16 @@ export function DashboardContent({ tasks: initialTasks, agents, personalTasks: i
     setPersonalTasks(rows);
   }, []);
 
-  const refreshTodayData = useCallback(async () => {
+  const refreshTodayData = useCallback(async ({ silent = false }: { silent?: boolean } = {}) => {
     const now = new Date();
     const today = toLocalDateKey(now);
     const start = startOfLocalDay(now).toISOString();
     const end = now.toISOString();
 
-    setTodayLoading(true);
+    if (!silent) {
+      setTodayLoading(true);
+    }
+
     try {
       const [nonNegotiableRows, brainChannelRows, usageRows] = await Promise.all([
         api.getTodayNonNegotiables({ date: today }).catch(() => []),
@@ -312,18 +338,62 @@ export function DashboardContent({ tasks: initialTasks, agents, personalTasks: i
 
       setUsageByProvider(Array.from(grouped.values()).sort((a, b) => b.cost - a.cost || b.tokens - a.tokens));
     } finally {
-      setTodayLoading(false);
+      if (!silent) {
+        setTodayLoading(false);
+      }
     }
   }, []);
 
+  const refreshTodayFromNotion = useCallback(
+    async ({ runType = "incremental", silent = true }: { runType?: "incremental" | "full"; silent?: boolean } = {}) => {
+      try {
+        await api.syncPersonalTasks(runType);
+      } catch {
+        // Fall through and still refresh what we can.
+      }
+
+      await Promise.all([
+        refreshPersonalTasks(),
+        refreshTodayData({ silent }),
+      ]);
+    },
+    [refreshPersonalTasks, refreshTodayData],
+  );
+
   useEffect(() => {
-    void refreshTodayData();
-  }, [refreshTodayData]);
+    void refreshTodayFromNotion({ runType: "full", silent: false });
+  }, [refreshTodayFromNotion]);
+
+  useEffect(() => {
+    const interval = window.setInterval(() => {
+      void refreshTodayData({ silent: true });
+    }, 60_000);
+
+    const handleForegroundRefresh = () => {
+      void refreshTodayFromNotion({ runType: "full", silent: true });
+    };
+
+    const handleVisibilityChange = () => {
+      if (document.visibilityState === "visible") {
+        handleForegroundRefresh();
+      }
+    };
+
+    window.addEventListener("focus", handleForegroundRefresh);
+    document.addEventListener("visibilitychange", handleVisibilityChange);
+
+    return () => {
+      window.clearInterval(interval);
+      window.removeEventListener("focus", handleForegroundRefresh);
+      document.removeEventListener("visibilitychange", handleVisibilityChange);
+    };
+  }, [refreshTodayData, refreshTodayFromNotion]);
 
   const { lastEvent } = useSSE([
     "personal_task.updated",
     "personal_task.scheduled",
     "personal_task.promoted",
+    "personal_task.sync.completed",
     "task.updated",
     "task.created",
     "task.deleted",
@@ -334,11 +404,14 @@ export function DashboardContent({ tasks: initialTasks, agents, personalTasks: i
     if (!lastEvent) return;
     if (String(lastEvent.event).startsWith("personal_task.")) {
       void refreshPersonalTasks();
+      if (lastEvent.event === "personal_task.sync.completed") {
+        void refreshTodayData({ silent: true });
+      }
     }
     if (String(lastEvent.event).startsWith("task.")) {
       void refreshTeamTasks();
     }
-  }, [lastEvent, refreshPersonalTasks, refreshTeamTasks]);
+  }, [lastEvent, refreshPersonalTasks, refreshTeamTasks, refreshTodayData]);
 
   const now = new Date();
   const blockedTasks = useMemo(() => {
@@ -352,8 +425,18 @@ export function DashboardContent({ tasks: initialTasks, agents, personalTasks: i
   const todayPersonalTasks = useMemo(() => {
     return [...personalTasks]
       .filter((task) => isSameLocalDay(task.scheduled_at, now) || (!task.scheduled_at && isWithinNextSevenDays(task.due_at, now)))
-      .sort(comparePersonalTasks);
+      .sort(compareTodayPersonalTasks);
   }, [personalTasks, now]);
+
+  const openTodayPersonalTasks = useMemo(
+    () => todayPersonalTasks.filter((task) => task.status !== "done"),
+    [todayPersonalTasks],
+  );
+
+  const completedTodayPersonalTasks = useMemo(
+    () => todayPersonalTasks.filter((task) => task.status === "done"),
+    [todayPersonalTasks],
+  );
 
   const handleCreateTask = async () => {
     const title = newTaskTitle.trim();
@@ -624,88 +707,170 @@ export function DashboardContent({ tasks: initialTasks, agents, personalTasks: i
               </CardBody>
             </Card>
 
-            <div className="space-y-3">
+            <div className="space-y-4">
               {todayPersonalTasks.length === 0 ? (
                 <Card className="rounded-md border border-zinc-200 bg-white shadow-none dark:border-white/10 dark:bg-[#080808]">
                   <CardBody className="p-4 text-[13px] text-zinc-500">No Notion tasks in today’s slice.</CardBody>
                 </Card>
               ) : (
-                todayPersonalTasks.map((task) => {
-                  const dueToday = isSameLocalDay(task.due_at, now);
-                  const dueTomorrow = !dueToday && isDueTomorrow(task.due_at, now);
-                  return (
-                    <Card key={task.id} className="rounded-md border border-zinc-200 bg-white shadow-none dark:border-white/10 dark:bg-[#080808]">
-                      <CardBody className="gap-3 p-4">
-                        <div className="flex items-start gap-3">
-                          <div className="min-w-0 flex-1">
-                            <div className="flex flex-wrap items-center gap-2">
-                              <h3 className="text-sm font-medium text-zinc-900 dark:text-zinc-100">{task.title}</h3>
-                              <Chip size="sm" variant="flat" color={statusChipColor(task.status)} className="h-5 whitespace-nowrap text-[10px] uppercase">
-                                {(task.source_status || task.status).replace("_", " ")}
-                              </Chip>
-                              {dueToday && (
-                                <Chip size="sm" variant="flat" color="danger" className="h-5 whitespace-nowrap text-[10px] uppercase">
-                                  <span className="inline-flex items-center gap-1 whitespace-nowrap">
-                                    <CalendarCheck size={12} />
-                                    Due today
-                                  </span>
-                                </Chip>
-                              )}
-                              {dueTomorrow && (
-                                <Chip size="sm" variant="flat" color="warning" className="h-5 whitespace-nowrap text-[10px] uppercase">
-                                  <span className="inline-flex items-center gap-1 whitespace-nowrap">
-                                    <TriangleAlert size={12} />
-                                    Due tomorrow
-                                  </span>
-                                </Chip>
-                              )}
-                            </div>
-                            <div className="mt-2 flex flex-wrap items-center gap-x-4 gap-y-1 text-[12px] text-zinc-500">
-                              {task.scheduled_at && (
-                                <span className="inline-flex items-center gap-1.5 whitespace-nowrap">
-                                  <Clock3 size={13} />
-                                  Scheduled {formatScheduledLabel(task.scheduled_at)}
-                                </span>
-                              )}
-                              {task.due_at && (
-                                <span className={`inline-flex items-center gap-1.5 whitespace-nowrap ${dueToday ? "text-rose-600 dark:text-rose-400" : dueTomorrow ? "text-amber-600 dark:text-amber-400" : "text-zinc-500"}`}>
-                                  {dueTomorrow ? <TriangleAlert size={13} /> : <AlertCircle size={13} />}
-                                  Due {formatDueLabel(task.due_at, now)}
-                                </span>
-                              )}
-                            </div>
-                            {task.description && (
-                              <p className="mt-2 line-clamp-3 text-[13px] text-zinc-600 dark:text-zinc-300">
-                                {task.description}
-                              </p>
-                            )}
-                          </div>
-                          <div className="ml-auto flex shrink-0 flex-wrap justify-end gap-2 self-start">
-                            <Button
-                              size="sm"
-                              variant="flat"
-                              className={flatButtonClass}
-                              startContent={<Play size={14} />}
-                              onPress={() => void handleStartWork(task)}
-                              isLoading={startingTaskId === task.id}
-                            >
-                              Starting work
-                            </Button>
-                            <Button
-                              size="sm"
-                              variant="flat"
-                              className={flatButtonClass}
-                              startContent={<SquarePen size={14} />}
-                              onPress={() => setSelectedPersonalTaskId(task.id)}
-                            >
-                              Details
-                            </Button>
-                          </div>
-                        </div>
-                      </CardBody>
-                    </Card>
-                  );
-                })
+                <>
+                  <div className="space-y-3">
+                    <div className="flex items-center justify-between">
+                      <h3 className="text-[11px] font-mono uppercase tracking-[0.14em] text-zinc-500">Open</h3>
+                      <Chip size="sm" variant="flat" className="h-5 border border-zinc-200 bg-zinc-100 text-[10px] uppercase dark:border-white/10 dark:bg-white/5">
+                        {openTodayPersonalTasks.length}
+                      </Chip>
+                    </div>
+                    <div className="space-y-3">
+                      {openTodayPersonalTasks.length === 0 ? (
+                        <Card className="rounded-md border border-zinc-200 bg-white shadow-none dark:border-white/10 dark:bg-[#080808]">
+                          <CardBody className="p-4 text-[13px] text-zinc-500">Nothing open in today’s Notion slice.</CardBody>
+                        </Card>
+                      ) : (
+                        openTodayPersonalTasks.map((task) => {
+                          const dueToday = isSameLocalDay(task.due_at, now);
+                          const dueTomorrow = !dueToday && isDueTomorrow(task.due_at, now);
+
+                          return (
+                            <Card key={task.id} className="rounded-md border border-zinc-200 bg-white shadow-none dark:border-white/10 dark:bg-[#080808]">
+                              <CardBody className="gap-3 p-4">
+                                <div className="flex items-start gap-3">
+                                  <div className="min-w-0 flex-1">
+                                    <div className="flex flex-wrap items-center gap-2">
+                                      <h3 className="text-sm font-medium text-zinc-900 dark:text-zinc-100">{task.title}</h3>
+                                      <Chip size="sm" variant="flat" color={statusChipColor(task.status)} className="h-5 whitespace-nowrap text-[10px] uppercase">
+                                        {(task.source_status || task.status).replace("_", " ")}
+                                      </Chip>
+                                      {dueToday && (
+                                        <Chip size="sm" variant="flat" color="danger" className="h-5 whitespace-nowrap text-[10px] uppercase">
+                                          <span className="inline-flex items-center gap-1 whitespace-nowrap">
+                                            <CalendarCheck size={12} />
+                                            Due today
+                                          </span>
+                                        </Chip>
+                                      )}
+                                      {dueTomorrow && (
+                                        <Chip size="sm" variant="flat" color="warning" className="h-5 whitespace-nowrap text-[10px] uppercase">
+                                          <span className="inline-flex items-center gap-1 whitespace-nowrap">
+                                            <TriangleAlert size={12} />
+                                            Due tomorrow
+                                          </span>
+                                        </Chip>
+                                      )}
+                                    </div>
+                                    <div className="mt-2 flex flex-wrap items-center gap-x-4 gap-y-1 text-[12px] text-zinc-500">
+                                      {task.scheduled_at && (
+                                        <span className="inline-flex items-center gap-1.5 whitespace-nowrap">
+                                          <Clock3 size={13} />
+                                          Scheduled {formatScheduledLabel(task.scheduled_at)}
+                                        </span>
+                                      )}
+                                      {task.due_at && (
+                                        <span className={`inline-flex items-center gap-1.5 whitespace-nowrap ${dueToday ? "text-rose-600 dark:text-rose-400" : dueTomorrow ? "text-amber-600 dark:text-amber-400" : "text-zinc-500"}`}>
+                                          {dueTomorrow ? <TriangleAlert size={13} /> : <AlertCircle size={13} />}
+                                          Due {formatDueLabel(task.due_at, now)}
+                                        </span>
+                                      )}
+                                    </div>
+                                    {task.description && (
+                                      <p className="mt-2 line-clamp-3 text-[13px] text-zinc-600 dark:text-zinc-300">
+                                        {task.description}
+                                      </p>
+                                    )}
+                                  </div>
+                                  <div className="ml-auto flex shrink-0 flex-wrap justify-end gap-2 self-start">
+                                    <Button
+                                      size="sm"
+                                      variant="flat"
+                                      className={flatButtonClass}
+                                      startContent={<Play size={14} />}
+                                      onPress={() => void handleStartWork(task)}
+                                      isLoading={startingTaskId === task.id}
+                                    >
+                                      Starting work
+                                    </Button>
+                                    <Button
+                                      size="sm"
+                                      variant="flat"
+                                      className={flatButtonClass}
+                                      startContent={<SquarePen size={14} />}
+                                      onPress={() => setSelectedPersonalTaskId(task.id)}
+                                    >
+                                      Details
+                                    </Button>
+                                  </div>
+                                </div>
+                              </CardBody>
+                            </Card>
+                          );
+                        })
+                      )}
+                    </div>
+                  </div>
+
+                  <div className="space-y-3">
+                    <div className="flex items-center justify-between">
+                      <h3 className="text-[11px] font-mono uppercase tracking-[0.14em] text-zinc-500">Done</h3>
+                      <Chip size="sm" variant="flat" className="h-5 border border-emerald-200 bg-emerald-50 text-[10px] uppercase text-emerald-700 dark:border-emerald-500/30 dark:bg-emerald-500/10 dark:text-emerald-300">
+                        {completedTodayPersonalTasks.length}
+                      </Chip>
+                    </div>
+                    <div className="space-y-3">
+                      {completedTodayPersonalTasks.length === 0 ? (
+                        <Card className="rounded-md border border-zinc-200 bg-white shadow-none dark:border-white/10 dark:bg-[#080808]">
+                          <CardBody className="p-4 text-[13px] text-zinc-500">No completed Notion tasks yet.</CardBody>
+                        </Card>
+                      ) : (
+                        completedTodayPersonalTasks.map((task) => (
+                          <Card key={task.id} className="rounded-md border border-emerald-200 bg-emerald-50/80 shadow-none dark:border-emerald-500/30 dark:bg-emerald-500/[0.08]">
+                            <CardBody className="gap-3 p-4">
+                              <div className="flex items-start gap-3">
+                                <div className="min-w-0 flex-1">
+                                  <div className="flex flex-wrap items-center gap-2">
+                                    <h3 className="text-sm font-medium text-emerald-900 dark:text-emerald-100">{task.title}</h3>
+                                    <Chip size="sm" variant="flat" color="success" className="h-5 whitespace-nowrap text-[10px] uppercase">
+                                      {(task.source_status || task.status).replace("_", " ")}
+                                    </Chip>
+                                  </div>
+                                  <div className="mt-2 flex flex-wrap items-center gap-x-4 gap-y-1 text-[12px] text-emerald-700 dark:text-emerald-200">
+                                    {task.scheduled_at && (
+                                      <span className="inline-flex items-center gap-1.5 whitespace-nowrap">
+                                        <Clock3 size={13} />
+                                        Scheduled {formatScheduledLabel(task.scheduled_at)}
+                                      </span>
+                                    )}
+                                    {task.due_at && (
+                                      <span className="inline-flex items-center gap-1.5 whitespace-nowrap">
+                                        <AlertCircle size={13} />
+                                        Due {formatDueLabel(task.due_at, now)}
+                                      </span>
+                                    )}
+                                  </div>
+                                  {task.description && (
+                                    <p className="mt-2 line-clamp-3 text-[13px] text-emerald-800/90 dark:text-emerald-100/85">
+                                      {task.description}
+                                    </p>
+                                  )}
+                                </div>
+                                <div className="ml-auto flex shrink-0 flex-wrap justify-end gap-2 self-start">
+                                  <Button
+                                    size="sm"
+                                    variant="flat"
+                                    className={flatButtonClass}
+                                    startContent={<SquarePen size={14} />}
+                                    onPress={() => setSelectedPersonalTaskId(task.id)}
+                                  >
+                                    Details
+                                  </Button>
+                                </div>
+                              </div>
+                            </CardBody>
+                          </Card>
+                        ))
+                      )}
+                    </div>
+                  </div>
+                </>
               )}
             </div>
           </section>
