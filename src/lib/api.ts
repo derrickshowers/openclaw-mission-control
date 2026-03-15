@@ -204,6 +204,30 @@ export interface PersonalTaskSyncResult {
   error: string | null;
 }
 
+export interface TodayNonNegotiable {
+  id: string;
+  title: string;
+  date: string | null;
+  completed: boolean;
+  task_ids: string[];
+  source_url: string | null;
+  last_edited_at: string | null;
+}
+
+export interface BrainChannelSummary {
+  id: string;
+  title: string;
+  type: string | null;
+  currently_airing: boolean;
+  cover_url: string | null;
+  source_url: string | null;
+  last_edited_at: string | null;
+}
+
+export interface BrainChannelDetail extends BrainChannelSummary {
+  body_markdown: string | null;
+}
+
 export interface TaskAttachment {
   id: string;
   task_id: string;
@@ -311,10 +335,31 @@ export const api = {
 
   getPersonalTask: (id: string) => apiFetch<PersonalTaskDetail>(`/personal-tasks/${id}`),
 
+  createPersonalTask: (data: {
+    title: string;
+    description?: string | null;
+    due_at?: string | null;
+    scheduled_at?: string | null;
+    status?: "backlog" | "in_progress" | "blocked" | "done";
+  }) =>
+    apiFetch<PersonalTaskDetail>("/personal-tasks", {
+      method: "POST",
+      body: JSON.stringify(data),
+    }),
+
   updatePersonalTask: (id: string, data: PersonalTaskUpdate) =>
     apiFetch<PersonalTask>(`/personal-tasks/${id}`, {
       method: "PATCH",
       body: JSON.stringify(data),
+    }),
+
+  startWorkOnPersonalTask: (
+    id: string,
+    data?: { started_at?: string; pressed_at?: string }
+  ) =>
+    apiFetch<PersonalTaskDetail>(`/personal-tasks/${id}/start-work`, {
+      method: "POST",
+      body: JSON.stringify(data || {}),
     }),
 
   schedulePersonalTask: (
@@ -359,6 +404,30 @@ export const api = {
     apiFetch<any>(`/personal-tasks/${id}/promote`, {
       method: "POST",
       body: JSON.stringify(data || {}),
+    }),
+
+  // Today view / Notion surfaces
+  getTodayNonNegotiables: (params?: { date?: string }) =>
+    apiFetch<TodayNonNegotiable[]>("/today/non-negotiables", {
+      params: {
+        date: params?.date || "",
+      },
+    }),
+
+  updateTodayNonNegotiable: (id: string, completed: boolean) =>
+    apiFetch<TodayNonNegotiable>(`/today/non-negotiables/${id}`, {
+      method: "PATCH",
+      body: JSON.stringify({ completed }),
+    }),
+
+  getBrainChannels: () => apiFetch<BrainChannelSummary[]>("/today/brain-channels"),
+
+  getBrainChannel: (id: string) => apiFetch<BrainChannelDetail>(`/today/brain-channels/${id}`),
+
+  updateBrainChannel: (id: string, content: string | null) =>
+    apiFetch<BrainChannelDetail>(`/today/brain-channels/${id}`, {
+      method: "PATCH",
+      body: JSON.stringify({ content }),
     }),
 
   // Projects

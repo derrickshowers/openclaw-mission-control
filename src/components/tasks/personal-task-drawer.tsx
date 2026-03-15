@@ -595,7 +595,7 @@ export function PersonalTaskDrawer({ taskId, isOpen, onClose, onPromoted, onTask
                                   className="h-6 w-6 min-w-0 rounded-sm border border-zinc-200 dark:border-white/10 bg-zinc-100 dark:bg-white/5 text-zinc-700 dark:text-zinc-300"
                                   onPress={() => {
                                     onClose();
-                                    router.push(`/tasks?scope=team&task=${link.team_task_id}`);
+                                    router.push(`/tasks?task=${link.team_task_id}`);
                                   }}
                                 >
                                   <ArrowUpRight size={13} />

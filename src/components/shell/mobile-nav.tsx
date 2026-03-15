@@ -19,14 +19,14 @@ import type { LucideIcon } from "lucide-react";
 import { ThemeToggle } from "@/components/theme-toggle";
 
 const primaryItems: { href: string; label: string; Icon: LucideIcon }[] = [
-  { href: "/", label: "Home", Icon: LayoutDashboard },
-  { href: "/tasks", label: "Tasks", Icon: CheckSquare },
+  { href: "/", label: "Today", Icon: LayoutDashboard },
+  { href: "/tasks", label: "Team", Icon: CheckSquare },
   { href: "/activity", label: "Activity", Icon: Activity },
 ];
 
 const moreItems: { href: string; label: string; Icon: LucideIcon }[] = [
   { href: "/projects", label: "Projects", Icon: FolderKanban },
-  { href: "/team", label: "Team", Icon: Users },
+  { href: "/team", label: "Agents", Icon: Users },
   { href: "/memory", label: "Memory", Icon: Brain },
   { href: "/calendar", label: "Calendar", Icon: CalendarDays },
   { href: "/docs", label: "Docs", Icon: BookOpen },

@@ -25,10 +25,10 @@ import {
 } from "lucide-react";
 
 const items = [
-  { id: "dashboard", label: "Dashboard", href: "/", icon: LayoutDashboard },
+  { id: "dashboard", label: "Today", href: "/", icon: LayoutDashboard },
   { id: "projects", label: "Projects", href: "/projects", icon: FolderKanban },
-  { id: "tasks", label: "Tasks", href: "/tasks", icon: CheckSquare },
-  { id: "team", label: "Team", href: "/team", icon: Users },
+  { id: "tasks", label: "Team", href: "/tasks", icon: CheckSquare },
+  { id: "team", label: "Agents", href: "/team", icon: Users },
   { id: "memory", label: "Memory", href: "/memory", icon: Brain },
   { id: "calendar", label: "Calendar", href: "/calendar", icon: CalendarDays },
   { id: "docs", label: "Docs", href: "/docs", icon: BookOpen },

@@ -5,9 +5,9 @@ import { Umbrella } from "lucide-react";
 import { useSSEStatus } from "@/hooks/use-sse";
 
 const pageTitles: Record<string, string> = {
-  "/": "Dashboard",
-  "/tasks": "Tasks",
-  "/team": "Team",
+  "/": "Today",
+  "/tasks": "Team",
+  "/team": "Agents",
   "/memory": "Memory",
   "/calendar": "Calendar",
   "/docs": "Docs",

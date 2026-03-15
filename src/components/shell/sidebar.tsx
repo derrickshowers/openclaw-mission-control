@@ -9,10 +9,10 @@ import type { LucideIcon } from "lucide-react";
 import { ThemeToggle } from "@/components/theme-toggle";
 
 const navItems: { href: string; label: string; Icon: LucideIcon }[] = [
-  { href: "/", label: "Dashboard", Icon: LayoutDashboard },
+  { href: "/", label: "Today", Icon: LayoutDashboard },
   { href: "/projects", label: "Projects", Icon: FolderKanban },
-  { href: "/tasks", label: "Tasks", Icon: CheckSquare },
-  { href: "/team", label: "Team", Icon: Users },
+  { href: "/tasks", label: "Team", Icon: CheckSquare },
+  { href: "/team", label: "Agents", Icon: Users },
   { href: "/memory", label: "Memory", Icon: Brain },
   { href: "/calendar", label: "Calendar", Icon: CalendarDays },
   { href: "/docs", label: "Docs", Icon: BookOpen },
