@@ -1,26 +1,8 @@
-import { NextRequest, NextResponse } from "next/server";
-import { loadRealBeeInsights } from "./_real";
-import { ensureMockInsights, listInsights, replaceInsightsByOrigin, type BeeInsightStatus } from "./_store";
+import { NextRequest } from "next/server";
+import { proxyRequest } from "@/lib/mission-api";
 
 export async function GET(request: NextRequest) {
-  const status = request.nextUrl.searchParams.get("status");
-  const statuses: BeeInsightStatus[] | undefined =
-    status === "all"
-      ? undefined
-      : status && ["new", "accepted", "dismissed"].includes(status)
-        ? [status as BeeInsightStatus]
-        : ["new"];
-
-  const liveInsights = await loadRealBeeInsights();
-  if (liveInsights === null) {
-    ensureMockInsights();
-  } else {
-    replaceInsightsByOrigin("bee_proxy", liveInsights);
-  }
-
-  const insights = listInsights(statuses).sort(
-    (a, b) => new Date(b.captured_at).getTime() - new Date(a.captured_at).getTime()
-  );
-
-  return NextResponse.json(insights);
+  const searchParams = request.nextUrl.searchParams.toString();
+  const path = searchParams ? `/bee/insights?${searchParams}` : "/bee/insights";
+  return proxyRequest(request, path);
 }
