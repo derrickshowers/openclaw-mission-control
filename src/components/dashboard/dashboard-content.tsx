@@ -7,12 +7,16 @@ import {
   CalendarCheck,
   Clock3,
   ExternalLink,
+  MessageSquare,
+  NotebookPen,
   Play,
   SquarePen,
   TriangleAlert,
+  X,
 } from "lucide-react";
 import {
   api,
+  type BeeInsight,
   type BrainChannelDetail,
   type BrainChannelSummary,
   type PersonalTask,
@@ -223,6 +227,137 @@ function statusChipColor(status: Task["status"] | PersonalTask["status"]) {
   return "default" as const;
 }
 
+const BEE_SOURCE_LABELS: Record<BeeInsight["source_type"], string> = {
+  conversation: "conversation",
+  daily_summary: "daily summary",
+  journal: "journal",
+  bee_todo: "bee todo",
+};
+
+const beeCardClass =
+  "flex flex-col gap-2 rounded-md border border-zinc-200 bg-white p-3 transition-colors hover:border-zinc-300 dark:border-white/10 dark:bg-[#111] dark:hover:border-white/20";
+
+function BeeInsightCard({
+  insight,
+  onAddToNotion,
+  onDismiss,
+}: {
+  insight: BeeInsight;
+  onAddToNotion: (insight: BeeInsight) => Promise<void>;
+  onDismiss: (insight: BeeInsight) => Promise<void>;
+}) {
+  const [addingToNotion, setAddingToNotion] = useState(false);
+  const [dismissing, setDismissing] = useState(false);
+  const [exiting, setExiting] = useState(false);
+
+  const handleAddToNotion = async () => {
+    setAddingToNotion(true);
+    try {
+      await onAddToNotion(insight);
+      setExiting(true);
+    } finally {
+      setAddingToNotion(false);
+    }
+  };
+
+  const handleDismiss = async () => {
+    setDismissing(true);
+    try {
+      await onDismiss(insight);
+      setExiting(true);
+    } finally {
+      setDismissing(false);
+    }
+  };
+
+  if (exiting) return null;
+
+  const confidenceDot =
+    insight.confidence === "high"
+      ? "bg-green-500"
+      : insight.confidence === "medium"
+        ? "bg-yellow-500"
+        : "bg-zinc-500";
+
+  const capturedAgo = timeAgo(insight.captured_at);
+
+  return (
+    <div className={beeCardClass}>
+      <div className="flex items-center justify-between gap-3">
+        <span className="flex items-center gap-1.5 font-mono text-[11px] text-zinc-500 dark:text-gray-500">
+          <MessageSquare size={11} />
+          {BEE_SOURCE_LABELS[insight.source_type]}
+        </span>
+        <div className="flex items-center gap-3 font-mono text-[11px] text-zinc-500 dark:text-gray-500">
+          <span className="flex items-center gap-1.5">
+            <span className={`h-[5px] w-[5px] rounded-full ${confidenceDot}`} />
+            {insight.confidence}
+          </span>
+          <span>{capturedAgo}</span>
+        </div>
+      </div>
+
+      <p className="text-[14px] font-medium leading-tight text-zinc-900 dark:text-gray-200">{insight.title}</p>
+      <blockquote className="mt-0.5 border-l-2 border-zinc-200 pl-2 dark:border-white/10">
+        <p className="line-clamp-2 text-[13px] italic text-zinc-500 dark:text-gray-400">{insight.evidence}</p>
+      </blockquote>
+
+      <div className="mt-1 flex items-center justify-between border-t border-zinc-100 pt-2 dark:border-white/5">
+        <button
+          type="button"
+          onClick={() => void handleAddToNotion()}
+          disabled={addingToNotion || dismissing}
+          className="flex items-center gap-1.5 rounded-sm border border-zinc-200 bg-zinc-100 px-3 py-1.5 text-[12px] font-medium text-zinc-900 transition-colors hover:bg-zinc-200 disabled:opacity-50 focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-zinc-300 focus-visible:ring-offset-1 focus-visible:ring-offset-white dark:border-white/10 dark:bg-white/10 dark:text-white dark:hover:bg-white/15 dark:focus-visible:ring-white/30 dark:focus-visible:ring-offset-[#111]"
+        >
+          {addingToNotion ? (
+            <span className="h-3 w-3 animate-spin rounded-full border border-white/40 border-t-white" />
+          ) : (
+            <NotebookPen size={12} />
+          )}
+          Add to Notion
+        </button>
+        <div className="flex items-center gap-2">
+          <button
+            type="button"
+            onClick={() => void handleDismiss()}
+            disabled={addingToNotion || dismissing}
+            className="rounded-sm px-2 py-1 text-[12px] text-zinc-500 transition-colors hover:text-rose-500 disabled:opacity-50 focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-zinc-300 focus-visible:ring-offset-1 focus-visible:ring-offset-white dark:text-gray-500 dark:hover:text-red-400 dark:focus-visible:ring-white/30 dark:focus-visible:ring-offset-[#111]"
+          >
+            {dismissing ? (
+              <span className="h-3 w-3 animate-spin rounded-full border border-white/30 border-t-gray-400" />
+            ) : (
+              <span className="flex items-center gap-1">
+                <X size={12} />
+                Dismiss
+              </span>
+            )}
+          </button>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+function BeeInsightSkeleton() {
+  return (
+    <div className="flex animate-pulse flex-col gap-2 rounded-md border border-zinc-200 bg-white p-3 dark:border-white/5 dark:bg-[#111]">
+      <div className="flex items-center justify-between">
+        <div className="h-3 w-24 rounded bg-zinc-200 dark:bg-white/5" />
+        <div className="h-3 w-16 rounded bg-zinc-200 dark:bg-white/5" />
+      </div>
+      <div className="h-4 w-3/4 rounded bg-zinc-200 dark:bg-white/5" />
+      <div className="space-y-1">
+        <div className="h-3 w-full rounded bg-zinc-200 dark:bg-white/5" />
+        <div className="h-3 w-2/3 rounded bg-zinc-200 dark:bg-white/5" />
+      </div>
+      <div className="mt-1 flex items-center justify-between border-t border-zinc-100 pt-2 dark:border-white/5">
+        <div className="h-7 w-28 rounded-sm bg-zinc-200 dark:bg-white/5" />
+        <div className="h-6 w-16 rounded-sm bg-zinc-200 dark:bg-white/5" />
+      </div>
+    </div>
+  );
+}
+
 function TeamTaskCard({
   task,
   onOpen,
@@ -278,6 +413,8 @@ export function DashboardContent({ tasks: initialTasks, agents, personalTasks: i
   const [selectedBrainChannelId, setSelectedBrainChannelId] = useState<string | null>(null);
   const [nonNegotiables, setNonNegotiables] = useState<TodayNonNegotiable[]>([]);
   const [brainChannels, setBrainChannels] = useState<BrainChannelSummary[]>([]);
+  const [beeInsights, setBeeInsights] = useState<BeeInsight[]>([]);
+  const [beeInsightsLoading, setBeeInsightsLoading] = useState(true);
   const [usageByProvider, setUsageByProvider] = useState<Array<{ provider: string; tokens: number; cost: number }>>([]);
   const [todayLoading, setTodayLoading] = useState(true);
   const [creatingTask, setCreatingTask] = useState(false);
@@ -360,9 +497,42 @@ export function DashboardContent({ tasks: initialTasks, agents, personalTasks: i
     [refreshPersonalTasks, refreshTodayData],
   );
 
+  const refreshBeeInsights = useCallback(async () => {
+    try {
+      const rows = await api.getBeeInsights({ status: "new" });
+      setBeeInsights(rows);
+    } catch {
+      // non-fatal; leave existing state
+    } finally {
+      setBeeInsightsLoading(false);
+    }
+  }, []);
+
+  const handleAddInsightToNotion = useCallback(async (insight: BeeInsight) => {
+    const created = await api.createPersonalTask({
+      title: insight.title,
+      description: insight.evidence,
+    });
+    await api.updateBeeInsight(insight.id, {
+      status: "accepted",
+      notion_page_id: created.id,
+    });
+    setBeeInsights((prev) => prev.filter((i) => i.id !== insight.id));
+    await refreshPersonalTasks();
+  }, [refreshPersonalTasks]);
+
+  const handleDismissInsight = useCallback(async (insight: BeeInsight) => {
+    await api.updateBeeInsight(insight.id, { status: "dismissed" });
+    setBeeInsights((prev) => prev.filter((i) => i.id !== insight.id));
+  }, []);
+
   useEffect(() => {
     void refreshTodayFromNotion({ runType: "full", silent: false });
   }, [refreshTodayFromNotion]);
+
+  useEffect(() => {
+    void refreshBeeInsights();
+  }, [refreshBeeInsights]);
 
   useEffect(() => {
     const interval = window.setInterval(() => {
@@ -371,6 +541,7 @@ export function DashboardContent({ tasks: initialTasks, agents, personalTasks: i
 
     const handleForegroundRefresh = () => {
       void refreshTodayFromNotion({ runType: "full", silent: true });
+      void refreshBeeInsights();
     };
 
     const handleVisibilityChange = () => {
@@ -387,7 +558,7 @@ export function DashboardContent({ tasks: initialTasks, agents, personalTasks: i
       window.removeEventListener("focus", handleForegroundRefresh);
       document.removeEventListener("visibilitychange", handleVisibilityChange);
     };
-  }, [refreshTodayData, refreshTodayFromNotion]);
+  }, [refreshBeeInsights, refreshTodayData, refreshTodayFromNotion]);
 
   const { lastEvent } = useSSE([
     "personal_task.updated",
@@ -871,6 +1042,35 @@ export function DashboardContent({ tasks: initialTasks, agents, personalTasks: i
                     </div>
                   </div>
                 </>
+              )}
+            </div>
+          </section>
+
+          {/* Bee Insights */}
+          <section className="space-y-3">
+            <div>
+              <h2 className="text-[11px] font-mono uppercase tracking-[0.14em] text-zinc-500">Bee Insights</h2>
+              <p className="mt-1 text-[13px] text-zinc-500">Suggested actions captured from Bee. Add to Notion or dismiss.</p>
+            </div>
+            <div className="space-y-2">
+              {beeInsightsLoading ? (
+                <>
+                  <BeeInsightSkeleton />
+                  <BeeInsightSkeleton />
+                </>
+              ) : beeInsights.length === 0 ? (
+                <div className="flex items-center justify-center rounded-md border border-dashed border-zinc-200 py-6 dark:border-white/10">
+                  <p className="text-[13px] italic text-zinc-500 dark:text-gray-500">No new insights from Bee.</p>
+                </div>
+              ) : (
+                beeInsights.map((insight) => (
+                  <BeeInsightCard
+                    key={insight.id}
+                    insight={insight}
+                    onAddToNotion={handleAddInsightToNotion}
+                    onDismiss={handleDismissInsight}
+                  />
+                ))
               )}
             </div>
           </section>

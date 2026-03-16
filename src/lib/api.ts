@@ -214,6 +214,25 @@ export interface TodayNonNegotiable {
   last_edited_at: string | null;
 }
 
+// Bee Insights (mock ingestion lane)
+export type BeeInsightStatus = "new" | "accepted" | "dismissed";
+export type BeeInsightConfidence = "high" | "medium" | "low";
+export type BeeInsightSourceType = "conversation" | "daily_summary" | "journal" | "bee_todo";
+
+export interface BeeInsight {
+  id: string;
+  title: string;
+  source_type: BeeInsightSourceType;
+  source_id: string;
+  confidence: BeeInsightConfidence;
+  confidence_reason: string;
+  evidence: string;
+  captured_at: string;
+  status: BeeInsightStatus;
+  notion_page_id: string | null;
+  updated_at: string;
+}
+
 export interface BrainChannelSummary {
   id: string;
   title: string;
@@ -418,6 +437,18 @@ export const api = {
     apiFetch<TodayNonNegotiable>(`/today/non-negotiables/${id}`, {
       method: "PATCH",
       body: JSON.stringify({ completed }),
+    }),
+
+  // Bee Insights (mock lane)
+  getBeeInsights: (params?: { status?: string }) =>
+    apiFetch<BeeInsight[]>("/bee/insights", {
+      params: { status: params?.status || "" },
+    }),
+
+  updateBeeInsight: (id: string, patch: { status?: BeeInsightStatus; notion_page_id?: string | null }) =>
+    apiFetch<BeeInsight>(`/bee/insights/${id}`, {
+      method: "PATCH",
+      body: JSON.stringify(patch),
     }),
 
   getBrainChannels: () => apiFetch<BrainChannelSummary[]>("/today/brain-channels"),
