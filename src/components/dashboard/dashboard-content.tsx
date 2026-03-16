@@ -17,7 +17,6 @@ import {
 import {
   api,
   type BeeInsight,
-  type BeeInsightOrigin,
   type BrainChannelDetail,
   type BrainChannelSummary,
   type PersonalTask,
@@ -235,11 +234,6 @@ const BEE_SOURCE_LABELS: Record<BeeInsight["source_type"], string> = {
   bee_todo: "bee todo",
 };
 
-const BEE_ORIGIN_LABELS: Record<BeeInsightOrigin, string> = {
-  mock: "mock",
-  bee_proxy: "live",
-};
-
 const beeCardClass =
   "flex flex-col gap-2 rounded-md border border-zinc-200 bg-white p-3 transition-colors hover:border-zinc-300 dark:border-white/10 dark:bg-[#111] dark:hover:border-white/20";
 
@@ -255,7 +249,7 @@ function buildBeeInsightDescription(insight: BeeInsight, notes: string) {
     sections.push(trimmedNotes, "");
   }
 
-  sections.push(`Bee source: ${BEE_SOURCE_LABELS[insight.source_type]} • ${BEE_ORIGIN_LABELS[insight.ingestion_origin]}`);
+  sections.push(`Bee source: ${BEE_SOURCE_LABELS[insight.source_type]}`);
   if (insight.alarm_at) {
     sections.push(`Bee reminder: ${formatScheduledLabel(insight.alarm_at)}`);
   }
@@ -305,13 +299,6 @@ function BeeInsightCard({
             <MessageSquare size={11} />
             {BEE_SOURCE_LABELS[insight.source_type]}
           </span>
-          <Chip
-            size="sm"
-            variant="flat"
-            className="h-5 border border-zinc-200 bg-zinc-100 px-1.5 text-[10px] uppercase text-zinc-500 dark:border-white/10 dark:bg-white/5 dark:text-zinc-300"
-          >
-            {BEE_ORIGIN_LABELS[insight.ingestion_origin]}
-          </Chip>
         </div>
         <div className="flex items-center gap-3 font-mono text-[11px] text-zinc-500 dark:text-gray-500">
           <span className="flex items-center gap-1.5">
@@ -364,10 +351,7 @@ function BeeInsightSkeleton() {
   return (
     <div className="flex animate-pulse flex-col gap-2 rounded-md border border-zinc-200 bg-white p-3 dark:border-white/5 dark:bg-[#111]">
       <div className="flex items-center justify-between">
-        <div className="flex items-center gap-2">
-          <div className="h-3 w-24 rounded bg-zinc-200 dark:bg-white/5" />
-          <div className="h-5 w-10 rounded bg-zinc-200 dark:bg-white/5" />
-        </div>
+        <div className="h-3 w-24 rounded bg-zinc-200 dark:bg-white/5" />
         <div className="h-3 w-16 rounded bg-zinc-200 dark:bg-white/5" />
       </div>
       <div className="h-4 w-3/4 rounded bg-zinc-200 dark:bg-white/5" />
@@ -1198,9 +1182,6 @@ export function DashboardContent({ tasks: initialTasks, agents, personalTasks: i
                     <h3 className="text-sm font-medium text-zinc-900 dark:text-zinc-100">{selectedBeeInsight.title}</h3>
                     <Chip size="sm" variant="flat" className="h-5 border border-zinc-200 bg-zinc-100 text-[10px] uppercase dark:border-white/10 dark:bg-white/5">
                       {BEE_SOURCE_LABELS[selectedBeeInsight.source_type]}
-                    </Chip>
-                    <Chip size="sm" variant="flat" className="h-5 border border-zinc-200 bg-zinc-100 text-[10px] uppercase dark:border-white/10 dark:bg-white/5">
-                      {BEE_ORIGIN_LABELS[selectedBeeInsight.ingestion_origin]}
                     </Chip>
                   </div>
                   <p className="text-[13px] text-zinc-500 dark:text-zinc-400">Review the dates, then create the Notion task with Bee context attached.</p>
