@@ -26,6 +26,33 @@ function asString(...values: unknown[]) {
   return null;
 }
 
+function asIsoDateTime(value: unknown) {
+  if (typeof value === "number" && Number.isFinite(value)) {
+    return new Date(value).toISOString();
+  }
+
+  if (typeof value === "string") {
+    const trimmed = value.trim();
+    if (!trimmed) return null;
+
+    if (/^\d+$/.test(trimmed)) {
+      const numeric = Number(trimmed);
+      if (Number.isFinite(numeric)) {
+        return new Date(numeric).toISOString();
+      }
+    }
+
+    const parsed = Date.parse(trimmed);
+    if (!Number.isNaN(parsed)) {
+      return new Date(parsed).toISOString();
+    }
+
+    return trimmed;
+  }
+
+  return null;
+}
+
 function asBoolean(value: unknown) {
   if (typeof value === "boolean") return value;
   if (typeof value === "number") return value !== 0;
@@ -55,9 +82,18 @@ function normalizeBeeTodo(todo: BeeTodoRecord, origin: BeeInsightOrigin): Stored
   if (completed) return null;
 
   const createdAt =
-    asString(todo.updated_at, todo.updatedAt, todo.created_at, todo.createdAt, todo.alarm_at, todo.alarmAt) ||
+    asIsoDateTime(todo.updated_at) ||
+    asIsoDateTime(todo.updatedAt) ||
+    asIsoDateTime(todo.created_at) ||
+    asIsoDateTime(todo.createdAt) ||
+    asIsoDateTime(todo.alarm_at) ||
+    asIsoDateTime(todo.alarmAt) ||
     new Date().toISOString();
-  const alarmAt = asString(todo.alarm_at, todo.alarmAt, todo.due_at, todo.dueAt);
+  const alarmAt =
+    asIsoDateTime(todo.alarm_at) ||
+    asIsoDateTime(todo.alarmAt) ||
+    asIsoDateTime(todo.due_at) ||
+    asIsoDateTime(todo.dueAt);
   const notes = asString(todo.note, todo.notes, todo.description);
 
   const evidenceParts = [] as string[];
