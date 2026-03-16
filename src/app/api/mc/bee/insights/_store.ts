@@ -1,9 +1,11 @@
-// Mock in-memory store for Bee insights (web-layer mock, no API backend needed)
-// This is intentionally self-contained until a real Bee ingestion worker exists.
+// Bee Insights store
+// - Seeds mock data for QA when no live Bee source is configured.
+// - Preserves accept/dismiss state locally while allowing live data refreshes.
 
 export type BeeInsightStatus = "new" | "accepted" | "dismissed";
 export type BeeInsightConfidence = "high" | "medium" | "low";
 export type BeeInsightSourceType = "conversation" | "daily_summary" | "journal" | "bee_todo";
+export type BeeInsightOrigin = "mock" | "bee_proxy";
 
 export interface StoredBeeInsight {
   id: string;
@@ -17,6 +19,8 @@ export interface StoredBeeInsight {
   status: BeeInsightStatus;
   notion_page_id: string | null;
   updated_at: string;
+  ingestion_origin: BeeInsightOrigin;
+  alarm_at: string | null;
 }
 
 const now = new Date();
@@ -37,6 +41,8 @@ const INITIAL_INSIGHTS: StoredBeeInsight[] = [
     status: "new",
     notion_page_id: null,
     updated_at: minsAgo(42),
+    ingestion_origin: "mock",
+    alarm_at: null,
   },
   {
     id: "bee-ins-002",
@@ -50,6 +56,8 @@ const INITIAL_INSIGHTS: StoredBeeInsight[] = [
     status: "new",
     notion_page_id: null,
     updated_at: minsAgo(118),
+    ingestion_origin: "mock",
+    alarm_at: null,
   },
   {
     id: "bee-ins-003",
@@ -63,6 +71,8 @@ const INITIAL_INSIGHTS: StoredBeeInsight[] = [
     status: "new",
     notion_page_id: null,
     updated_at: minsAgo(215),
+    ingestion_origin: "mock",
+    alarm_at: "2026-03-20",
   },
   {
     id: "bee-ins-004",
@@ -76,6 +86,8 @@ const INITIAL_INSIGHTS: StoredBeeInsight[] = [
     status: "new",
     notion_page_id: null,
     updated_at: minsAgo(330),
+    ingestion_origin: "mock",
+    alarm_at: null,
   },
   {
     id: "bee-ins-005",
@@ -89,13 +101,21 @@ const INITIAL_INSIGHTS: StoredBeeInsight[] = [
     status: "new",
     notion_page_id: null,
     updated_at: minsAgo(480),
+    ingestion_origin: "mock",
+    alarm_at: null,
   },
 ];
 
-// Module-level store — persists for the lifetime of the Next.js server process
-const store = new Map<string, StoredBeeInsight>(
-  INITIAL_INSIGHTS.map((i) => [i.id, { ...i }])
-);
+const store = new Map<string, StoredBeeInsight>();
+let mockSeeded = false;
+
+export function ensureMockInsights() {
+  if (mockSeeded) return;
+  for (const insight of INITIAL_INSIGHTS) {
+    store.set(insight.id, { ...insight });
+  }
+  mockSeeded = true;
+}
 
 export function listInsights(statuses?: BeeInsightStatus[]): StoredBeeInsight[] {
   const all = Array.from(store.values());
@@ -107,6 +127,26 @@ export function listInsights(statuses?: BeeInsightStatus[]): StoredBeeInsight[] 
 
 export function getInsight(id: string): StoredBeeInsight | undefined {
   return store.get(id);
+}
+
+export function replaceInsightsByOrigin(origin: BeeInsightOrigin, incoming: StoredBeeInsight[]) {
+  const incomingIds = new Set(incoming.map((item) => item.id));
+
+  for (const [id, insight] of store.entries()) {
+    if (insight.ingestion_origin === origin && !incomingIds.has(id)) {
+      store.delete(id);
+    }
+  }
+
+  for (const insight of incoming) {
+    const existing = store.get(insight.id);
+    store.set(insight.id, {
+      ...insight,
+      status: existing?.status ?? insight.status,
+      notion_page_id: existing?.notion_page_id ?? insight.notion_page_id,
+      updated_at: new Date().toISOString(),
+    });
+  }
 }
 
 export function updateInsight(

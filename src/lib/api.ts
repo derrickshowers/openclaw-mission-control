@@ -218,6 +218,7 @@ export interface TodayNonNegotiable {
 export type BeeInsightStatus = "new" | "accepted" | "dismissed";
 export type BeeInsightConfidence = "high" | "medium" | "low";
 export type BeeInsightSourceType = "conversation" | "daily_summary" | "journal" | "bee_todo";
+export type BeeInsightOrigin = "mock" | "bee_proxy";
 
 export interface BeeInsight {
   id: string;
@@ -231,6 +232,8 @@ export interface BeeInsight {
   status: BeeInsightStatus;
   notion_page_id: string | null;
   updated_at: string;
+  ingestion_origin: BeeInsightOrigin;
+  alarm_at: string | null;
 }
 
 export interface BrainChannelSummary {

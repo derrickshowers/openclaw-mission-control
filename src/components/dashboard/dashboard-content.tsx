@@ -1,7 +1,7 @@
 "use client";
 
 import { useCallback, useEffect, useMemo, useState } from "react";
-import { Button, Card, CardBody, Checkbox, Chip, Input, Spinner, Textarea } from "@heroui/react";
+import { Button, Card, CardBody, Checkbox, Chip, Input, Modal, ModalBody, ModalContent, ModalFooter, ModalHeader, Spinner, Textarea } from "@heroui/react";
 import {
   AlertCircle,
   CalendarCheck,
@@ -17,6 +17,7 @@ import {
 import {
   api,
   type BeeInsight,
+  type BeeInsightOrigin,
   type BrainChannelDetail,
   type BrainChannelSummary,
   type PersonalTask,
@@ -234,8 +235,34 @@ const BEE_SOURCE_LABELS: Record<BeeInsight["source_type"], string> = {
   bee_todo: "bee todo",
 };
 
+const BEE_ORIGIN_LABELS: Record<BeeInsightOrigin, string> = {
+  mock: "mock",
+  bee_proxy: "live",
+};
+
 const beeCardClass =
   "flex flex-col gap-2 rounded-md border border-zinc-200 bg-white p-3 transition-colors hover:border-zinc-300 dark:border-white/10 dark:bg-[#111] dark:hover:border-white/20";
+
+function toDateInputValue(dateValue: string | null | undefined, fallback = "") {
+  const parsed = parseCalendarDate(dateValue);
+  return parsed ? toLocalDateKey(parsed) : fallback;
+}
+
+function buildBeeInsightDescription(insight: BeeInsight, notes: string) {
+  const sections: string[] = [];
+  const trimmedNotes = notes.trim();
+  if (trimmedNotes) {
+    sections.push(trimmedNotes, "");
+  }
+
+  sections.push(`Bee source: ${BEE_SOURCE_LABELS[insight.source_type]} • ${BEE_ORIGIN_LABELS[insight.ingestion_origin]}`);
+  if (insight.alarm_at) {
+    sections.push(`Bee reminder: ${formatScheduledLabel(insight.alarm_at)}`);
+  }
+
+  sections.push("", "Evidence:", insight.evidence);
+  return sections.join("\n");
+}
 
 function BeeInsightCard({
   insight,
@@ -243,22 +270,11 @@ function BeeInsightCard({
   onDismiss,
 }: {
   insight: BeeInsight;
-  onAddToNotion: (insight: BeeInsight) => Promise<void>;
+  onAddToNotion: (insight: BeeInsight) => void;
   onDismiss: (insight: BeeInsight) => Promise<void>;
 }) {
-  const [addingToNotion, setAddingToNotion] = useState(false);
   const [dismissing, setDismissing] = useState(false);
   const [exiting, setExiting] = useState(false);
-
-  const handleAddToNotion = async () => {
-    setAddingToNotion(true);
-    try {
-      await onAddToNotion(insight);
-      setExiting(true);
-    } finally {
-      setAddingToNotion(false);
-    }
-  };
 
   const handleDismiss = async () => {
     setDismissing(true);
@@ -284,10 +300,19 @@ function BeeInsightCard({
   return (
     <div className={beeCardClass}>
       <div className="flex items-center justify-between gap-3">
-        <span className="flex items-center gap-1.5 font-mono text-[11px] text-zinc-500 dark:text-gray-500">
-          <MessageSquare size={11} />
-          {BEE_SOURCE_LABELS[insight.source_type]}
-        </span>
+        <div className="flex min-w-0 items-center gap-2">
+          <span className="flex items-center gap-1.5 font-mono text-[11px] text-zinc-500 dark:text-gray-500">
+            <MessageSquare size={11} />
+            {BEE_SOURCE_LABELS[insight.source_type]}
+          </span>
+          <Chip
+            size="sm"
+            variant="flat"
+            className="h-5 border border-zinc-200 bg-zinc-100 px-1.5 text-[10px] uppercase text-zinc-500 dark:border-white/10 dark:bg-white/5 dark:text-zinc-300"
+          >
+            {BEE_ORIGIN_LABELS[insight.ingestion_origin]}
+          </Chip>
+        </div>
         <div className="flex items-center gap-3 font-mono text-[11px] text-zinc-500 dark:text-gray-500">
           <span className="flex items-center gap-1.5">
             <span className={`h-[5px] w-[5px] rounded-full ${confidenceDot}`} />
@@ -301,38 +326,35 @@ function BeeInsightCard({
       <blockquote className="mt-0.5 border-l-2 border-zinc-200 pl-2 dark:border-white/10">
         <p className="line-clamp-2 text-[13px] italic text-zinc-500 dark:text-gray-400">{insight.evidence}</p>
       </blockquote>
+      {insight.alarm_at && (
+        <p className="text-[12px] text-zinc-500 dark:text-zinc-400">Suggested due date: {formatScheduledLabel(insight.alarm_at)}</p>
+      )}
 
       <div className="mt-1 flex items-center justify-between border-t border-zinc-100 pt-2 dark:border-white/5">
         <button
           type="button"
-          onClick={() => void handleAddToNotion()}
-          disabled={addingToNotion || dismissing}
+          onClick={() => onAddToNotion(insight)}
+          disabled={dismissing}
           className="flex items-center gap-1.5 rounded-sm border border-zinc-200 bg-zinc-100 px-3 py-1.5 text-[12px] font-medium text-zinc-900 transition-colors hover:bg-zinc-200 disabled:opacity-50 focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-zinc-300 focus-visible:ring-offset-1 focus-visible:ring-offset-white dark:border-white/10 dark:bg-white/10 dark:text-white dark:hover:bg-white/15 dark:focus-visible:ring-white/30 dark:focus-visible:ring-offset-[#111]"
         >
-          {addingToNotion ? (
-            <span className="h-3 w-3 animate-spin rounded-full border border-white/40 border-t-white" />
-          ) : (
-            <NotebookPen size={12} />
-          )}
+          <NotebookPen size={12} />
           Add to Notion
         </button>
-        <div className="flex items-center gap-2">
-          <button
-            type="button"
-            onClick={() => void handleDismiss()}
-            disabled={addingToNotion || dismissing}
-            className="rounded-sm px-2 py-1 text-[12px] text-zinc-500 transition-colors hover:text-rose-500 disabled:opacity-50 focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-zinc-300 focus-visible:ring-offset-1 focus-visible:ring-offset-white dark:text-gray-500 dark:hover:text-red-400 dark:focus-visible:ring-white/30 dark:focus-visible:ring-offset-[#111]"
-          >
-            {dismissing ? (
-              <span className="h-3 w-3 animate-spin rounded-full border border-white/30 border-t-gray-400" />
-            ) : (
-              <span className="flex items-center gap-1">
-                <X size={12} />
-                Dismiss
-              </span>
-            )}
-          </button>
-        </div>
+        <button
+          type="button"
+          onClick={() => void handleDismiss()}
+          disabled={dismissing}
+          className="rounded-sm px-2 py-1 text-[12px] text-zinc-500 transition-colors hover:text-rose-500 disabled:opacity-50 focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-zinc-300 focus-visible:ring-offset-1 focus-visible:ring-offset-white dark:text-gray-500 dark:hover:text-red-400 dark:focus-visible:ring-white/30 dark:focus-visible:ring-offset-[#111]"
+        >
+          {dismissing ? (
+            <span className="h-3 w-3 animate-spin rounded-full border border-white/30 border-t-gray-400" />
+          ) : (
+            <span className="flex items-center gap-1">
+              <X size={12} />
+              Dismiss
+            </span>
+          )}
+        </button>
       </div>
     </div>
   );
@@ -342,7 +364,10 @@ function BeeInsightSkeleton() {
   return (
     <div className="flex animate-pulse flex-col gap-2 rounded-md border border-zinc-200 bg-white p-3 dark:border-white/5 dark:bg-[#111]">
       <div className="flex items-center justify-between">
-        <div className="h-3 w-24 rounded bg-zinc-200 dark:bg-white/5" />
+        <div className="flex items-center gap-2">
+          <div className="h-3 w-24 rounded bg-zinc-200 dark:bg-white/5" />
+          <div className="h-5 w-10 rounded bg-zinc-200 dark:bg-white/5" />
+        </div>
         <div className="h-3 w-16 rounded bg-zinc-200 dark:bg-white/5" />
       </div>
       <div className="h-4 w-3/4 rounded bg-zinc-200 dark:bg-white/5" />
@@ -423,6 +448,12 @@ export function DashboardContent({ tasks: initialTasks, agents, personalTasks: i
   const [newTaskScheduledAt, setNewTaskScheduledAt] = useState(toLocalDateKey(new Date()));
   const [newTaskDueAt, setNewTaskDueAt] = useState(nextFridayDateKey());
   const [newTaskNotes, setNewTaskNotes] = useState("");
+  const [selectedBeeInsight, setSelectedBeeInsight] = useState<BeeInsight | null>(null);
+  const [beeModalScheduledAt, setBeeModalScheduledAt] = useState(toLocalDateKey(new Date()));
+  const [beeModalDueAt, setBeeModalDueAt] = useState(nextFridayDateKey());
+  const [beeModalNotes, setBeeModalNotes] = useState("");
+  const [beeSubmitting, setBeeSubmitting] = useState(false);
+  const [beeModalError, setBeeModalError] = useState<string | null>(null);
 
   const refreshTeamTasks = useCallback(async () => {
     const [assigned, blocked, done] = await Promise.all([
@@ -508,18 +539,45 @@ export function DashboardContent({ tasks: initialTasks, agents, personalTasks: i
     }
   }, []);
 
-  const handleAddInsightToNotion = useCallback(async (insight: BeeInsight) => {
-    const created = await api.createPersonalTask({
-      title: insight.title,
-      description: insight.evidence,
-    });
-    await api.updateBeeInsight(insight.id, {
-      status: "accepted",
-      notion_page_id: created.id,
-    });
-    setBeeInsights((prev) => prev.filter((i) => i.id !== insight.id));
-    await refreshPersonalTasks();
-  }, [refreshPersonalTasks]);
+  const closeBeeInsightModal = useCallback(() => {
+    setSelectedBeeInsight(null);
+    setBeeModalError(null);
+    setBeeSubmitting(false);
+  }, []);
+
+  const handleAddInsightToNotion = useCallback((insight: BeeInsight) => {
+    setSelectedBeeInsight(insight);
+    setBeeModalScheduledAt(toLocalDateKey(new Date()));
+    setBeeModalDueAt(toDateInputValue(insight.alarm_at, nextFridayDateKey()));
+    setBeeModalNotes("");
+    setBeeModalError(null);
+  }, []);
+
+  const handleConfirmAddInsightToNotion = useCallback(async () => {
+    if (!selectedBeeInsight) return;
+
+    setBeeSubmitting(true);
+    setBeeModalError(null);
+    try {
+      const created = await api.createPersonalTask({
+        title: selectedBeeInsight.title,
+        description: buildBeeInsightDescription(selectedBeeInsight, beeModalNotes),
+        scheduled_at: beeModalScheduledAt || null,
+        due_at: beeModalDueAt || null,
+      });
+      await api.updateBeeInsight(selectedBeeInsight.id, {
+        status: "accepted",
+        notion_page_id: created.id,
+      });
+      setBeeInsights((prev) => prev.filter((i) => i.id !== selectedBeeInsight.id));
+      await refreshPersonalTasks();
+      setSelectedPersonalTaskId(created.id);
+      closeBeeInsightModal();
+    } catch (error) {
+      setBeeModalError(error instanceof Error ? error.message : "Failed to add Bee insight to Notion.");
+      setBeeSubmitting(false);
+    }
+  }, [beeModalDueAt, beeModalNotes, beeModalScheduledAt, closeBeeInsightModal, refreshPersonalTasks, selectedBeeInsight]);
 
   const handleDismissInsight = useCallback(async (insight: BeeInsight) => {
     await api.updateBeeInsight(insight.id, { status: "dismissed" });
@@ -1124,6 +1182,89 @@ export function DashboardContent({ tasks: initialTasks, agents, personalTasks: i
 
         </div>
       </div>
+
+      <Modal
+        isOpen={!!selectedBeeInsight}
+        onClose={closeBeeInsightModal}
+        className="bg-white text-foreground dark:bg-[#121212] dark:text-white"
+      >
+        <ModalContent>
+          <ModalHeader className="border-b border-divider text-sm dark:border-white/10">Add Bee insight to Notion</ModalHeader>
+          <ModalBody className="space-y-4 py-4">
+            {selectedBeeInsight && (
+              <>
+                <div className="space-y-1">
+                  <div className="flex flex-wrap items-center gap-2">
+                    <h3 className="text-sm font-medium text-zinc-900 dark:text-zinc-100">{selectedBeeInsight.title}</h3>
+                    <Chip size="sm" variant="flat" className="h-5 border border-zinc-200 bg-zinc-100 text-[10px] uppercase dark:border-white/10 dark:bg-white/5">
+                      {BEE_SOURCE_LABELS[selectedBeeInsight.source_type]}
+                    </Chip>
+                    <Chip size="sm" variant="flat" className="h-5 border border-zinc-200 bg-zinc-100 text-[10px] uppercase dark:border-white/10 dark:bg-white/5">
+                      {BEE_ORIGIN_LABELS[selectedBeeInsight.ingestion_origin]}
+                    </Chip>
+                  </div>
+                  <p className="text-[13px] text-zinc-500 dark:text-zinc-400">Review the dates, then create the Notion task with Bee context attached.</p>
+                </div>
+
+                <blockquote className="rounded-sm border border-zinc-200 bg-zinc-50 px-3 py-2 text-[13px] text-zinc-600 dark:border-white/10 dark:bg-white/[0.03] dark:text-zinc-300">
+                  {selectedBeeInsight.evidence}
+                </blockquote>
+
+                <div className="grid gap-3 md:grid-cols-2">
+                  <Input
+                    type="date"
+                    label="Scheduled"
+                    labelPlacement="outside"
+                    value={beeModalScheduledAt}
+                    onValueChange={setBeeModalScheduledAt}
+                    variant="flat"
+                    classNames={{
+                      inputWrapper: "rounded-sm border border-zinc-200 bg-zinc-100 shadow-none dark:border-white/10 dark:bg-white/5",
+                    }}
+                  />
+                  <Input
+                    type="date"
+                    label="Due"
+                    labelPlacement="outside"
+                    value={beeModalDueAt}
+                    onValueChange={setBeeModalDueAt}
+                    variant="flat"
+                    classNames={{
+                      inputWrapper: "rounded-sm border border-zinc-200 bg-zinc-100 shadow-none dark:border-white/10 dark:bg-white/5",
+                    }}
+                    description={selectedBeeInsight.alarm_at ? `Prefilled from Bee reminder: ${formatScheduledLabel(selectedBeeInsight.alarm_at)}` : undefined}
+                  />
+                </div>
+
+                <Textarea
+                  minRows={3}
+                  label="Notes"
+                  labelPlacement="outside"
+                  value={beeModalNotes}
+                  onValueChange={setBeeModalNotes}
+                  placeholder="Optional: add any framing before it lands in Notion..."
+                  variant="flat"
+                  classNames={{
+                    inputWrapper: "rounded-sm border border-zinc-200 bg-zinc-100 shadow-none dark:border-white/10 dark:bg-white/5",
+                  }}
+                />
+
+                {beeModalError && (
+                  <p className="text-[13px] text-rose-600 dark:text-rose-400">{beeModalError}</p>
+                )}
+              </>
+            )}
+          </ModalBody>
+          <ModalFooter className="border-t border-divider dark:border-white/10">
+            <Button size="sm" variant="flat" onPress={closeBeeInsightModal} isDisabled={beeSubmitting}>
+              Cancel
+            </Button>
+            <Button size="sm" color="primary" onPress={handleConfirmAddInsightToNotion} isLoading={beeSubmitting}>
+              Add to Notion
+            </Button>
+          </ModalFooter>
+        </ModalContent>
+      </Modal>
 
       {selectedTask && (
         <TaskDrawer
