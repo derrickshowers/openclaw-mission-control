@@ -1,7 +1,8 @@
 "use client";
 
 import { useCallback, useEffect, useMemo, useState } from "react";
-import { Button, Card, CardBody, Checkbox, Chip, Input, Modal, ModalBody, ModalContent, ModalFooter, ModalHeader, Spinner, Textarea } from "@heroui/react";
+import { Button, Card, CardBody, Checkbox, Chip, DatePicker, Input, Modal, ModalBody, ModalContent, ModalFooter, ModalHeader, Spinner, Textarea } from "@heroui/react";
+import { parseDate, type DateValue } from "@internationalized/date";
 import {
   AlertCircle,
   CalendarCheck,
@@ -220,6 +221,16 @@ function formatUsd(value: number) {
   return `$${value.toFixed(2)}`;
 }
 
+function toCalendarDateValue(dateValue: string | null | undefined): DateValue | null {
+  const parsed = parseCalendarDate(dateValue);
+  return parsed ? parseDate(toLocalDateKey(parsed)) : null;
+}
+
+function toIsoDateFromCalendar(value: DateValue | null): string | null {
+  if (!value) return null;
+  return value.toString();
+}
+
 function statusChipColor(status: Task["status"] | PersonalTask["status"]) {
   if (status === "blocked") return "danger" as const;
   if (status === "in_progress") return "primary" as const;
@@ -431,12 +442,12 @@ export function DashboardContent({ tasks: initialTasks, agents, personalTasks: i
   const [isCreateTaskModalOpen, setIsCreateTaskModalOpen] = useState(false);
   const [createTaskError, setCreateTaskError] = useState<string | null>(null);
   const [newTaskTitle, setNewTaskTitle] = useState("");
-  const [newTaskScheduledAt, setNewTaskScheduledAt] = useState(toLocalDateKey(new Date()));
-  const [newTaskDueAt, setNewTaskDueAt] = useState(nextFridayDateKey());
+  const [newTaskScheduledAt, setNewTaskScheduledAt] = useState<string | null>(toLocalDateKey(new Date()));
+  const [newTaskDueAt, setNewTaskDueAt] = useState<string | null>(nextFridayDateKey());
   const [newTaskNotes, setNewTaskNotes] = useState("");
   const [selectedBeeInsight, setSelectedBeeInsight] = useState<BeeInsight | null>(null);
-  const [beeModalScheduledAt, setBeeModalScheduledAt] = useState(toLocalDateKey(new Date()));
-  const [beeModalDueAt, setBeeModalDueAt] = useState(nextFridayDateKey());
+  const [beeModalScheduledAt, setBeeModalScheduledAt] = useState<string | null>(toLocalDateKey(new Date()));
+  const [beeModalDueAt, setBeeModalDueAt] = useState<string | null>(nextFridayDateKey());
   const [beeModalNotes, setBeeModalNotes] = useState("");
   const [beeSubmitting, setBeeSubmitting] = useState(false);
   const [beeModalError, setBeeModalError] = useState<string | null>(null);
@@ -1165,28 +1176,68 @@ export function DashboardContent({ tasks: initialTasks, agents, personalTasks: i
             />
 
             <div className="grid gap-3 md:grid-cols-2">
-              <Input
-                type="date"
-                label="Scheduled"
-                labelPlacement="outside"
-                value={newTaskScheduledAt}
-                onValueChange={setNewTaskScheduledAt}
-                variant="flat"
-                classNames={{
-                  inputWrapper: "rounded-sm border border-zinc-200 bg-zinc-100 shadow-none dark:border-white/10 dark:bg-white/5",
-                }}
-              />
-              <Input
-                type="date"
-                label="Due"
-                labelPlacement="outside"
-                value={newTaskDueAt}
-                onValueChange={setNewTaskDueAt}
-                variant="flat"
-                classNames={{
-                  inputWrapper: "rounded-sm border border-zinc-200 bg-zinc-100 shadow-none dark:border-white/10 dark:bg-white/5",
-                }}
-              />
+              <div className="flex items-end gap-2">
+                <DatePicker
+                  aria-label="Scheduled date"
+                  label="Scheduled"
+                  labelPlacement="outside"
+                  granularity="day"
+                  hideTimeZone
+                  showMonthAndYearPickers
+                  value={toCalendarDateValue(newTaskScheduledAt)}
+                  onChange={(value) => setNewTaskScheduledAt(toIsoDateFromCalendar(value))}
+                  variant="flat"
+                  className="flex-1"
+                  classNames={{
+                    inputWrapper: "rounded-sm border border-zinc-200 bg-zinc-100 shadow-none dark:border-white/10 dark:bg-white/5",
+                    input: "font-mono text-sm text-zinc-800 dark:text-zinc-200",
+                    selectorButton: "h-7 w-7 min-w-0 rounded-sm border border-zinc-200 dark:border-white/10 bg-zinc-100 dark:bg-white/5 text-zinc-600 dark:text-zinc-300",
+                    popoverContent: "border border-zinc-200 dark:border-white/10 bg-white dark:bg-[#0d0d0d]",
+                    calendarContent: "bg-white dark:bg-[#0d0d0d]",
+                  }}
+                />
+                {newTaskScheduledAt && (
+                  <Button
+                    size="sm"
+                    variant="light"
+                    className="h-10 min-w-0 rounded-sm border border-zinc-200 dark:border-white/10 px-2 font-mono text-[10px] text-zinc-600 dark:text-zinc-400"
+                    onPress={() => setNewTaskScheduledAt(null)}
+                  >
+                    Clear
+                  </Button>
+                )}
+              </div>
+              <div className="flex items-end gap-2">
+                <DatePicker
+                  aria-label="Due date"
+                  label="Due"
+                  labelPlacement="outside"
+                  granularity="day"
+                  hideTimeZone
+                  showMonthAndYearPickers
+                  value={toCalendarDateValue(newTaskDueAt)}
+                  onChange={(value) => setNewTaskDueAt(toIsoDateFromCalendar(value))}
+                  variant="flat"
+                  className="flex-1"
+                  classNames={{
+                    inputWrapper: "rounded-sm border border-zinc-200 bg-zinc-100 shadow-none dark:border-white/10 dark:bg-white/5",
+                    input: "font-mono text-sm text-zinc-800 dark:text-zinc-200",
+                    selectorButton: "h-7 w-7 min-w-0 rounded-sm border border-zinc-200 dark:border-white/10 bg-zinc-100 dark:bg-white/5 text-zinc-600 dark:text-zinc-300",
+                    popoverContent: "border border-zinc-200 dark:border-white/10 bg-white dark:bg-[#0d0d0d]",
+                    calendarContent: "bg-white dark:bg-[#0d0d0d]",
+                  }}
+                />
+                {newTaskDueAt && (
+                  <Button
+                    size="sm"
+                    variant="light"
+                    className="h-10 min-w-0 rounded-sm border border-zinc-200 dark:border-white/10 px-2 font-mono text-[10px] text-zinc-600 dark:text-zinc-400"
+                    onPress={() => setNewTaskDueAt(null)}
+                  >
+                    Clear
+                  </Button>
+                )}
+              </div>
             </div>
 
             <Textarea
@@ -1242,29 +1293,75 @@ export function DashboardContent({ tasks: initialTasks, agents, personalTasks: i
                 </blockquote>
 
                 <div className="grid gap-3 md:grid-cols-2">
-                  <Input
-                    type="date"
-                    label="Scheduled"
-                    labelPlacement="outside"
-                    value={beeModalScheduledAt}
-                    onValueChange={setBeeModalScheduledAt}
-                    variant="flat"
-                    classNames={{
-                      inputWrapper: "rounded-sm border border-zinc-200 bg-zinc-100 shadow-none dark:border-white/10 dark:bg-white/5",
-                    }}
-                  />
-                  <Input
-                    type="date"
-                    label="Due"
-                    labelPlacement="outside"
-                    value={beeModalDueAt}
-                    onValueChange={setBeeModalDueAt}
-                    variant="flat"
-                    classNames={{
-                      inputWrapper: "rounded-sm border border-zinc-200 bg-zinc-100 shadow-none dark:border-white/10 dark:bg-white/5",
-                    }}
-                    description={selectedBeeInsight.alarm_at ? `Prefilled from Bee reminder: ${formatScheduledLabel(selectedBeeInsight.alarm_at)}` : undefined}
-                  />
+                  <div className="flex items-end gap-2">
+                    <DatePicker
+                      aria-label="Bee scheduled date"
+                      label="Scheduled"
+                      labelPlacement="outside"
+                      granularity="day"
+                      hideTimeZone
+                      showMonthAndYearPickers
+                      value={toCalendarDateValue(beeModalScheduledAt)}
+                      onChange={(value) => setBeeModalScheduledAt(toIsoDateFromCalendar(value))}
+                      variant="flat"
+                      className="flex-1"
+                      classNames={{
+                        inputWrapper: "rounded-sm border border-zinc-200 bg-zinc-100 shadow-none dark:border-white/10 dark:bg-white/5",
+                        input: "font-mono text-sm text-zinc-800 dark:text-zinc-200",
+                        selectorButton: "h-7 w-7 min-w-0 rounded-sm border border-zinc-200 dark:border-white/10 bg-zinc-100 dark:bg-white/5 text-zinc-600 dark:text-zinc-300",
+                        popoverContent: "border border-zinc-200 dark:border-white/10 bg-white dark:bg-[#0d0d0d]",
+                        calendarContent: "bg-white dark:bg-[#0d0d0d]",
+                      }}
+                    />
+                    {beeModalScheduledAt && (
+                      <Button
+                        size="sm"
+                        variant="light"
+                        className="h-10 min-w-0 rounded-sm border border-zinc-200 dark:border-white/10 px-2 font-mono text-[10px] text-zinc-600 dark:text-zinc-400"
+                        onPress={() => setBeeModalScheduledAt(null)}
+                      >
+                        Clear
+                      </Button>
+                    )}
+                  </div>
+                  <div className="space-y-1">
+                    <div className="flex items-end gap-2">
+                      <DatePicker
+                        aria-label="Bee due date"
+                        label="Due"
+                        labelPlacement="outside"
+                        granularity="day"
+                        hideTimeZone
+                        showMonthAndYearPickers
+                        value={toCalendarDateValue(beeModalDueAt)}
+                        onChange={(value) => setBeeModalDueAt(toIsoDateFromCalendar(value))}
+                        variant="flat"
+                        className="flex-1"
+                        classNames={{
+                          inputWrapper: "rounded-sm border border-zinc-200 bg-zinc-100 shadow-none dark:border-white/10 dark:bg-white/5",
+                          input: "font-mono text-sm text-zinc-800 dark:text-zinc-200",
+                          selectorButton: "h-7 w-7 min-w-0 rounded-sm border border-zinc-200 dark:border-white/10 bg-zinc-100 dark:bg-white/5 text-zinc-600 dark:text-zinc-300",
+                          popoverContent: "border border-zinc-200 dark:border-white/10 bg-white dark:bg-[#0d0d0d]",
+                          calendarContent: "bg-white dark:bg-[#0d0d0d]",
+                        }}
+                      />
+                      {beeModalDueAt && (
+                        <Button
+                          size="sm"
+                          variant="light"
+                          className="h-10 min-w-0 rounded-sm border border-zinc-200 dark:border-white/10 px-2 font-mono text-[10px] text-zinc-600 dark:text-zinc-400"
+                          onPress={() => setBeeModalDueAt(null)}
+                        >
+                          Clear
+                        </Button>
+                      )}
+                    </div>
+                    {selectedBeeInsight.alarm_at && (
+                      <p className="text-[12px] text-zinc-500 dark:text-zinc-400">
+                        Prefilled from Bee reminder: {formatScheduledLabel(selectedBeeInsight.alarm_at)}
+                      </p>
+                    )}
+                  </div>
                 </div>
 
                 <Textarea
