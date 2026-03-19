@@ -5,6 +5,7 @@ import { Folder } from "lucide-react";
 import type { Task } from "@/lib/api";
 import { timeAgo } from "@/lib/dates";
 import { resolveAgentAvatarUrl } from "@/lib/agents";
+import { StableImage } from "@/components/shared/stable-image";
 
 const priorityConfig: Record<number, { label: string; color: "default" | "warning" | "danger" }> = {
   0: { label: "", color: "default" },
@@ -44,7 +45,14 @@ export function TaskCard({ task, onClick }: TaskCardProps) {
         {task.assignee && (
           <span className="text-xs text-foreground-400 capitalize flex items-center gap-1.5">
             {assigneeAvatar ? (
-              <img src={assigneeAvatar} alt={task.assignee} className="h-4 w-4 rounded-full object-cover" />
+              <StableImage
+                src={assigneeAvatar}
+                alt={task.assignee}
+                width={16}
+                height={16}
+                fit="cover"
+                className="h-4 w-4 shrink-0 rounded-full"
+              />
             ) : null}
             {task.assignee}
           </span>

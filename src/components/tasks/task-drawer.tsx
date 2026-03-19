@@ -5,6 +5,7 @@ import { useSession } from "next-auth/react";
 import { useSSE } from "@/hooks/use-sse";
 import { Button, Input, Textarea, Select, SelectItem, Chip, Card, CardBody, Modal, ModalContent, ModalHeader, ModalBody, ModalFooter } from "@heroui/react";
 import { MentionTextarea } from "@/components/shared/mention-textarea";
+import { StableImage } from "@/components/shared/stable-image";
 import { X, Trash2, Send, Paperclip, ImagePlus, Folder, Copy, Check, Play, Clock, AlertTriangle } from "lucide-react";
 import { api } from "@/lib/api";
 import type { Task, TaskComment, TaskAttachment, Project, TaskRun } from "@/lib/api";
@@ -446,10 +447,13 @@ export function TaskDrawer({ task, isOpen, onClose, onUpdate }: TaskDrawerProps)
                     className="group relative rounded-md border border-gray-200 dark:border-[#222222] bg-gray-50 dark:bg-[#111111] overflow-hidden cursor-pointer"
                     onClick={() => setLightboxUrl(`/api/mc${a.url.replace(/^\/api/, "")}`)}
                   >
-                    <img
+                    <StableImage
                       src={`/api/mc${a.url.replace(/^\/api/, "")}`}
                       alt={a.filename}
-                      className="w-full h-20 object-cover"
+                      width={160}
+                      height={80}
+                      fit="cover"
+                      className="h-20 w-full"
                       loading="lazy"
                     />
                     <div className="absolute inset-0 bg-black/0 group-hover:bg-black/40 transition-colors" />
@@ -699,7 +703,14 @@ export function TaskDrawer({ task, isOpen, onClose, onUpdate }: TaskDrawerProps)
                     <div className="flex items-center justify-between mb-1.5">
                       <span className="text-xs font-medium text-gray-900 dark:text-white capitalize flex items-center gap-1.5">
                         {resolveAgentAvatarUrl(c.author) ? (
-                          <img src={resolveAgentAvatarUrl(c.author)!} alt={c.author} className="h-5 w-5 rounded-full object-cover" />
+                          <StableImage
+                            src={resolveAgentAvatarUrl(c.author)!}
+                            alt={c.author}
+                            width={20}
+                            height={20}
+                            fit="cover"
+                            className="h-5 w-5 shrink-0 rounded-full"
+                          />
                         ) : null}
                         {c.author}
                       </span>
@@ -878,10 +889,11 @@ export function TaskDrawer({ task, isOpen, onClose, onUpdate }: TaskDrawerProps)
           >
             <X size={24} strokeWidth={1.5} />
           </button>
-          <img
+          <StableImage
             src={lightboxUrl}
             alt="Attachment preview"
-            className="max-w-[90vw] max-h-[90vh] object-contain rounded-lg"
+            fit="contain"
+            className="max-h-[90vh] max-w-[90vw] rounded-lg"
             onClick={(e) => e.stopPropagation()}
           />
         </div>

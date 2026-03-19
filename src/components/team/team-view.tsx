@@ -3,6 +3,7 @@
 import { useState, useEffect, useMemo, useRef } from "react";
 import { parseUTC } from "@/lib/dates";
 import { normalizeAgentId, resolveAgentAvatarUrl } from "@/lib/agents";
+import { StableImage } from "@/components/shared/stable-image";
 import { Button, Card, CardBody, Chip, Modal, ModalBody, ModalContent, ModalFooter, ModalHeader, Tooltip } from "@heroui/react";
 import { Crown, Crosshair, Landmark, Zap, Palette, Bot, Check, Loader2, Minus, CircleHelp, XCircle } from "lucide-react";
 import { useSSE } from "@/hooks/use-sse";
@@ -605,10 +606,13 @@ function AgentCard({
         <div className="flex items-start gap-3">
           {avatarUrl ? (
             <div className="h-10 w-10 flex-shrink-0 overflow-hidden rounded border border-divider">
-              <img
+              <StableImage
                 src={avatarUrl}
                 alt={agent.name}
-                className="h-full w-full object-cover"
+                width={40}
+                height={40}
+                fit="cover"
+                className="h-full w-full"
               />
             </div>
           ) : (

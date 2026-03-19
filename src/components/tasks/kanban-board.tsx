@@ -9,6 +9,7 @@ import { parseUTC } from "@/lib/dates";
 import { KNOWN_AGENT_IDS } from "@/lib/agents";
 import { TaskCard } from "./task-card";
 import { TaskDrawer } from "./task-drawer";
+import { StableImage } from "@/components/shared/stable-image";
 
 import { useRouter, useSearchParams } from "next/navigation";
 
@@ -465,10 +466,13 @@ export function KanbanBoard({ initialTasks, initialProjectId, projects: initialP
                       key={i}
                       className="group relative h-12 w-12 rounded border border-divider bg-gray-50 dark:bg-[#0A0A0A] overflow-hidden"
                     >
-                      <img
+                      <StableImage
                         src={URL.createObjectURL(file)}
                         alt={file.name}
-                        className="h-full w-full object-cover"
+                        width={48}
+                        height={48}
+                        fit="cover"
+                        className="h-full w-full"
                       />
                       <button
                         className="absolute top-0 right-0 p-0.5 bg-black/60 text-white hover:text-red-400 opacity-0 group-hover:opacity-100 transition-opacity"
