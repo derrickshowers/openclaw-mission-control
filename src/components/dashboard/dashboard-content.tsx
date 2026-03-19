@@ -373,10 +373,10 @@ function TeamTaskCard({
   return (
     <Card className={`rounded-md border border-zinc-200 bg-white shadow-none dark:border-white/10 dark:bg-[#080808] ${tone}`}>
       <CardBody className="gap-3 p-4">
-        <div className="flex items-start justify-between gap-3">
-          <div className="min-w-0">
-            <div className="flex flex-wrap items-center gap-2">
-              <h3 className="text-sm font-medium text-zinc-900 dark:text-zinc-100">{task.title}</h3>
+        <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
+          <div className="min-w-0 flex-1">
+            <h3 className="break-words text-sm font-medium text-zinc-900 dark:text-zinc-100">{task.title}</h3>
+            <div className="mt-2 flex flex-wrap items-center gap-2">
               <Chip size="sm" variant="flat" color={statusChipColor(task.status)} className="h-5 text-[10px] uppercase">
                 {task.status.replace("_", " ")}
               </Chip>
@@ -391,12 +391,12 @@ function TeamTaskCard({
               {task.project?.name ? ` • ${task.project.name}` : ""}
             </p>
             {task.description && (
-              <p className="mt-2 line-clamp-2 text-[13px] text-zinc-600 dark:text-zinc-300">
+              <p className="mt-2 line-clamp-2 break-words text-[13px] text-zinc-600 dark:text-zinc-300">
                 {task.description}
               </p>
             )}
           </div>
-          <Button size="sm" variant="flat" className={flatButtonClass} onPress={() => onOpen(task)}>
+          <Button size="sm" variant="flat" className={`${flatButtonClass} w-full sm:w-auto`} onPress={() => onOpen(task)}>
             Open
           </Button>
         </div>
@@ -968,16 +968,16 @@ export function DashboardContent({
                           return (
                             <Card key={task.id} className="rounded-md border border-zinc-200 bg-white shadow-none dark:border-white/10 dark:bg-[#080808]">
                               <CardBody className="gap-3 p-4">
-                                <div className="flex items-start gap-3">
+                                <div className="flex flex-col gap-3 sm:flex-row sm:items-start">
                                   <div className="min-w-0 flex-1">
-                                    <div className="flex flex-wrap items-center gap-2">
-                                      <h3 className="text-sm font-medium text-zinc-900 dark:text-zinc-100">{task.title}</h3>
+                                    <h3 className="break-words text-sm font-medium text-zinc-900 dark:text-zinc-100">{task.title}</h3>
+                                    <div className="mt-2 flex flex-wrap items-center gap-2">
                                       <Chip size="sm" variant="flat" color={statusChipColor(task.status)} className="h-5 whitespace-nowrap text-[10px] uppercase">
                                         {(task.source_status || task.status).replace("_", " ")}
                                       </Chip>
                                       {dueToday && (
                                         <Chip size="sm" variant="flat" color="danger" className="h-5 whitespace-nowrap text-[10px] uppercase">
-                                          <span className="inline-flex items-center gap-1 whitespace-nowrap">
+                                          <span className="inline-flex items-center gap-1 sm:whitespace-nowrap">
                                             <CalendarCheck size={12} />
                                             Due today
                                           </span>
@@ -985,7 +985,7 @@ export function DashboardContent({
                                       )}
                                       {dueTomorrow && (
                                         <Chip size="sm" variant="flat" color="warning" className="h-5 whitespace-nowrap text-[10px] uppercase">
-                                          <span className="inline-flex items-center gap-1 whitespace-nowrap">
+                                          <span className="inline-flex items-center gap-1 sm:whitespace-nowrap">
                                             <TriangleAlert size={12} />
                                             Due tomorrow
                                           </span>
@@ -994,29 +994,29 @@ export function DashboardContent({
                                     </div>
                                     <div className="mt-2 flex flex-wrap items-center gap-x-4 gap-y-1 text-[12px] text-zinc-500">
                                       {task.scheduled_at && (
-                                        <span className="inline-flex items-center gap-1.5 whitespace-nowrap">
+                                        <span className="inline-flex items-center gap-1.5 sm:whitespace-nowrap">
                                           <Clock3 size={13} />
                                           Scheduled {formatScheduledLabel(task.scheduled_at)}
                                         </span>
                                       )}
                                       {task.due_at && (
-                                        <span className={`inline-flex items-center gap-1.5 whitespace-nowrap ${dueToday ? "text-rose-600 dark:text-rose-400" : dueTomorrow ? "text-amber-600 dark:text-amber-400" : "text-zinc-500"}`}>
+                                        <span className={`inline-flex items-center gap-1.5 sm:whitespace-nowrap ${dueToday ? "text-rose-600 dark:text-rose-400" : dueTomorrow ? "text-amber-600 dark:text-amber-400" : "text-zinc-500"}`}>
                                           {dueTomorrow ? <TriangleAlert size={13} /> : <AlertCircle size={13} />}
                                           Due {formatDueLabel(task.due_at, now)}
                                         </span>
                                       )}
                                     </div>
                                     {task.description && (
-                                      <p className="mt-2 line-clamp-3 text-[13px] text-zinc-600 dark:text-zinc-300">
+                                      <p className="mt-2 line-clamp-3 break-words text-[13px] text-zinc-600 dark:text-zinc-300">
                                         {task.description}
                                       </p>
                                     )}
                                   </div>
-                                  <div className="ml-auto flex shrink-0 flex-wrap justify-end gap-2 self-start">
+                                  <div className="flex w-full shrink-0 flex-col gap-2 sm:ml-auto sm:w-auto sm:flex-row sm:flex-wrap sm:justify-end sm:self-start">
                                     <Button
                                       size="sm"
                                       variant="flat"
-                                      className={flatButtonClass}
+                                      className={`${flatButtonClass} w-full sm:w-auto`}
                                       startContent={<Play size={14} />}
                                       onPress={() => void handleStartWork(task)}
                                       isLoading={startingTaskId === task.id}
@@ -1026,7 +1026,7 @@ export function DashboardContent({
                                     <Button
                                       size="sm"
                                       variant="flat"
-                                      className={flatButtonClass}
+                                      className={`${flatButtonClass} w-full sm:w-auto`}
                                       startContent={<SquarePen size={14} />}
                                       onPress={() => setSelectedPersonalTaskId(task.id)}
                                     >
@@ -1058,39 +1058,39 @@ export function DashboardContent({
                         completedTodayPersonalTasks.map((task) => (
                           <Card key={task.id} className="rounded-md border border-emerald-200 bg-emerald-50/80 shadow-none dark:border-emerald-500/30 dark:bg-emerald-500/[0.08]">
                             <CardBody className="gap-3 p-4">
-                              <div className="flex items-start gap-3">
+                              <div className="flex flex-col gap-3 sm:flex-row sm:items-start">
                                 <div className="min-w-0 flex-1">
-                                  <div className="flex flex-wrap items-center gap-2">
-                                    <h3 className="text-sm font-medium text-emerald-900 dark:text-emerald-100">{task.title}</h3>
+                                  <h3 className="break-words text-sm font-medium text-emerald-900 dark:text-emerald-100">{task.title}</h3>
+                                  <div className="mt-2 flex flex-wrap items-center gap-2">
                                     <Chip size="sm" variant="flat" color="success" className="h-5 whitespace-nowrap text-[10px] uppercase">
                                       {(task.source_status || task.status).replace("_", " ")}
                                     </Chip>
                                   </div>
                                   <div className="mt-2 flex flex-wrap items-center gap-x-4 gap-y-1 text-[12px] text-emerald-700 dark:text-emerald-200">
                                     {task.scheduled_at && (
-                                      <span className="inline-flex items-center gap-1.5 whitespace-nowrap">
+                                      <span className="inline-flex items-center gap-1.5 sm:whitespace-nowrap">
                                         <Clock3 size={13} />
                                         Scheduled {formatScheduledLabel(task.scheduled_at)}
                                       </span>
                                     )}
                                     {task.due_at && (
-                                      <span className="inline-flex items-center gap-1.5 whitespace-nowrap">
+                                      <span className="inline-flex items-center gap-1.5 sm:whitespace-nowrap">
                                         <AlertCircle size={13} />
                                         Due {formatDueLabel(task.due_at, now)}
                                       </span>
                                     )}
                                   </div>
                                   {task.description && (
-                                    <p className="mt-2 line-clamp-3 text-[13px] text-emerald-800/90 dark:text-emerald-100/85">
+                                    <p className="mt-2 line-clamp-3 break-words text-[13px] text-emerald-800/90 dark:text-emerald-100/85">
                                       {task.description}
                                     </p>
                                   )}
                                 </div>
-                                <div className="ml-auto flex shrink-0 flex-wrap justify-end gap-2 self-start">
+                                <div className="flex w-full shrink-0 flex-col gap-2 sm:ml-auto sm:w-auto sm:flex-row sm:flex-wrap sm:justify-end sm:self-start">
                                   <Button
                                     size="sm"
                                     variant="flat"
-                                    className={flatButtonClass}
+                                    className={`${flatButtonClass} w-full sm:w-auto`}
                                     startContent={<SquarePen size={14} />}
                                     onPress={() => setSelectedPersonalTaskId(task.id)}
                                   >
