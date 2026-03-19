@@ -54,6 +54,7 @@ const PRIORITIES = [
 
 const FALLBACK_STATUS_OPTIONS = [
   { source: "To Do", canonical: "backlog" as const },
+  { source: "To Do (Someday)", canonical: "backlog" as const },
   { source: "In Progress", canonical: "in_progress" as const },
   { source: "Blocked", canonical: "blocked" as const },
   { source: "Done", canonical: "done" as const },
@@ -111,37 +112,85 @@ function toIsoDateFromCalendar(value: DateValue | null): string | null {
   return value.toString();
 }
 
-function getStatusOptions(task: PersonalTaskDetail | null) {
-  const properties = task?.raw_payload?.properties;
-  if (!properties || typeof properties !== "object") {
-    return FALLBACK_STATUS_OPTIONS;
+function dedupeStatusOptions(sources: Array<string | null | undefined>) {
+  const seen = new Set<string>();
+  const options: Array<{ source: string; canonical: ReturnType<typeof normalizeSourceStatus> }> = [];
+
+  for (const rawSource of sources) {
+    const source = String(rawSource || "").trim();
+    if (!source) continue;
+
+    const key = source.toLowerCase();
+    if (seen.has(key)) continue;
+    seen.add(key);
+    options.push({ source, canonical: normalizeSourceStatus(source) });
   }
+
+  return options;
+}
+
+function extractCurrentSourceStatus(task: PersonalTaskDetail | null) {
+  if (!task) return "";
+  if (task.source_status?.trim()) return task.source_status.trim();
+
+  const properties = task.raw_payload?.properties;
+  if (!properties || typeof properties !== "object") return "";
 
   for (const property of Object.values(properties as Record<string, any>)) {
     if (property?.type === "status") {
-      const options = property?.status?.options;
-      if (Array.isArray(options) && options.length > 0) {
-        return options
-          .map((option: any) => String(option?.name || "").trim())
-          .filter(Boolean)
-          .map((source) => ({ source, canonical: normalizeSourceStatus(source) }));
-      }
+      const name = String(property?.status?.name || "").trim();
+      if (name) return name;
     }
   }
 
   for (const [name, property] of Object.entries(properties as Record<string, any>)) {
     if (property?.type === "select" && name.toLowerCase().includes("status")) {
-      const options = property?.select?.options;
-      if (Array.isArray(options) && options.length > 0) {
-        return options
-          .map((option: any) => String(option?.name || "").trim())
-          .filter(Boolean)
-          .map((source) => ({ source, canonical: normalizeSourceStatus(source) }));
+      const value = String(property?.select?.name || "").trim();
+      if (value) return value;
+    }
+  }
+
+  return "";
+}
+
+function getStatusOptions(task: PersonalTaskDetail | null) {
+  const currentSourceStatus = extractCurrentSourceStatus(task);
+  const properties = task?.raw_payload?.properties;
+  const schemaOptions: string[] = [];
+
+  if (properties && typeof properties === "object") {
+    for (const property of Object.values(properties as Record<string, any>)) {
+      if (property?.type === "status") {
+        const options = property?.status?.options;
+        if (Array.isArray(options)) {
+          schemaOptions.push(
+            ...options
+              .map((option: any) => String(option?.name || "").trim())
+              .filter(Boolean)
+          );
+        }
+      }
+    }
+
+    for (const [name, property] of Object.entries(properties as Record<string, any>)) {
+      if (property?.type === "select" && name.toLowerCase().includes("status")) {
+        const options = property?.select?.options;
+        if (Array.isArray(options)) {
+          schemaOptions.push(
+            ...options
+              .map((option: any) => String(option?.name || "").trim())
+              .filter(Boolean)
+          );
+        }
       }
     }
   }
 
-  return FALLBACK_STATUS_OPTIONS;
+  return dedupeStatusOptions([
+    currentSourceStatus,
+    ...schemaOptions,
+    ...FALLBACK_STATUS_OPTIONS.map((option) => option.source),
+  ]);
 }
 
 export function PersonalTaskDrawer({ taskId, isOpen, onClose, onPromoted, onTaskUpdated }: PersonalTaskDrawerProps) {
@@ -169,7 +218,10 @@ export function PersonalTaskDrawer({ taskId, isOpen, onClose, onPromoted, onTask
   const statusOptions = useMemo(() => getStatusOptions(task), [task]);
   const selectedSourceStatus = useMemo(() => {
     if (!task) return "";
-    if (task.source_status) return task.source_status;
+
+    const currentSourceStatus = extractCurrentSourceStatus(task);
+    if (currentSourceStatus) return currentSourceStatus;
+
     const fallback = statusOptions.find((option) => option.canonical === task.status);
     return fallback?.source || task.status;
   }, [task, statusOptions]);
@@ -368,6 +420,7 @@ export function PersonalTaskDrawer({ taskId, isOpen, onClose, onPromoted, onTask
                   <div className="flex items-center text-zinc-500">Status</div>
                   <div className="flex items-center">
                     <Select
+                      key={`${task.id}:${selectedSourceStatus}`}
                       disallowEmptySelection
                       size="sm"
                       variant="flat"

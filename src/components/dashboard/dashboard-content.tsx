@@ -428,6 +428,8 @@ export function DashboardContent({ tasks: initialTasks, agents, personalTasks: i
   const [todayLoading, setTodayLoading] = useState(true);
   const [creatingTask, setCreatingTask] = useState(false);
   const [startingTaskId, setStartingTaskId] = useState<string | null>(null);
+  const [isCreateTaskModalOpen, setIsCreateTaskModalOpen] = useState(false);
+  const [createTaskError, setCreateTaskError] = useState<string | null>(null);
   const [newTaskTitle, setNewTaskTitle] = useState("");
   const [newTaskScheduledAt, setNewTaskScheduledAt] = useState(toLocalDateKey(new Date()));
   const [newTaskDueAt, setNewTaskDueAt] = useState(nextFridayDateKey());
@@ -528,6 +530,17 @@ export function DashboardContent({ tasks: initialTasks, agents, personalTasks: i
     setBeeModalError(null);
     setBeeSubmitting(false);
   }, []);
+
+  const openCreateTaskModal = useCallback(() => {
+    setCreateTaskError(null);
+    setIsCreateTaskModalOpen(true);
+  }, []);
+
+  const closeCreateTaskModal = useCallback(() => {
+    if (creatingTask) return;
+    setCreateTaskError(null);
+    setIsCreateTaskModalOpen(false);
+  }, [creatingTask]);
 
   const handleAddInsightToNotion = useCallback((insight: BeeInsight) => {
     setSelectedBeeInsight(insight);
@@ -654,7 +667,10 @@ export function DashboardContent({ tasks: initialTasks, agents, personalTasks: i
   const handleCreateTask = async () => {
     const title = newTaskTitle.trim();
     if (!title) return;
+
     setCreatingTask(true);
+    setCreateTaskError(null);
+
     try {
       const created = await api.createPersonalTask({
         title,
@@ -666,8 +682,11 @@ export function DashboardContent({ tasks: initialTasks, agents, personalTasks: i
       setNewTaskNotes("");
       setNewTaskScheduledAt(toLocalDateKey(new Date()));
       setNewTaskDueAt(nextFridayDateKey());
+      setIsCreateTaskModalOpen(false);
       await refreshPersonalTasks();
       setSelectedPersonalTaskId(created.id);
+    } catch (error) {
+      setCreateTaskError(error instanceof Error ? error.message : "Failed to create Notion task.");
     } finally {
       setCreatingTask(false);
     }
@@ -856,69 +875,21 @@ export function DashboardContent({ tasks: initialTasks, agents, personalTasks: i
       <div className="grid gap-4 xl:grid-cols-[1.45fr_0.95fr]">
         <div className="space-y-4">
           <section className="space-y-3">
-            <div>
-              <h2 className="text-[11px] font-mono uppercase tracking-[0.14em] text-zinc-500">Notion Tasks</h2>
-              <p className="mt-1 text-[13px] text-zinc-500">Scheduled today, plus unscheduled work due in the next 7 days.</p>
+            <div className="flex flex-col gap-3 sm:flex-row sm:items-end sm:justify-between">
+              <div>
+                <h2 className="text-[11px] font-mono uppercase tracking-[0.14em] text-zinc-500">Notion Tasks</h2>
+                <p className="mt-1 text-[13px] text-zinc-500">Scheduled today, plus unscheduled work due in the next 7 days.</p>
+              </div>
+              <Button
+                size="sm"
+                color="primary"
+                className="rounded-sm"
+                startContent={<NotebookPen size={14} />}
+                onPress={openCreateTaskModal}
+              >
+                Add to Notion
+              </Button>
             </div>
-
-            <Card className="rounded-md border border-zinc-200 bg-white shadow-none dark:border-white/10 dark:bg-[#080808]">
-              <CardBody className="gap-3 p-4">
-                <Input
-                  value={newTaskTitle}
-                  onValueChange={setNewTaskTitle}
-                  placeholder="Create a new Notion task…"
-                  variant="flat"
-                  classNames={{
-                    inputWrapper: "rounded-sm border border-zinc-200 bg-zinc-100 shadow-none dark:border-white/10 dark:bg-white/5",
-                  }}
-                  onKeyDown={(event) => {
-                    if (event.key === "Enter" && !event.shiftKey) {
-                      event.preventDefault();
-                      void handleCreateTask();
-                    }
-                  }}
-                />
-                <div className="grid gap-3 md:grid-cols-2">
-                  <Input
-                    type="date"
-                    label="Scheduled"
-                    labelPlacement="outside"
-                    value={newTaskScheduledAt}
-                    onValueChange={setNewTaskScheduledAt}
-                    variant="flat"
-                    classNames={{
-                      inputWrapper: "rounded-sm border border-zinc-200 bg-zinc-100 shadow-none dark:border-white/10 dark:bg-white/5",
-                    }}
-                  />
-                  <Input
-                    type="date"
-                    label="Due"
-                    labelPlacement="outside"
-                    value={newTaskDueAt}
-                    onValueChange={setNewTaskDueAt}
-                    variant="flat"
-                    classNames={{
-                      inputWrapper: "rounded-sm border border-zinc-200 bg-zinc-100 shadow-none dark:border-white/10 dark:bg-white/5",
-                    }}
-                  />
-                </div>
-                <Textarea
-                  minRows={2}
-                  value={newTaskNotes}
-                  onValueChange={setNewTaskNotes}
-                  placeholder="Optional notes..."
-                  variant="flat"
-                  classNames={{
-                    inputWrapper: "rounded-sm border border-zinc-200 bg-zinc-100 shadow-none dark:border-white/10 dark:bg-white/5",
-                  }}
-                />
-                <div className="flex justify-end">
-                  <Button color="primary" className="min-w-[96px] rounded-sm" onPress={handleCreateTask} isLoading={creatingTask}>
-                    Add
-                  </Button>
-                </div>
-              </CardBody>
-            </Card>
 
             <div className="space-y-4">
               {todayPersonalTasks.length === 0 ? (
@@ -1166,6 +1137,85 @@ export function DashboardContent({ tasks: initialTasks, agents, personalTasks: i
 
         </div>
       </div>
+
+      <Modal
+        isOpen={isCreateTaskModalOpen}
+        onClose={closeCreateTaskModal}
+        className="bg-white text-foreground dark:bg-[#121212] dark:text-white"
+      >
+        <ModalContent>
+          <ModalHeader className="border-b border-divider text-sm dark:border-white/10">Add to Notion</ModalHeader>
+          <ModalBody className="space-y-4 py-4">
+            <Input
+              label="Title"
+              labelPlacement="outside"
+              value={newTaskTitle}
+              onValueChange={setNewTaskTitle}
+              placeholder="Create a new Notion task…"
+              variant="flat"
+              classNames={{
+                inputWrapper: "rounded-sm border border-zinc-200 bg-zinc-100 shadow-none dark:border-white/10 dark:bg-white/5",
+              }}
+              onKeyDown={(event) => {
+                if (event.key === "Enter" && !event.shiftKey) {
+                  event.preventDefault();
+                  void handleCreateTask();
+                }
+              }}
+            />
+
+            <div className="grid gap-3 md:grid-cols-2">
+              <Input
+                type="date"
+                label="Scheduled"
+                labelPlacement="outside"
+                value={newTaskScheduledAt}
+                onValueChange={setNewTaskScheduledAt}
+                variant="flat"
+                classNames={{
+                  inputWrapper: "rounded-sm border border-zinc-200 bg-zinc-100 shadow-none dark:border-white/10 dark:bg-white/5",
+                }}
+              />
+              <Input
+                type="date"
+                label="Due"
+                labelPlacement="outside"
+                value={newTaskDueAt}
+                onValueChange={setNewTaskDueAt}
+                variant="flat"
+                classNames={{
+                  inputWrapper: "rounded-sm border border-zinc-200 bg-zinc-100 shadow-none dark:border-white/10 dark:bg-white/5",
+                }}
+              />
+            </div>
+
+            <Textarea
+              minRows={3}
+              label="Notes"
+              labelPlacement="outside"
+              value={newTaskNotes}
+              onValueChange={setNewTaskNotes}
+              placeholder="Optional notes..."
+              variant="flat"
+              classNames={{
+                inputWrapper: "rounded-sm border border-zinc-200 bg-zinc-100 shadow-none dark:border-white/10 dark:bg-white/5",
+              }}
+            />
+
+            {createTaskError && (
+              <p className="text-[13px] text-rose-600 dark:text-rose-400">{createTaskError}</p>
+            )}
+          </ModalBody>
+          <ModalFooter className="border-t border-divider dark:border-white/10">
+            <Button size="sm" variant="flat" onPress={closeCreateTaskModal} isDisabled={creatingTask}>
+              Cancel
+            </Button>
+            <Button size="sm" color="primary" onPress={handleCreateTask} isLoading={creatingTask}>
+              Add to Notion
+            </Button>
+          </ModalFooter>
+        </ModalContent>
+      </Modal>
 
       <Modal
         isOpen={!!selectedBeeInsight}
