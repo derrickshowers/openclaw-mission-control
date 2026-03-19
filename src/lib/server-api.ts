@@ -2,12 +2,13 @@
 // Used by server components that can't go through Next.js API routes
 // (middleware blocks internal server-to-server calls that lack a session cookie)
 
-import type { PersonalTask, PersonalTaskSummary, Project, Task } from "./api";
+import type { BrainChannelSummary, PersonalTask, PersonalTaskSummary, Project, Task, TodayNonNegotiable } from "./api";
+import type { TodayUsageBreakdownRow } from "./today-dashboard";
 
 const API_URL = process.env.MISSION_API_URL || "http://localhost:3001";
 const API_KEY = process.env.MISSION_API_KEY || "";
 
-async function serverFetch<T = any>(path: string): Promise<T> {
+async function serverFetch<T = unknown>(path: string): Promise<T> {
   const res = await fetch(`${API_URL}/api${path}`, {
     headers: { Authorization: `Bearer ${API_KEY}` },
     cache: "no-store",
@@ -57,10 +58,21 @@ export const serverApi = {
     return serverFetch<PersonalTask[]>(`/personal-tasks${qs ? `?${qs}` : ""}`);
   },
   getPersonalTaskSummary: () => serverFetch<PersonalTaskSummary>("/personal-tasks?summary=1"),
-  getAgents: () => serverFetch<any[]>("/agents"),
-  getStatus: () => serverFetch<any>("/system/status"),
+  getTodayNonNegotiables: (params?: { date?: string }) => {
+    const searchParams = new URLSearchParams();
+    if (params?.date) searchParams.set("date", params.date);
+    const qs = searchParams.toString();
+    return serverFetch<TodayNonNegotiable[]>(`/today/non-negotiables${qs ? `?${qs}` : ""}`);
+  },
+  getBrainChannels: () => serverFetch<BrainChannelSummary[]>("/today/brain-channels"),
+  getUsageBreakdown: (params: { start: string; end: string }) => {
+    const searchParams = new URLSearchParams({ start: params.start, end: params.end });
+    return serverFetch<TodayUsageBreakdownRow[]>(`/usage/breakdown?${searchParams.toString()}`);
+  },
+  getAgents: () => serverFetch<unknown[]>("/agents"),
+  getStatus: () => serverFetch<unknown>("/system/status"),
   getActivity: (params?: { limit?: string }) => {
     const qs = params?.limit ? `?limit=${params.limit}` : "";
-    return serverFetch<any[]>(`/activity${qs}`);
+    return serverFetch<unknown[]>(`/activity${qs}`);
   },
 };

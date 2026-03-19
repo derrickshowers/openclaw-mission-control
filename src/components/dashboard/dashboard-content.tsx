@@ -26,31 +26,28 @@ import {
 } from "@/lib/api";
 import { parseUTC, timeAgo } from "@/lib/dates";
 import { useSSE } from "@/hooks/use-sse";
+import {
+  formatCompactNumber,
+  formatUsd,
+  normalizeTodayUsage,
+  readTodayDashboardCache,
+  startOfLocalDay,
+  toLocalDateKey,
+  writeTodayDashboardCache,
+  type TodayDashboardSnapshot,
+} from "@/lib/today-dashboard";
 import { TaskDrawer } from "@/components/tasks/task-drawer";
 import { PersonalTaskDrawer } from "@/components/tasks/personal-task-drawer";
 import { BrainChannelDrawer } from "./brain-channel-drawer";
 
 interface DashboardContentProps {
   tasks: Task[];
-  agents: any[];
   personalTasks: PersonalTask[];
+  initialTodaySnapshot?: TodayDashboardSnapshot | null;
 }
 
 const flatButtonClass =
   "rounded-sm border border-zinc-200 bg-zinc-100 text-zinc-800 dark:border-white/10 dark:bg-white/5 dark:text-zinc-200";
-
-function toLocalDateKey(date: Date) {
-  const y = date.getFullYear();
-  const m = String(date.getMonth() + 1).padStart(2, "0");
-  const d = String(date.getDate()).padStart(2, "0");
-  return `${y}-${m}-${d}`;
-}
-
-function startOfLocalDay(date: Date) {
-  const d = new Date(date);
-  d.setHours(0, 0, 0, 0);
-  return d;
-}
 
 function addLocalDays(date: Date, days: number) {
   const d = new Date(date);
@@ -202,23 +199,6 @@ function isWithinNextSevenDays(dateValue: string | null | undefined, now: Date) 
 function isDueTomorrow(dateValue: string | null | undefined, now: Date) {
   if (!dateValue) return false;
   return isSameLocalDay(dateValue, addLocalDays(now, 1));
-}
-
-function providerFromModel(model: string) {
-  if (!model) return "other";
-  if (model.includes("/")) return model.split("/")[0];
-  return model.split("-")[0] || "other";
-}
-
-function formatCompactNumber(value: number) {
-  if (value >= 1_000_000) return `${(value / 1_000_000).toFixed(1)}M`;
-  if (value >= 1_000) return `${(value / 1_000).toFixed(1)}K`;
-  return String(Math.round(value));
-}
-
-function formatUsd(value: number) {
-  if (value < 0.01) return `$${value.toFixed(4)}`;
-  return `$${value.toFixed(2)}`;
 }
 
 function toCalendarDateValue(dateValue: string | null | undefined): DateValue | null {
@@ -425,18 +405,28 @@ function TeamTaskCard({
   );
 }
 
-export function DashboardContent({ tasks: initialTasks, agents, personalTasks: initialPersonalTasks }: DashboardContentProps) {
+export function DashboardContent({
+  tasks: initialTasks,
+  personalTasks: initialPersonalTasks,
+  initialTodaySnapshot,
+}: DashboardContentProps) {
   const [tasks, setTasks] = useState<Task[]>(initialTasks);
   const [personalTasks, setPersonalTasks] = useState<PersonalTask[]>(initialPersonalTasks);
   const [selectedTask, setSelectedTask] = useState<Task | null>(null);
   const [selectedPersonalTaskId, setSelectedPersonalTaskId] = useState<string | null>(null);
   const [selectedBrainChannelId, setSelectedBrainChannelId] = useState<string | null>(null);
-  const [nonNegotiables, setNonNegotiables] = useState<TodayNonNegotiable[]>([]);
-  const [brainChannels, setBrainChannels] = useState<BrainChannelSummary[]>([]);
+  const [nonNegotiables, setNonNegotiables] = useState<TodayNonNegotiable[]>(initialTodaySnapshot?.nonNegotiables ?? []);
+  const [brainChannels, setBrainChannels] = useState<BrainChannelSummary[]>(initialTodaySnapshot?.brainChannels ?? []);
   const [beeInsights, setBeeInsights] = useState<BeeInsight[]>([]);
   const [beeInsightsLoading, setBeeInsightsLoading] = useState(true);
-  const [usageByProvider, setUsageByProvider] = useState<Array<{ provider: string; tokens: number; cost: number }>>([]);
-  const [todayLoading, setTodayLoading] = useState(true);
+  const [usageByProvider, setUsageByProvider] = useState(initialTodaySnapshot?.usageByProvider ?? []);
+  const [todayLoading, setTodayLoading] = useState(!initialTodaySnapshot);
+  const [todayRefreshing, setTodayRefreshing] = useState(false);
+  const [todaySyncing, setTodaySyncing] = useState(false);
+  const [todaySnapshotAt, setTodaySnapshotAt] = useState<string | null>(initialTodaySnapshot?.fetchedAt ?? null);
+  const [todaySnapshotSource, setTodaySnapshotSource] = useState<"server" | "cache" | "network" | null>(
+    initialTodaySnapshot ? "server" : null,
+  );
   const [creatingTask, setCreatingTask] = useState(false);
   const [startingTaskId, setStartingTaskId] = useState<string | null>(null);
   const [isCreateTaskModalOpen, setIsCreateTaskModalOpen] = useState(false);
@@ -466,13 +456,27 @@ export function DashboardContent({ tasks: initialTasks, agents, personalTasks: i
     setPersonalTasks(rows);
   }, []);
 
+  const applyTodaySnapshot = useCallback(
+    (snapshot: TodayDashboardSnapshot, source: "server" | "cache" | "network") => {
+      setNonNegotiables(snapshot.nonNegotiables);
+      setBrainChannels(snapshot.brainChannels);
+      setUsageByProvider(snapshot.usageByProvider);
+      setTodaySnapshotAt(snapshot.fetchedAt);
+      setTodaySnapshotSource(source);
+      setTodayLoading(false);
+    },
+    [],
+  );
+
   const refreshTodayData = useCallback(async ({ silent = false }: { silent?: boolean } = {}) => {
     const now = new Date();
     const today = toLocalDateKey(now);
     const start = startOfLocalDay(now).toISOString();
     const end = now.toISOString();
 
-    if (!silent) {
+    if (silent) {
+      setTodayRefreshing(true);
+    } else {
       setTodayLoading(true);
     }
 
@@ -485,42 +489,42 @@ export function DashboardContent({ tasks: initialTasks, agents, personalTasks: i
           .catch(() => []),
       ]);
 
-      setNonNegotiables(nonNegotiableRows);
-      setBrainChannels(brainChannelRows);
+      const snapshot: TodayDashboardSnapshot = {
+        dayKey: today,
+        fetchedAt: new Date().toISOString(),
+        nonNegotiables: nonNegotiableRows,
+        brainChannels: brainChannelRows,
+        usageByProvider: normalizeTodayUsage(usageRows),
+      };
 
-      const grouped = new Map<string, { provider: string; tokens: number; cost: number }>();
-      for (const row of Array.isArray(usageRows) ? usageRows : []) {
-        const provider = providerFromModel(String(row.model || "other"));
-        const entry = grouped.get(provider) || { provider, tokens: 0, cost: 0 };
-        const totalTokens =
-          row.total_tokens !== undefined
-            ? Number(row.total_tokens || 0)
-            : Number(row.input_tokens || 0) + Number(row.cached_input_tokens || 0) + Number(row.output_tokens || 0);
-        entry.tokens += totalTokens;
-        entry.cost += Number(row.cost_usd || 0);
-        grouped.set(provider, entry);
-      }
-
-      setUsageByProvider(Array.from(grouped.values()).sort((a, b) => b.cost - a.cost || b.tokens - a.tokens));
+      applyTodaySnapshot(snapshot, "network");
+      writeTodayDashboardCache(snapshot);
     } finally {
-      if (!silent) {
-        setTodayLoading(false);
-      }
+      setTodayLoading(false);
+      setTodayRefreshing(false);
     }
-  }, []);
+  }, [applyTodaySnapshot]);
 
   const refreshTodayFromNotion = useCallback(
     async ({ runType = "incremental", silent = true }: { runType?: "incremental" | "full"; silent?: boolean } = {}) => {
-      try {
-        await api.syncPersonalTasks(runType);
-      } catch {
-        // Fall through and still refresh what we can.
+      if (silent) {
+        setTodaySyncing(true);
       }
 
-      await Promise.all([
-        refreshPersonalTasks(),
-        refreshTodayData({ silent }),
-      ]);
+      try {
+        try {
+          await api.syncPersonalTasks(runType);
+        } catch {
+          // Fall through and still refresh what we can.
+        }
+
+        await Promise.all([
+          refreshPersonalTasks(),
+          refreshTodayData({ silent }),
+        ]);
+      } finally {
+        setTodaySyncing(false);
+      }
     },
     [refreshPersonalTasks, refreshTodayData],
   );
@@ -593,8 +597,18 @@ export function DashboardContent({ tasks: initialTasks, agents, personalTasks: i
   }, []);
 
   useEffect(() => {
-    void refreshTodayFromNotion({ runType: "full", silent: false });
-  }, [refreshTodayFromNotion]);
+    const today = toLocalDateKey(new Date());
+    const cachedSnapshot = readTodayDashboardCache(today);
+    const serverFetchedAt = initialTodaySnapshot ? Date.parse(initialTodaySnapshot.fetchedAt) : 0;
+    const cachedFetchedAt = cachedSnapshot ? Date.parse(cachedSnapshot.fetchedAt) : 0;
+
+    if (cachedSnapshot && (!initialTodaySnapshot || cachedFetchedAt > serverFetchedAt)) {
+      applyTodaySnapshot(cachedSnapshot, "cache");
+    }
+
+    void refreshTodayData({ silent: !!(initialTodaySnapshot || cachedSnapshot) });
+    void refreshTodayFromNotion({ runType: "full", silent: true });
+  }, [applyTodaySnapshot, initialTodaySnapshot, refreshTodayData, refreshTodayFromNotion]);
 
   useEffect(() => {
     void refreshBeeInsights();
@@ -651,6 +665,21 @@ export function DashboardContent({ tasks: initialTasks, agents, personalTasks: i
   }, [lastEvent, refreshPersonalTasks, refreshTeamTasks, refreshTodayData]);
 
   const now = new Date();
+  const todaySnapshotStatus = useMemo(() => {
+    const isRefreshing = todayRefreshing || todaySyncing;
+    if (todayLoading && !todaySnapshotAt) return null;
+    if (isRefreshing && todaySnapshotSource === "cache") {
+      return "Showing cached Today data while Notion refreshes in the background.";
+    }
+    if (isRefreshing) {
+      return "Refreshing Today data in the background.";
+    }
+    if (todaySnapshotAt) {
+      return `Updated ${timeAgo(todaySnapshotAt)}.`;
+    }
+    return null;
+  }, [todayLoading, todayRefreshing, todaySyncing, todaySnapshotAt, todaySnapshotSource]);
+
   const blockedTasks = useMemo(() => {
     return sortTasksByUpdatedDesc(tasks.filter((task) => task.status === "blocked" && !!task.assignee)).slice(0, 6);
   }, [tasks]);
@@ -749,6 +778,16 @@ export function DashboardContent({ tasks: initialTasks, agents, personalTasks: i
               End of Day Follow-ups
             </Button>
           )}
+        </div>
+      )}
+
+      {todaySnapshotStatus && (
+        <div className="flex flex-wrap items-center justify-between gap-2 rounded-md border border-zinc-200 bg-zinc-50 px-3 py-2 text-[12px] text-zinc-600 dark:border-white/10 dark:bg-white/[0.03] dark:text-zinc-300">
+          <span className="inline-flex items-center gap-2">
+            <Clock3 size={13} className="text-zinc-500 dark:text-zinc-400" />
+            {todaySnapshotStatus}
+          </span>
+          {(todayRefreshing || todaySyncing) && <Spinner size="sm" />}
         </div>
       )}
 
