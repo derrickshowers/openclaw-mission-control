@@ -196,6 +196,11 @@ function isWithinNextSevenDays(dateValue: string | null | undefined, now: Date) 
   return value >= start && value < end;
 }
 
+function isOverdue(dateValue: string | null | undefined, now: Date) {
+  const diff = dayDiffFromNow(dateValue, now);
+  return diff !== null && diff < 0;
+}
+
 function isDueTomorrow(dateValue: string | null | undefined, now: Date) {
   if (!dateValue) return false;
   return isSameLocalDay(dateValue, addLocalDays(now, 1));
@@ -690,7 +695,11 @@ export function DashboardContent({
 
   const todayPersonalTasks = useMemo(() => {
     return [...personalTasks]
-      .filter((task) => isSameLocalDay(task.scheduled_at, now) || (!task.scheduled_at && isWithinNextSevenDays(task.due_at, now)))
+      .filter(
+        (task) =>
+          isSameLocalDay(task.scheduled_at, now) ||
+          (!task.scheduled_at && (isWithinNextSevenDays(task.due_at, now) || isOverdue(task.due_at, now)))
+      )
       .sort(compareTodayPersonalTasks);
   }, [personalTasks, now]);
 
@@ -962,8 +971,10 @@ export function DashboardContent({
                         </Card>
                       ) : (
                         openTodayPersonalTasks.map((task) => {
-                          const dueToday = isSameLocalDay(task.due_at, now);
-                          const dueTomorrow = !dueToday && isDueTomorrow(task.due_at, now);
+                          const overdue = isOverdue(task.due_at, now);
+                          const dueToday = !overdue && isSameLocalDay(task.due_at, now);
+                          const dueTomorrow = !overdue && !dueToday && isDueTomorrow(task.due_at, now);
+                          const upcomingDue = !!task.due_at && !overdue && !dueToday;
 
                           return (
                             <Card key={task.id} className="rounded-md border border-zinc-200 bg-white shadow-none dark:border-white/10 dark:bg-[#080808]">
@@ -975,6 +986,14 @@ export function DashboardContent({
                                       <Chip size="sm" variant="flat" color={statusChipColor(task.status)} className="h-5 whitespace-nowrap text-[10px] uppercase">
                                         {(task.source_status || task.status).replace("_", " ")}
                                       </Chip>
+                                      {overdue && (
+                                        <Chip size="sm" variant="flat" color="danger" className="h-5 whitespace-nowrap text-[10px] uppercase">
+                                          <span className="inline-flex items-center gap-1 whitespace-nowrap">
+                                            <AlertCircle size={12} />
+                                            Overdue
+                                          </span>
+                                        </Chip>
+                                      )}
                                       {dueToday && (
                                         <Chip size="sm" variant="flat" color="danger" className="h-5 whitespace-nowrap text-[10px] uppercase">
                                           <span className="inline-flex items-center gap-1 sm:whitespace-nowrap">
@@ -1000,8 +1019,8 @@ export function DashboardContent({
                                         </span>
                                       )}
                                       {task.due_at && (
-                                        <span className={`inline-flex items-center gap-1.5 sm:whitespace-nowrap ${dueToday ? "text-rose-600 dark:text-rose-400" : dueTomorrow ? "text-amber-600 dark:text-amber-400" : "text-zinc-500"}`}>
-                                          {dueTomorrow ? <TriangleAlert size={13} /> : <AlertCircle size={13} />}
+                                        <span className={`inline-flex items-center gap-1.5 sm:whitespace-nowrap ${overdue || dueToday ? "text-rose-600 dark:text-rose-400" : upcomingDue ? "text-amber-600 dark:text-amber-400" : "text-zinc-500"}`}>
+                                          {upcomingDue ? <TriangleAlert size={13} /> : <AlertCircle size={13} />}
                                           Due {formatDueLabel(task.due_at, now)}
                                         </span>
                                       )}
