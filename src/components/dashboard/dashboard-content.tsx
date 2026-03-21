@@ -974,7 +974,6 @@ export function DashboardContent({
                           const overdue = isOverdue(task.due_at, now);
                           const dueToday = !overdue && isSameLocalDay(task.due_at, now);
                           const dueTomorrow = !overdue && !dueToday && isDueTomorrow(task.due_at, now);
-                          const upcomingDue = !!task.due_at && !overdue && !dueToday;
 
                           return (
                             <Card key={task.id} className="rounded-md border border-zinc-200 bg-white shadow-none dark:border-white/10 dark:bg-[#080808]">
@@ -1019,8 +1018,8 @@ export function DashboardContent({
                                         </span>
                                       )}
                                       {task.due_at && (
-                                        <span className={`inline-flex items-center gap-1.5 sm:whitespace-nowrap ${overdue || dueToday ? "text-rose-600 dark:text-rose-400" : upcomingDue ? "text-amber-600 dark:text-amber-400" : "text-zinc-500"}`}>
-                                          {upcomingDue ? <TriangleAlert size={13} /> : <AlertCircle size={13} />}
+                                        <span className={`inline-flex items-center gap-1.5 sm:whitespace-nowrap ${overdue || dueToday ? "text-rose-600 dark:text-rose-400" : dueTomorrow ? "text-amber-600 dark:text-amber-400" : "text-zinc-500"}`}>
+                                          {dueTomorrow ? <TriangleAlert size={13} /> : <AlertCircle size={13} />}
                                           Due {formatDueLabel(task.due_at, now)}
                                         </span>
                                       )}

@@ -54,6 +54,7 @@ interface PersonalTaskListProps {
 interface TaskMeta {
   scheduledToday: boolean;
   dueToday: boolean;
+  dueTomorrow: boolean;
   dueWithinNext7: boolean;
   dueSoonUnscheduled: boolean;
   overdue: boolean;
@@ -66,6 +67,7 @@ interface TaskMeta {
 const EMPTY_META: TaskMeta = {
   scheduledToday: false,
   dueToday: false,
+  dueTomorrow: false,
   dueWithinNext7: false,
   dueSoonUnscheduled: false,
   overdue: false,
@@ -110,6 +112,7 @@ function getTaskMeta(task: PersonalTask, now: Date): TaskMeta {
 
   const scheduledToday = !!scheduled && isSameDay(scheduled, now);
   const dueToday = !!due && isSameDay(due, now) && !isDone;
+  const dueTomorrow = !!due && isSameDay(due, addDays(now, 1)) && !isDone;
   const overdue = !!due && due < todayStart && !isDone;
   const dueWithinNext7 = !!due && due >= todayStart && due < nextWeekExclusive && !isDone;
   const dueSoonUnscheduled = !!due && due > todayStart && due < nextWeekExclusive && !scheduledToday && !isDone;
@@ -131,6 +134,7 @@ function getTaskMeta(task: PersonalTask, now: Date): TaskMeta {
   return {
     scheduledToday,
     dueToday,
+    dueTomorrow,
     dueWithinNext7,
     dueSoonUnscheduled,
     overdue,
@@ -325,7 +329,7 @@ export function PersonalTaskList({ initialTasks }: PersonalTaskListProps) {
             {task.due_at && (
               <div
                 className={`flex items-center gap-1.5 ${
-                  meta.overdue || meta.dueToday ? "text-rose-400" : meta.dueSoonUnscheduled ? "text-amber-500/90" : "text-zinc-600 dark:text-zinc-400"
+                  meta.overdue || meta.dueToday ? "text-rose-400" : meta.dueTomorrow ? "text-amber-500/90" : "text-zinc-600 dark:text-zinc-400"
                 }`}
               >
                 <Calendar size={11} />
