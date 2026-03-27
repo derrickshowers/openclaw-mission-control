@@ -58,7 +58,6 @@ const AGENT_COLORS: Record<string, string> = {
   michael: "#06b6d4",     // cyan
   joanna: "#a78bfa",      // light purple
   contractors: "#f59e0b", // amber
-  elena: "#f472b6",       // pink
   derrick: "#64748b",     // slate
 };
 

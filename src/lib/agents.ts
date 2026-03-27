@@ -1,5 +1,5 @@
-export const KNOWN_AGENT_IDS = ["derrick", "frank", "tom", "michael", "joanna", "elena"] as const;
-export const TEAM_AGENT_IDS = ["frank", "tom", "michael", "joanna", "elena"] as const;
+export const KNOWN_AGENT_IDS = ["derrick", "frank", "tom", "michael", "joanna"] as const;
+export const TEAM_AGENT_IDS = ["frank", "tom", "michael", "joanna"] as const;
 
 export function normalizeAgentId(agentName?: string | null): string | null {
   if (!agentName) return null;
@@ -20,7 +20,6 @@ export function resolveAgentAvatarUrl(
   if (!normalized || !isKnownAgent(normalized)) return null;
 
   if (normalized === "derrick") return "/images/team/derrick.jpg";
-  if (normalized === "elena") return "/avatars/elena.jpg";
   if (["frank", "joanna", "michael", "tom"].includes(normalized)) {
     return `/avatars/${normalized}.png`;
   }

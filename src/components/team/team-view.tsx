@@ -35,11 +35,6 @@ const agentMeta: Record<string, { role: string; description: string; Icon: Lucid
     description: "User experience, design direction, interaction patterns, accessibility.",
     Icon: Palette,
   },
-  elena: {
-    role: "OpenClaw Platform Specialist",
-    description: "Platform operations, deployment workflows, and OpenClaw infrastructure.",
-    Icon: Bot,
-  },
 };
 
 function formatLastActiveRelative(dateValue: string | number | Date | null | undefined): string {
