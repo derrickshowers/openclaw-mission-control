@@ -53,6 +53,12 @@ async function apiFetch<T = any>(path: string, options: FetchOptions = {}): Prom
   return res.json();
 }
 
+export interface ProjectRepoInfo {
+  path?: string;    // local filesystem path, e.g. /data/developer/repos/my-project
+  remote?: string;  // git remote URL or shorthand, e.g. github.com/org/repo
+  branch?: string;  // default or primary branch
+}
+
 export interface Project {
   id: string;
   slug: string;
@@ -63,6 +69,8 @@ export interface Project {
   target_date?: string | null;
   created_by?: string | null;
   color: string | null;
+  repo_info?: ProjectRepoInfo | null;
+  notes?: string | null;
   archived_at: string | null;
   created_at: string;
   updated_at: string;
@@ -478,6 +486,8 @@ export const api = {
     description?: string;
     owner?: string;
     color?: string;
+    repo_info?: ProjectRepoInfo | null;
+    notes?: string;
   }) => apiFetch<Project>("/projects", { method: "POST", body: JSON.stringify(data) }),
 
   updateProject: (id: string, data: Partial<Project> & { archived?: boolean }) =>

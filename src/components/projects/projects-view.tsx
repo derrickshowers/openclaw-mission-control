@@ -3,23 +3,96 @@
 import { useState } from "react";
 import Link from "next/link";
 import { Button, Input, Textarea, Card, CardBody, Progress, Modal, ModalContent, ModalHeader, ModalBody, ModalFooter, useDisclosure } from "@heroui/react";
-import { Plus, Folder, ArrowRight, AlertTriangle, User } from "lucide-react";
-import { api, type Project } from "@/lib/api";
+import { Plus, Folder, ArrowRight, AlertTriangle, User, Pencil } from "lucide-react";
+import { api, type Project, type ProjectRepoInfo } from "@/lib/api";
 import { timeAgo } from "@/lib/dates";
 
 interface ProjectsViewProps {
   initialProjects: Project[];
 }
 
+const INPUT_CLASSES = { inputWrapper: "border-divider bg-white dark:bg-[#080808] data-[focus=true]:border-primary data-[focus-visible=true]:border-primary" };
+
+function RepoInfoFields({
+  repoPath,
+  repoRemote,
+  onPathChange,
+  onRemoteChange,
+}: {
+  repoPath: string;
+  repoRemote: string;
+  onPathChange: (v: string) => void;
+  onRemoteChange: (v: string) => void;
+}) {
+  return (
+    <div className="flex flex-col gap-3">
+      <p className="text-xs font-medium text-foreground-500 uppercase tracking-wide">Repo Info (optional)</p>
+      <Input
+        label="Local path"
+        placeholder="e.g. /data/developer/repos/my-project"
+        value={repoPath}
+        onValueChange={onPathChange}
+        variant="bordered"
+        size="sm"
+        classNames={INPUT_CLASSES}
+      />
+      <Input
+        label="Remote"
+        placeholder="e.g. github.com/org/repo"
+        value={repoRemote}
+        onValueChange={onRemoteChange}
+        variant="bordered"
+        size="sm"
+        classNames={INPUT_CLASSES}
+      />
+    </div>
+  );
+}
+
+function buildRepoInfo(path: string, remote: string): ProjectRepoInfo | null {
+  const p = path.trim();
+  const r = remote.trim();
+  if (!p && !r) return null;
+  const info: ProjectRepoInfo = {};
+  if (p) info.path = p;
+  if (r) info.remote = r;
+  return info;
+}
+
 export function ProjectsView({ initialProjects }: ProjectsViewProps) {
   const [projects, setProjects] = useState<Project[]>(initialProjects);
-  const { isOpen, onOpen, onClose } = useDisclosure();
-  const [isSubmitting, setIsSubmitting] = useState(false);
 
-  // New project form state
+  // Create modal
+  const { isOpen: isCreateOpen, onOpen: onCreateOpen, onClose: onCreateClose } = useDisclosure();
+  const [isSubmitting, setIsSubmitting] = useState(false);
   const [newName, setNewName] = useState("");
   const [newDescription, setNewDescription] = useState("");
   const [newOwner, setNewOwner] = useState("derrick");
+  const [newRepoPath, setNewRepoPath] = useState("");
+  const [newRepoRemote, setNewRepoRemote] = useState("");
+  const [newNotes, setNewNotes] = useState("");
+
+  // Edit modal
+  const { isOpen: isEditOpen, onOpen: onEditOpen, onClose: onEditClose } = useDisclosure();
+  const [editingProject, setEditingProject] = useState<Project | null>(null);
+  const [editName, setEditName] = useState("");
+  const [editDescription, setEditDescription] = useState("");
+  const [editOwner, setEditOwner] = useState("");
+  const [editRepoPath, setEditRepoPath] = useState("");
+  const [editRepoRemote, setEditRepoRemote] = useState("");
+  const [editNotes, setEditNotes] = useState("");
+  const [isSaving, setIsSaving] = useState(false);
+
+  const openEditModal = (project: Project) => {
+    setEditingProject(project);
+    setEditName(project.name);
+    setEditDescription(project.description || "");
+    setEditOwner(project.owner || "derrick");
+    setEditRepoPath(project.repo_info?.path || "");
+    setEditRepoRemote(project.repo_info?.remote || "");
+    setEditNotes(project.notes || "");
+    onEditOpen();
+  };
 
   const createProject = async () => {
     if (!newName.trim() || isSubmitting) return;
@@ -30,16 +103,44 @@ export function ProjectsView({ initialProjects }: ProjectsViewProps) {
         name: newName,
         description: newDescription || undefined,
         owner: newOwner || undefined,
+        repo_info: buildRepoInfo(newRepoPath, newRepoRemote),
+        notes: newNotes || undefined,
       });
 
       setProjects((prev) => [...prev, project]);
       setNewName("");
       setNewDescription("");
-      onClose();
+      setNewOwner("derrick");
+      setNewRepoPath("");
+      setNewRepoRemote("");
+      setNewNotes("");
+      onCreateClose();
     } catch (err) {
       console.error("Failed to create project:", err);
     } finally {
       setIsSubmitting(false);
+    }
+  };
+
+  const saveProject = async () => {
+    if (!editingProject || !editName.trim() || isSaving) return;
+
+    setIsSaving(true);
+    try {
+      const updated = await api.updateProject(editingProject.id, {
+        name: editName,
+        description: editDescription || null,
+        owner: editOwner || null,
+        repo_info: buildRepoInfo(editRepoPath, editRepoRemote),
+        notes: editNotes || null,
+      });
+
+      setProjects((prev) => prev.map((p) => (p.id === updated.id ? updated : p)));
+      onEditClose();
+    } catch (err) {
+      console.error("Failed to update project:", err);
+    } finally {
+      setIsSaving(false);
     }
   };
 
@@ -54,7 +155,7 @@ export function ProjectsView({ initialProjects }: ProjectsViewProps) {
         <Button
           size="sm"
           variant="flat"
-          onPress={onOpen}
+          onPress={onCreateOpen}
           className="w-full border border-divider bg-gray-50 dark:bg-[#121212] text-sm sm:w-auto"
           startContent={<Plus size={16} strokeWidth={1.5} />}
         >
@@ -83,6 +184,11 @@ export function ProjectsView({ initialProjects }: ProjectsViewProps) {
                 <p className="text-xs text-foreground-400 line-clamp-1 mt-0.5">
                   {project.description || "No description"}
                 </p>
+                {project.repo_info?.path && (
+                  <p className="text-xs text-foreground-300 font-mono truncate mt-0.5" title={project.repo_info.path}>
+                    {project.repo_info.path}
+                  </p>
+                )}
               </div>
 
               {/* Center: Progress */}
@@ -119,6 +225,16 @@ export function ProjectsView({ initialProjects }: ProjectsViewProps) {
                   {project.last_activity_at ? `Active ${timeAgo(project.last_activity_at)}` : "No activity"}
                 </div>
                 <Button
+                  size="sm"
+                  variant="light"
+                  isIconOnly
+                  aria-label="Edit project"
+                  className="h-8 w-8 text-foreground-300 hover:text-foreground hover:bg-gray-100 dark:hover:bg-[#1A1A1A]"
+                  onPress={() => openEditModal(project)}
+                >
+                  <Pencil size={13} strokeWidth={1.5} />
+                </Button>
+                <Button
                   as={Link}
                   href={`/tasks?project_id=${project.id}`}
                   size="sm"
@@ -137,7 +253,7 @@ export function ProjectsView({ initialProjects }: ProjectsViewProps) {
           <div className="flex flex-col items-center justify-center py-20 text-center border border-dashed border-divider rounded-lg">
             <Folder size={40} strokeWidth={1} className="text-foreground-200 dark:text-[#222222] mb-4" />
             <p className="text-foreground-400">No projects found</p>
-            <Button size="sm" variant="flat" onPress={onOpen} className="mt-4">
+            <Button size="sm" variant="flat" onPress={onCreateOpen} className="mt-4">
               Create your first project
             </Button>
           </div>
@@ -146,8 +262,8 @@ export function ProjectsView({ initialProjects }: ProjectsViewProps) {
 
       {/* New Project Modal */}
       <Modal
-        isOpen={isOpen}
-        onClose={onClose}
+        isOpen={isCreateOpen}
+        onClose={onCreateClose}
         className="bg-white dark:bg-[#121212] text-foreground dark:text-white max-h-[85dvh]"
         placement="top-center"
         scrollBehavior="inside"
@@ -164,7 +280,7 @@ export function ProjectsView({ initialProjects }: ProjectsViewProps) {
               onValueChange={setNewName}
               variant="bordered"
               size="sm"
-              classNames={{ inputWrapper: "border-divider bg-white dark:bg-[#080808] data-[focus=true]:border-primary data-[focus-visible=true]:border-primary" }}
+              classNames={INPUT_CLASSES}
               autoFocus
             />
             <Textarea
@@ -174,7 +290,7 @@ export function ProjectsView({ initialProjects }: ProjectsViewProps) {
               onValueChange={setNewDescription}
               variant="bordered"
               size="sm"
-              classNames={{ inputWrapper: "border-divider bg-white dark:bg-[#080808] data-[focus=true]:border-primary data-[focus-visible=true]:border-primary" }}
+              classNames={INPUT_CLASSES}
             />
             <Input
               label="Owner"
@@ -183,11 +299,26 @@ export function ProjectsView({ initialProjects }: ProjectsViewProps) {
               onValueChange={setNewOwner}
               variant="bordered"
               size="sm"
-              classNames={{ inputWrapper: "border-divider bg-white dark:bg-[#080808] data-[focus=true]:border-primary data-[focus-visible=true]:border-primary" }}
+              classNames={INPUT_CLASSES}
+            />
+            <RepoInfoFields
+              repoPath={newRepoPath}
+              repoRemote={newRepoRemote}
+              onPathChange={setNewRepoPath}
+              onRemoteChange={setNewRepoRemote}
+            />
+            <Textarea
+              label="Notes"
+              placeholder="Any notes about this project..."
+              value={newNotes}
+              onValueChange={setNewNotes}
+              variant="bordered"
+              size="sm"
+              classNames={INPUT_CLASSES}
             />
           </ModalBody>
           <ModalFooter className="border-t border-divider">
-            <Button variant="flat" onPress={onClose} size="sm">
+            <Button variant="flat" onPress={onCreateClose} size="sm">
               Cancel
             </Button>
             <Button
@@ -198,6 +329,79 @@ export function ProjectsView({ initialProjects }: ProjectsViewProps) {
               isDisabled={!newName.trim()}
             >
               Create Project
+            </Button>
+          </ModalFooter>
+        </ModalContent>
+      </Modal>
+
+      {/* Edit Project Modal */}
+      <Modal
+        isOpen={isEditOpen}
+        onClose={onEditClose}
+        className="bg-white dark:bg-[#121212] text-foreground dark:text-white max-h-[85dvh]"
+        placement="top-center"
+        scrollBehavior="inside"
+      >
+        <ModalContent>
+          <ModalHeader className="border-b border-divider text-sm">
+            Edit Project
+          </ModalHeader>
+          <ModalBody className="gap-4 py-6">
+            <Input
+              label="Name"
+              value={editName}
+              onValueChange={setEditName}
+              variant="bordered"
+              size="sm"
+              classNames={INPUT_CLASSES}
+              autoFocus
+            />
+            <Textarea
+              label="Description"
+              placeholder="What is this project about?"
+              value={editDescription}
+              onValueChange={setEditDescription}
+              variant="bordered"
+              size="sm"
+              classNames={INPUT_CLASSES}
+            />
+            <Input
+              label="Owner"
+              placeholder="derrick"
+              value={editOwner}
+              onValueChange={setEditOwner}
+              variant="bordered"
+              size="sm"
+              classNames={INPUT_CLASSES}
+            />
+            <RepoInfoFields
+              repoPath={editRepoPath}
+              repoRemote={editRepoRemote}
+              onPathChange={setEditRepoPath}
+              onRemoteChange={setEditRepoRemote}
+            />
+            <Textarea
+              label="Notes"
+              placeholder="Any notes about this project..."
+              value={editNotes}
+              onValueChange={setEditNotes}
+              variant="bordered"
+              size="sm"
+              classNames={INPUT_CLASSES}
+            />
+          </ModalBody>
+          <ModalFooter className="border-t border-divider">
+            <Button variant="flat" onPress={onEditClose} size="sm">
+              Cancel
+            </Button>
+            <Button
+              color="primary"
+              onPress={saveProject}
+              size="sm"
+              isLoading={isSaving}
+              isDisabled={!editName.trim()}
+            >
+              Save
             </Button>
           </ModalFooter>
         </ModalContent>
