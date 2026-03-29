@@ -12,6 +12,8 @@ interface LogEntry {
   message: string;
 }
 
+type LogSource = "gateway_active" | "historical_date" | "fallback_local_latest";
+
 const LEVELS = ["debug", "info", "warn", "error"] as const;
 type Level = (typeof LEVELS)[number];
 
@@ -42,8 +44,35 @@ function formatLogTime(isoStr: string): string {
   });
 }
 
-function formatLogFileName(date: string | null): string {
-  return date ? `openclaw-${date}.log` : "Resolving latest log file…";
+function formatLogFileName(date: string | null, fileName: string | null): string {
+  if (fileName) return fileName;
+  return date ? `openclaw-${date}.log` : "Resolving active log file…";
+}
+
+function getSourcePresentation(source: LogSource | null, selectedDate: string) {
+  if (source === "historical_date" || selectedDate) {
+    return {
+      label: "Viewing selected historical log file",
+      badge: "Historical file override",
+      description: "You selected a specific UTC-dated log file. Entry times below are shown in your local timezone.",
+    };
+  }
+
+  if (source === "fallback_local_latest") {
+    return {
+      label: "Fallback to local log file",
+      badge: "Gateway active source unavailable",
+      description:
+        "Mission Control could not resolve the gateway's active log source, so this view fell back to a local file. Entry times below are shown in your local timezone.",
+    };
+  }
+
+  return {
+    label: "Following gateway active log file",
+    badge: "Matches OpenClaw dashboard source",
+    description:
+      "Default mode follows the same gateway log source as the OpenClaw dashboard. File names use UTC dates, while entry times below are shown in your local timezone.",
+  };
 }
 
 export function LogsViewer() {
@@ -54,6 +83,8 @@ export function LogsViewer() {
   const [minLevel, setMinLevel] = useState<Level>("debug");
   const [selectedDate, setSelectedDate] = useState("");
   const [resolvedLogDate, setResolvedLogDate] = useState<string | null>(null);
+  const [resolvedLogFile, setResolvedLogFile] = useState<string | null>(null);
+  const [resolvedLogSource, setResolvedLogSource] = useState<LogSource | null>(null);
   const [autoScroll, setAutoScroll] = useState(true);
   const containerRef = useRef<HTMLDivElement>(null);
   const pollTimer = useRef<ReturnType<typeof setInterval> | undefined>(undefined);
@@ -78,6 +109,8 @@ export function LogsViewer() {
       if (!res.ok) return;
 
       setResolvedLogDate(res.headers.get("x-log-date"));
+      setResolvedLogFile(res.headers.get("x-log-file"));
+      setResolvedLogSource((res.headers.get("x-log-source") as LogSource | null) ?? null);
       const data: LogEntry[] = await res.json();
       setLogs(data);
     } catch (err) {
@@ -120,8 +153,8 @@ export function LogsViewer() {
   }, []);
 
   const activeLogDate = resolvedLogDate ?? (selectedDate || null);
-  const logFileName = formatLogFileName(activeLogDate);
-  const viewingLabel = selectedDate ? "Viewing selected log file" : "Viewing latest available log file";
+  const logFileName = formatLogFileName(activeLogDate, resolvedLogFile);
+  const sourcePresentation = getSourcePresentation(resolvedLogSource, selectedDate);
 
   return (
     <div className="flex h-full flex-col gap-0">
@@ -165,7 +198,7 @@ export function LogsViewer() {
                 onPress={() => setSelectedDate("")}
                 className="h-8 min-w-0 border border-divider bg-gray-50 px-2 text-[11px] text-foreground-500 dark:border-white/10 dark:bg-[#0A0A0A]"
               >
-                Latest
+                Follow active
               </Button>
             ) : null}
           </div>
@@ -214,7 +247,10 @@ export function LogsViewer() {
 
         <div className="border-t border-divider/70 px-4 py-2 text-[11px] text-foreground-500 dark:border-[#111111]">
           <div className="flex flex-wrap items-center gap-x-3 gap-y-1">
-            <span className="font-medium text-foreground-600 dark:text-foreground-400">{viewingLabel}</span>
+            <span className="font-medium text-foreground-600 dark:text-foreground-400">{sourcePresentation.label}</span>
+            <span className="rounded bg-default-100 px-2 py-0.5 text-[11px] text-foreground-700 dark:bg-white/5 dark:text-zinc-200">
+              {sourcePresentation.badge}
+            </span>
             <span className="rounded bg-default-100 px-2 py-0.5 font-mono text-[11px] text-foreground-700 dark:bg-white/5 dark:text-zinc-200">
               {logFileName}
             </span>
@@ -223,7 +259,7 @@ export function LogsViewer() {
             ) : null}
           </div>
           <p className="mt-1 text-foreground-400">
-            File names use UTC dates. Entry times below are shown in your local timezone ({timezoneLabel}).
+            {sourcePresentation.description} Current timezone: {timezoneLabel}.
           </p>
         </div>
       </div>
@@ -243,11 +279,9 @@ export function LogsViewer() {
           <div className="flex h-full items-center justify-center px-6 text-center">
             <div>
               <p className="text-foreground-300">No logs matching filters</p>
-              {activeLogDate ? (
-                <p className="mt-1 text-[11px] text-foreground-400">
-                  Current file: <span className="font-mono">{formatLogFileName(activeLogDate)}</span>
-                </p>
-              ) : null}
+              <p className="mt-1 text-[11px] text-foreground-400">
+                Current file: <span className="font-mono">{logFileName}</span>
+              </p>
             </div>
           </div>
         ) : (

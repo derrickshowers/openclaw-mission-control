@@ -39,6 +39,8 @@ export async function proxyRequest(
       "etag",
       "last-modified",
       "x-log-date",
+      "x-log-file",
+      "x-log-source",
       "x-log-cursor",
     ] as const;
 
