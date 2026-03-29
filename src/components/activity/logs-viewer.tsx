@@ -47,7 +47,7 @@ export function LogsViewer() {
   const [loading, setLoading] = useState(true);
   const [search, setSearch] = useState("");
   const [debouncedSearch, setDebouncedSearch] = useState("");
-  const [minLevel, setMinLevel] = useState<Level>("info");
+  const [minLevel, setMinLevel] = useState<Level>("debug");
   const [autoScroll, setAutoScroll] = useState(true);
   const containerRef = useRef<HTMLDivElement>(null);
   const wasAtBottom = useRef(true);
