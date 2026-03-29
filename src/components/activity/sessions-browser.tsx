@@ -1,8 +1,8 @@
 "use client";
 
 import { useCallback, useEffect, useMemo, useState } from "react";
-import { Modal, ModalBody, ModalContent, ModalHeader, Select, SelectItem } from "@heroui/react";
-import { Filter, X } from "lucide-react";
+import { Button, Modal, ModalBody, ModalContent, ModalHeader, Select, SelectItem, Textarea } from "@heroui/react";
+import { Filter, MessageSquare, X } from "lucide-react";
 import ReactMarkdown from "react-markdown";
 
 type DatePreset = "all" | "today" | "last7" | "last30" | "custom";
@@ -199,6 +199,12 @@ export function SessionsBrowser({ formatTokens, formatCost, formatLocalTime, age
   const [detailLoadingOlder, setDetailLoadingOlder] = useState(false);
   const [detailError, setDetailError] = useState<string | null>(null);
 
+  const [msgTarget, setMsgTarget] = useState<SessionListItem | null>(null);
+  const [msgDraft, setMsgDraft] = useState("");
+  const [msgSending, setMsgSending] = useState(false);
+  const [msgError, setMsgError] = useState<string | null>(null);
+  const [msgSuccess, setMsgSuccess] = useState(false);
+
   const dateBounds = useMemo(() => {
     const now = new Date();
     if (datePreset === "all") {
@@ -380,6 +386,74 @@ export function SessionsBrowser({ formatTokens, formatCost, formatLocalTime, age
     setCustomFrom("");
     setCustomTo("");
   }, []);
+
+  const canMessageSession = useCallback((row: SessionListItem | null | undefined) => {
+    return Boolean(row?.session_key && String(row.session_key).trim());
+  }, []);
+
+  const sessionTargetLabel = useCallback((row: SessionListItem | null | undefined) => {
+    if (!row) return "session";
+    return row.task_title || row.display_name || row.session_key || row.session_id || row.session_ref;
+  }, []);
+
+  const openMessageComposer = useCallback((row: SessionListItem) => {
+    setMsgTarget(row);
+    setMsgDraft("");
+    setMsgError(null);
+    setMsgSuccess(false);
+  }, []);
+
+  const closeMessageComposer = useCallback(() => {
+    if (msgSending) return;
+    setMsgTarget(null);
+    setMsgDraft("");
+    setMsgError(null);
+    setMsgSuccess(false);
+  }, [msgSending]);
+
+  const sendMessageToSession = useCallback(async () => {
+    if (!msgTarget) return;
+
+    const trimmed = msgDraft.trim();
+    if (!trimmed) {
+      setMsgError("Message is required.");
+      setMsgSuccess(false);
+      return;
+    }
+
+    if (!canMessageSession(msgTarget)) {
+      setMsgError("This session does not have a usable session key.");
+      setMsgSuccess(false);
+      return;
+    }
+
+    setMsgSending(true);
+    setMsgError(null);
+    setMsgSuccess(false);
+
+    try {
+      const res = await fetch(`/api/mc/usage/sessions/${encodeURIComponent(msgTarget.session_ref)}`, {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({ message: trimmed }),
+      });
+
+      const body = await res.json().catch(() => ({}));
+      if (!res.ok) {
+        throw new Error(body?.error || `Failed to send message (${res.status})`);
+      }
+
+      setMsgDraft("");
+      setMsgSuccess(true);
+    } catch (e: unknown) {
+      const message = e instanceof Error ? e.message : "Failed to send message";
+      setMsgError(String(message || "Failed to send message"));
+    } finally {
+      setMsgSending(false);
+    }
+  }, [canMessageSession, msgDraft, msgTarget]);
 
   const renderPart = useCallback((part: ThreadPart, idx: number) => {
     if (part.type === "tool_call") {
@@ -614,6 +688,7 @@ export function SessionsBrowser({ formatTokens, formatCost, formatLocalTime, age
                   <th className="px-4 py-2 font-medium">Last activity</th>
                   <th className="px-4 py-2 font-medium text-right">Usage</th>
                   <th className="px-4 py-2 font-medium text-right">Cost</th>
+                  <th className="px-4 py-2 font-medium text-right">Actions</th>
                 </tr>
               </thead>
               <tbody className="divide-y divide-divider dark:divide-white/5">
@@ -655,6 +730,18 @@ export function SessionsBrowser({ formatTokens, formatCost, formatLocalTime, age
                       <td className="px-4 py-2 text-right font-mono text-xs text-foreground dark:text-gray-200">
                         {row.cost_source === "none" ? "—" : row.cost_source === "unpriced" ? "unpriced" : formatCost(row.cost_usd || 0)}
                       </td>
+                      <td className="px-4 py-2 text-right" onClick={(e) => e.stopPropagation()}>
+                        <Button
+                          size="sm"
+                          variant="flat"
+                          startContent={<MessageSquare size={14} />}
+                          onPress={() => openMessageComposer(row)}
+                          isDisabled={!canMessageSession(row)}
+                          className="min-w-0"
+                        >
+                          Message
+                        </Button>
+                      </td>
                     </tr>
                   );
                 })}
@@ -666,32 +753,47 @@ export function SessionsBrowser({ formatTokens, formatCost, formatLocalTime, age
             {sessions.map((row) => {
               const canOpen = row.detail_available;
               return (
-                <button
+                <div
                   key={row.session_ref}
-                  onClick={() => {
-                    if (canOpen) void openSessionDetail(row);
-                  }}
-                  className={`w-full rounded border border-divider bg-white p-3 text-left dark:border-white/10 dark:bg-[#080808] ${canOpen ? "" : "opacity-60"}`}
+                  className={`rounded border border-divider bg-white p-3 dark:border-white/10 dark:bg-[#080808] ${canOpen ? "" : "opacity-60"}`}
                 >
-                  <div className="flex items-center justify-between">
-                    <div className="flex items-center gap-2">
-                      <span className="h-2 w-2 rounded-full" style={{ backgroundColor: agentColors[row.agent] || "#888" }} />
-                      <span className="text-xs font-medium capitalize text-foreground dark:text-gray-200">{row.agent}</span>
+                  <button
+                    onClick={() => {
+                      if (canOpen) void openSessionDetail(row);
+                    }}
+                    className="w-full text-left"
+                  >
+                    <div className="flex items-center justify-between">
+                      <div className="flex items-center gap-2">
+                        <span className="h-2 w-2 rounded-full" style={{ backgroundColor: agentColors[row.agent] || "#888" }} />
+                        <span className="text-xs font-medium capitalize text-foreground dark:text-gray-200">{row.agent}</span>
+                      </div>
+                      <span className="text-[10px] text-gray-500">{formatRelative(row.last_activity_at)}</span>
                     </div>
-                    <span className="text-[10px] text-gray-500">{formatRelative(row.last_activity_at)}</span>
+                    <div className="mt-2 text-[11px] text-foreground-400 dark:text-gray-400">{row.model_label || row.model || "Unknown"}</div>
+                    <div className="mt-2 grid grid-cols-2 gap-2 text-[11px] text-gray-400">
+                      <div>
+                        <span className="block text-gray-500">Usage</span>
+                        <span className="font-mono text-foreground dark:text-gray-200">{formatTokens(row.usage_total_tokens || 0)}</span>
+                      </div>
+                      <div>
+                        <span className="block text-gray-500">Cost</span>
+                        <span className="font-mono text-foreground dark:text-gray-200">{row.cost_source === "none" ? "—" : row.cost_source === "unpriced" ? "unpriced" : formatCost(row.cost_usd || 0)}</span>
+                      </div>
+                    </div>
+                  </button>
+                  <div className="mt-3 flex justify-end border-t border-divider pt-3 dark:border-white/10">
+                    <Button
+                      size="sm"
+                      variant="flat"
+                      startContent={<MessageSquare size={14} />}
+                      onPress={() => openMessageComposer(row)}
+                      isDisabled={!canMessageSession(row)}
+                    >
+                      Message session
+                    </Button>
                   </div>
-                  <div className="mt-2 text-[11px] text-foreground-400 dark:text-gray-400">{row.model_label || row.model || "Unknown"}</div>
-                  <div className="mt-2 grid grid-cols-2 gap-2 text-[11px] text-gray-400">
-                    <div>
-                      <span className="block text-gray-500">Usage</span>
-                      <span className="font-mono text-foreground dark:text-gray-200">{formatTokens(row.usage_total_tokens || 0)}</span>
-                    </div>
-                    <div>
-                      <span className="block text-gray-500">Cost</span>
-                      <span className="font-mono text-foreground dark:text-gray-200">{row.cost_source === "none" ? "—" : row.cost_source === "unpriced" ? "unpriced" : formatCost(row.cost_usd || 0)}</span>
-                    </div>
-                  </div>
-                </button>
+                </div>
               );
             })}
           </div>
@@ -807,6 +909,76 @@ export function SessionsBrowser({ formatTokens, formatCost, formatLocalTime, age
       </Modal>
 
       <Modal
+        isOpen={!!msgTarget}
+        onOpenChange={(open) => {
+          if (!open) {
+            closeMessageComposer();
+          }
+        }}
+        size="2xl"
+        backdrop="blur"
+        classNames={{
+          base: "bg-white dark:bg-[#080808] border border-divider dark:border-white/10",
+          closeButton: "text-foreground-400 hover:text-foreground dark:text-gray-400 dark:hover:text-white",
+        }}
+      >
+        <ModalContent>
+          <ModalHeader className="border-b border-divider text-sm dark:border-white/10">Message session</ModalHeader>
+          <ModalBody className="space-y-3 py-4">
+            <div className="text-xs text-foreground-400 dark:text-gray-400">
+              Send directly to <span className="font-mono text-foreground dark:text-gray-200">{sessionTargetLabel(msgTarget)}</span>
+            </div>
+
+            {msgError ? (
+              <div className="rounded border border-danger-500/30 bg-danger-500/10 px-3 py-2 text-xs text-danger-400">{msgError}</div>
+            ) : null}
+
+            {msgSuccess ? (
+              <div className="rounded border border-success-500/30 bg-success-500/10 px-3 py-2 text-xs text-success-600 dark:text-success-400">
+                Message sent to the session.
+              </div>
+            ) : null}
+
+            <Textarea
+              label="Message"
+              labelPlacement="outside"
+              placeholder="Tell this session what to do next…"
+              value={msgDraft}
+              onValueChange={(value) => {
+                setMsgDraft(value);
+                if (msgError) setMsgError(null);
+                if (msgSuccess) setMsgSuccess(false);
+              }}
+              minRows={5}
+              variant="bordered"
+              isDisabled={msgSending}
+              autoFocus
+            />
+
+            <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+              <div className="text-[11px] font-mono text-foreground-400 dark:text-gray-500">
+                {msgTarget?.session_key || "Session key unavailable"}
+              </div>
+              <div className="flex items-center justify-end gap-2">
+                <Button size="sm" variant="flat" onPress={closeMessageComposer} isDisabled={msgSending}>
+                  Cancel
+                </Button>
+                <Button
+                  size="sm"
+                  color="primary"
+                  onPress={sendMessageToSession}
+                  isLoading={msgSending}
+                  isDisabled={!msgDraft.trim() || !canMessageSession(msgTarget)}
+                >
+                  Send message
+                </Button>
+              </div>
+            </div>
+          </ModalBody>
+        </ModalContent>
+      </Modal>
+
+      <Modal
         isOpen={!!selectedSession}
         onOpenChange={(open) => {
           if (!open) {
@@ -836,6 +1008,31 @@ export function SessionsBrowser({ formatTokens, formatCost, formatLocalTime, age
               </div>
             </div>
             <div className="flex items-start gap-2">
+              <Button
+                size="sm"
+                variant="flat"
+                startContent={<MessageSquare size={14} />}
+                onPress={() => {
+                  if (selectedSession) openMessageComposer(selectedSession);
+                }}
+                isDisabled={!canMessageSession(selectedSession)}
+                className="hidden md:inline-flex"
+              >
+                Message session
+              </Button>
+              <Button
+                isIconOnly
+                size="sm"
+                variant="flat"
+                onPress={() => {
+                  if (selectedSession) openMessageComposer(selectedSession);
+                }}
+                isDisabled={!canMessageSession(selectedSession)}
+                className="md:hidden"
+                aria-label="Message session"
+              >
+                <MessageSquare size={14} />
+              </Button>
               <div className="text-right text-[11px] font-mono text-foreground-500 dark:text-gray-400">
                 <div className="inline-flex flex-wrap justify-end gap-x-2 gap-y-1">
                   <span>Total {selectedSession ? formatTokens(selectedSession.usage_total_tokens || 0) : "0"}</span>

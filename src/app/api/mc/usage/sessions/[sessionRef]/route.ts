@@ -15,3 +15,9 @@ export async function GET(request: NextRequest, context: Context) {
 
   return proxyRequest(request, path);
 }
+
+export async function POST(request: NextRequest, context: Context) {
+  const { sessionRef } = await context.params;
+  const encodedRef = encodeURIComponent(sessionRef);
+  return proxyRequest(request, `/usage/sessions/${encodedRef}/message`);
+}
