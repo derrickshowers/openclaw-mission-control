@@ -33,12 +33,21 @@ export async function proxyRequest(
     const responseHeaders = new Headers();
     const contentTypeHeader = res.headers.get("content-type");
     if (contentTypeHeader) responseHeaders.set("Content-Type", contentTypeHeader);
-    const cacheControl = res.headers.get("cache-control");
-    if (cacheControl) responseHeaders.set("Cache-Control", cacheControl);
-    const etag = res.headers.get("etag");
-    if (etag) responseHeaders.set("ETag", etag);
-    const lastModified = res.headers.get("last-modified");
-    if (lastModified) responseHeaders.set("Last-Modified", lastModified);
+
+    const passthroughHeaders = [
+      "cache-control",
+      "etag",
+      "last-modified",
+      "x-log-date",
+      "x-log-cursor",
+    ] as const;
+
+    for (const header of passthroughHeaders) {
+      const value = res.headers.get(header);
+      if (value) {
+        responseHeaders.set(header, value);
+      }
+    }
 
     if (res.status === 304) {
       return new NextResponse(null, { status: 304, headers: responseHeaders });
@@ -52,9 +61,10 @@ export async function proxyRequest(
 
     const buffer = await res.arrayBuffer();
     return new NextResponse(buffer, { status: res.status, headers: responseHeaders });
-  } catch (err: any) {
+  } catch (err: unknown) {
+    const detail = err instanceof Error ? err.message : "Unknown proxy error";
     return NextResponse.json(
-      { error: "Proxy error", detail: err.message },
+      { error: "Proxy error", detail },
       { status: 502 }
     );
   }

@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect, useRef, useCallback } from "react";
+import { useState, useEffect, useRef, useCallback, useMemo } from "react";
 import { Input, Button } from "@heroui/react";
 import { Search, RefreshCw, ArrowDown } from "lucide-react";
 import { parseUTC } from "@/lib/dates";
@@ -42,16 +42,25 @@ function formatLogTime(isoStr: string): string {
   });
 }
 
+function formatLogFileName(date: string | null): string {
+  return date ? `openclaw-${date}.log` : "Resolving latest log file…";
+}
+
 export function LogsViewer() {
   const [logs, setLogs] = useState<LogEntry[]>([]);
   const [loading, setLoading] = useState(true);
   const [search, setSearch] = useState("");
   const [debouncedSearch, setDebouncedSearch] = useState("");
   const [minLevel, setMinLevel] = useState<Level>("debug");
+  const [selectedDate, setSelectedDate] = useState("");
+  const [resolvedLogDate, setResolvedLogDate] = useState<string | null>(null);
   const [autoScroll, setAutoScroll] = useState(true);
   const containerRef = useRef<HTMLDivElement>(null);
-  const wasAtBottom = useRef(true);
   const pollTimer = useRef<ReturnType<typeof setInterval> | undefined>(undefined);
+  const timezoneLabel = useMemo(
+    () => Intl.DateTimeFormat().resolvedOptions().timeZone || "your local timezone",
+    []
+  );
 
   // Debounce search
   useEffect(() => {
@@ -62,9 +71,13 @@ export function LogsViewer() {
   const fetchLogs = useCallback(async () => {
     try {
       const params = new URLSearchParams({ level: minLevel, limit: "500" });
+      if (selectedDate) params.set("date", selectedDate);
       if (debouncedSearch) params.set("search", debouncedSearch);
-      const res = await fetch(`/api/mc/logs?${params}`);
+
+      const res = await fetch(`/api/mc/logs?${params.toString()}`);
       if (!res.ok) return;
+
+      setResolvedLogDate(res.headers.get("x-log-date"));
       const data: LogEntry[] = await res.json();
       setLogs(data);
     } catch (err) {
@@ -72,7 +85,7 @@ export function LogsViewer() {
     } finally {
       setLoading(false);
     }
-  }, [minLevel, debouncedSearch]);
+  }, [debouncedSearch, minLevel, selectedDate]);
 
   // Initial fetch + polling
   useEffect(() => {
@@ -96,7 +109,6 @@ export function LogsViewer() {
     if (!containerRef.current) return;
     const { scrollTop, scrollHeight, clientHeight } = containerRef.current;
     const atBottom = scrollHeight - scrollTop - clientHeight < 40;
-    wasAtBottom.current = atBottom;
     setAutoScroll(atBottom);
   }, []);
 
@@ -107,65 +119,112 @@ export function LogsViewer() {
     }
   }, []);
 
+  const activeLogDate = resolvedLogDate ?? (selectedDate || null);
+  const logFileName = formatLogFileName(activeLogDate);
+  const viewingLabel = selectedDate ? "Viewing selected log file" : "Viewing latest available log file";
+
   return (
     <div className="flex h-full flex-col gap-0">
-      {/* Sticky filter bar */}
-      <div className="sticky top-0 z-10 flex flex-wrap items-center gap-3 border-b border-divider bg-white dark:bg-[#080808] px-4 py-3">
-        {/* Search */}
-        <div className="flex-1 min-w-[200px] max-w-[400px]">
-          <Input
-            placeholder="Search logs..."
-            value={search}
-            onValueChange={setSearch}
-            size="sm"
-            variant="bordered"
-            startContent={<Search size={14} className="text-foreground-300" />}
-            classNames={{
-              inputWrapper: "border-divider bg-gray-50 dark:bg-[#0A0A0A] h-8 min-h-8",
-              input: "text-xs",
-            }}
-          />
-        </div>
+      {/* Sticky filter + context bar */}
+      <div className="sticky top-0 z-10 border-b border-divider bg-white dark:bg-[#080808]">
+        <div className="flex flex-wrap items-center gap-3 px-4 py-3">
+          {/* Search */}
+          <div className="min-w-[220px] flex-1 max-w-[400px]">
+            <Input
+              placeholder="Search logs..."
+              value={search}
+              onValueChange={setSearch}
+              size="sm"
+              variant="bordered"
+              startContent={<Search size={14} className="text-foreground-300" />}
+              classNames={{
+                inputWrapper: "border-divider bg-gray-50 dark:bg-[#0A0A0A] h-8 min-h-8",
+                input: "text-xs",
+              }}
+            />
+          </div>
 
-        {/* Level toggles */}
-        <div className="flex items-center gap-1">
-          {LEVELS.map((level) => (
-            <button
-              key={level}
-              onClick={() => setMinLevel(level)}
-              className={`rounded px-2.5 py-1 text-[10px] font-medium uppercase tracking-wider transition-colors ${
-                minLevel === level
-                  ? `${LEVEL_COLORS[level]} ${LEVEL_BG[level]} ring-1 ring-current/20`
-                  : "text-foreground-400 hover:text-foreground-500"
-              }`}
-            >
-              {level}
-            </button>
-          ))}
-        </div>
+          <div className="flex items-center gap-2">
+            <Input
+              type="date"
+              aria-label="Log date"
+              value={selectedDate}
+              onValueChange={setSelectedDate}
+              size="sm"
+              variant="bordered"
+              className="w-[180px]"
+              classNames={{
+                inputWrapper: "border-divider bg-gray-50 dark:bg-[#0A0A0A] h-8 min-h-8",
+                input: "text-xs",
+              }}
+            />
+            {selectedDate ? (
+              <Button
+                size="sm"
+                variant="flat"
+                onPress={() => setSelectedDate("")}
+                className="h-8 min-w-0 border border-divider bg-gray-50 px-2 text-[11px] text-foreground-500 dark:border-white/10 dark:bg-[#0A0A0A]"
+              >
+                Latest
+              </Button>
+            ) : null}
+          </div>
 
-        {/* Actions */}
-        <div className="flex items-center gap-1 ml-auto">
-          <Button
-            isIconOnly
-            size="sm"
-            variant="light"
-            onPress={fetchLogs}
-            className="text-foreground-400 hover:text-foreground h-7 w-7 min-w-0"
-          >
-            <RefreshCw size={13} />
-          </Button>
-          {!autoScroll && (
+          {/* Level toggles */}
+          <div className="flex items-center gap-1">
+            {LEVELS.map((level) => (
+              <button
+                key={level}
+                onClick={() => setMinLevel(level)}
+                className={`rounded px-2.5 py-1 text-[10px] font-medium uppercase tracking-wider transition-colors ${
+                  minLevel === level
+                    ? `${LEVEL_COLORS[level]} ${LEVEL_BG[level]} ring-1 ring-current/20`
+                    : "text-foreground-400 hover:text-foreground-500"
+                }`}
+              >
+                {level}
+              </button>
+            ))}
+          </div>
+
+          {/* Actions */}
+          <div className="ml-auto flex items-center gap-1">
             <Button
               isIconOnly
               size="sm"
               variant="light"
-              onPress={scrollToBottom}
-              className="text-foreground-400 hover:text-foreground h-7 w-7 min-w-0"
+              onPress={fetchLogs}
+              className="h-7 w-7 min-w-0 text-foreground-400 hover:text-foreground"
             >
-              <ArrowDown size={13} />
+              <RefreshCw size={13} />
             </Button>
-          )}
+            {!autoScroll && (
+              <Button
+                isIconOnly
+                size="sm"
+                variant="light"
+                onPress={scrollToBottom}
+                className="h-7 w-7 min-w-0 text-foreground-400 hover:text-foreground"
+              >
+                <ArrowDown size={13} />
+              </Button>
+            )}
+          </div>
+        </div>
+
+        <div className="border-t border-divider/70 px-4 py-2 text-[11px] text-foreground-500 dark:border-[#111111]">
+          <div className="flex flex-wrap items-center gap-x-3 gap-y-1">
+            <span className="font-medium text-foreground-600 dark:text-foreground-400">{viewingLabel}</span>
+            <span className="rounded bg-default-100 px-2 py-0.5 font-mono text-[11px] text-foreground-700 dark:bg-white/5 dark:text-zinc-200">
+              {logFileName}
+            </span>
+            {activeLogDate ? (
+              <span className="font-mono text-foreground-400">UTC file date {activeLogDate}</span>
+            ) : null}
+          </div>
+          <p className="mt-1 text-foreground-400">
+            File names use UTC dates. Entry times below are shown in your local timezone ({timezoneLabel}).
+          </p>
         </div>
       </div>
 
@@ -173,7 +232,7 @@ export function LogsViewer() {
       <div
         ref={containerRef}
         onScroll={handleScroll}
-        className="flex-1 overflow-y-auto bg-white dark:bg-[#080808] font-mono text-xs"
+        className="flex-1 overflow-y-auto bg-white font-mono text-xs dark:bg-[#080808]"
         style={{ fontFamily: "'JetBrains Mono', 'Fira Code', 'Cascadia Code', monospace" }}
       >
         {loading && logs.length === 0 ? (
@@ -181,37 +240,48 @@ export function LogsViewer() {
             <p className="text-foreground-300">Loading logs...</p>
           </div>
         ) : logs.length === 0 ? (
-          <div className="flex h-full items-center justify-center">
-            <p className="text-foreground-300">No logs matching filters</p>
+          <div className="flex h-full items-center justify-center px-6 text-center">
+            <div>
+              <p className="text-foreground-300">No logs matching filters</p>
+              {activeLogDate ? (
+                <p className="mt-1 text-[11px] text-foreground-400">
+                  Current file: <span className="font-mono">{formatLogFileName(activeLogDate)}</span>
+                </p>
+              ) : null}
+            </div>
           </div>
         ) : (
           <div className="divide-y divide-divider dark:divide-[#111111]">
             {logs.map((entry, i) => (
               <div
                 key={`${entry.time}-${i}`}
-                className="flex items-start gap-3 px-4 py-1.5 hover:bg-gray-50 dark:hover:bg-[#1A1A1A] transition-colors"
+                className="flex items-start gap-3 px-4 py-1.5 transition-colors hover:bg-gray-50 dark:hover:bg-[#1A1A1A]"
               >
                 {/* Timestamp */}
-                <span className="flex-shrink-0 text-foreground-300 w-[72px] select-all">
+                <span className="w-[72px] flex-shrink-0 select-all text-foreground-300">
                   {formatLogTime(entry.time)}
                 </span>
 
                 {/* Level badge */}
                 <span
-                  className={`flex-shrink-0 w-[44px] text-center uppercase font-semibold ${LEVEL_COLORS[entry.level] || "text-foreground-400"}`}
+                  className={`flex-shrink-0 w-[44px] text-center font-semibold uppercase ${LEVEL_COLORS[entry.level] || "text-foreground-400"}`}
                 >
-                  {entry.level === "error" ? "ERR" : entry.level === "warning" ? "WARN" : entry.level.slice(0, 4).toUpperCase()}
+                  {entry.level === "error"
+                    ? "ERR"
+                    : entry.level === "warning"
+                      ? "WARN"
+                      : entry.level.slice(0, 4).toUpperCase()}
                 </span>
 
                 {/* Source */}
                 {entry.source && (
-                  <span className="flex-shrink-0 text-primary-500 dark:text-[#6366f1] max-w-[160px] truncate">
+                  <span className="max-w-[160px] flex-shrink-0 truncate text-primary-500 dark:text-[#6366f1]">
                     [{entry.source}]
                   </span>
                 )}
 
                 {/* Message */}
-                <span className="text-foreground-600 dark:text-[#D4D4D8] break-words min-w-0 whitespace-pre-wrap">
+                <span className="min-w-0 break-words whitespace-pre-wrap text-foreground-600 dark:text-[#D4D4D8]">
                   {entry.message}
                 </span>
               </div>
