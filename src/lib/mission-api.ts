@@ -40,7 +40,6 @@ export async function proxyRequest(
       "last-modified",
       "x-log-date",
       "x-log-file",
-      "x-log-source",
       "x-log-cursor",
     ] as const;
 
