@@ -4,12 +4,11 @@ import { useCallback, useEffect, useMemo, useState } from "react";
 import { Button, Card, CardBody, Checkbox, Chip, DatePicker, Input, Modal, ModalBody, ModalContent, ModalFooter, ModalHeader, Spinner, Textarea } from "@heroui/react";
 import {
   AlertCircle,
-  CalendarCheck,
   Clock3,
   ExternalLink,
   NotebookPen,
   Play,
-  SquarePen,
+  SquareCheck,
   TriangleAlert,
 } from "lucide-react";
 import {
@@ -268,6 +267,7 @@ export function DashboardContent({
   );
   const [creatingTask, setCreatingTask] = useState(false);
   const [startingTaskId, setStartingTaskId] = useState<string | null>(null);
+  const [markingDoneId, setMarkingDoneId] = useState<string | null>(null);
   const [isCreateTaskModalOpen, setIsCreateTaskModalOpen] = useState(false);
   const [createTaskError, setCreateTaskError] = useState<string | null>(null);
   const [newTaskTitle, setNewTaskTitle] = useState("");
@@ -517,6 +517,21 @@ export function DashboardContent({
     }
   };
 
+  const handleMarkDone = async (task: PersonalTask) => {
+    setMarkingDoneId(task.id);
+    try {
+      const today = toLocalDateKey(new Date());
+      const needsScheduledAt = !task.scheduled_at || !isSameLocalDay(task.scheduled_at, new Date());
+      await api.updatePersonalTask(task.id, {
+        source_status: "Done",
+        ...(needsScheduledAt ? { scheduled_at: today } : {}),
+      });
+      await refreshPersonalTasks();
+    } finally {
+      setMarkingDoneId(null);
+    }
+  };
+
   const morningPlanningVisible = now.getHours() >= 5 && now.getHours() < 9;
   const endOfDayVisible = now.getHours() >= 17;
 
@@ -563,10 +578,9 @@ export function DashboardContent({
         </div>
       )}
 
-      <section className="space-y-3">
+      <section className="space-y-3 rounded-lg border border-zinc-200 bg-zinc-50 p-3 dark:border-white/[0.07] dark:bg-white/[0.025]">
         <div>
           <h2 className="text-[11px] font-mono uppercase tracking-[0.14em] text-zinc-500">Today’s Non-Negotiables</h2>
-          <p className="mt-1 text-[13px] text-zinc-500">Only items dated today in Notion.</p>
         </div>
         <Card className="rounded-md border border-zinc-200 bg-white shadow-none dark:border-white/10 dark:bg-[#080808]">
           <CardBody className="gap-2 p-3">
@@ -708,41 +722,41 @@ export function DashboardContent({
                           const dueToday = !overdue && isSameLocalDay(task.due_at, now);
                           const dueTomorrow = !overdue && !dueToday && isDueTomorrow(task.due_at, now);
 
+                          const cardBg = task.status === "in_progress"
+                            ? "rounded-md border border-purple-200 bg-purple-50/60 shadow-none dark:border-purple-500/30 dark:bg-purple-500/[0.08]"
+                            : "rounded-md border border-zinc-200 bg-white shadow-none dark:border-white/10 dark:bg-[#080808]";
+
                           return (
-                            <Card key={task.id} className="rounded-md border border-zinc-200 bg-white shadow-none dark:border-white/10 dark:bg-[#080808]">
+                            <Card
+                              key={task.id}
+                              isPressable
+                              onPress={() => setSelectedPersonalTaskId(task.id)}
+                              className={cardBg}
+                            >
                               <CardBody className="gap-3 p-4">
                                 <div className="flex flex-col gap-3 sm:flex-row sm:items-start">
                                   <div className="min-w-0 flex-1">
                                     <h3 className="break-words text-sm font-medium text-zinc-900 dark:text-zinc-100">{task.title}</h3>
-                                    <div className="mt-2 flex flex-wrap items-center gap-2">
-                                      <Chip size="sm" variant="flat" color={statusChipColor(task.status)} className="h-5 whitespace-nowrap text-[10px] uppercase">
-                                        {(task.source_status || task.status).replace("_", " ")}
-                                      </Chip>
-                                      {overdue && (
-                                        <Chip size="sm" variant="flat" color="danger" className="h-5 whitespace-nowrap text-[10px] uppercase">
-                                          <span className="inline-flex items-center gap-1 whitespace-nowrap">
-                                            <AlertCircle size={12} />
-                                            Overdue
-                                          </span>
-                                        </Chip>
-                                      )}
-                                      {dueToday && (
-                                        <Chip size="sm" variant="flat" color="danger" className="h-5 whitespace-nowrap text-[10px] uppercase">
-                                          <span className="inline-flex items-center gap-1 sm:whitespace-nowrap">
-                                            <CalendarCheck size={12} />
-                                            Due today
-                                          </span>
-                                        </Chip>
-                                      )}
-                                      {dueTomorrow && (
-                                        <Chip size="sm" variant="flat" color="warning" className="h-5 whitespace-nowrap text-[10px] uppercase">
-                                          <span className="inline-flex items-center gap-1 sm:whitespace-nowrap">
-                                            <TriangleAlert size={12} />
-                                            Due tomorrow
-                                          </span>
-                                        </Chip>
-                                      )}
-                                    </div>
+                                    {(overdue || dueTomorrow) && (
+                                      <div className="mt-2 flex flex-wrap items-center gap-2">
+                                        {overdue && (
+                                          <Chip size="sm" variant="flat" color="danger" className="h-5 whitespace-nowrap text-[10px] uppercase">
+                                            <span className="inline-flex items-center gap-1 whitespace-nowrap">
+                                              <AlertCircle size={12} />
+                                              Overdue
+                                            </span>
+                                          </Chip>
+                                        )}
+                                        {dueTomorrow && (
+                                          <Chip size="sm" variant="flat" color="warning" className="h-5 whitespace-nowrap text-[10px] uppercase">
+                                            <span className="inline-flex items-center gap-1 sm:whitespace-nowrap">
+                                              <TriangleAlert size={12} />
+                                              Due tomorrow
+                                            </span>
+                                          </Chip>
+                                        )}
+                                      </div>
+                                    )}
                                     <div className="mt-2 flex flex-wrap items-center gap-x-4 gap-y-1 text-[12px] text-zinc-500">
                                       {task.scheduled_at && (
                                         <span className="inline-flex items-center gap-1.5 sm:whitespace-nowrap">
@@ -753,7 +767,7 @@ export function DashboardContent({
                                       {task.due_at && (
                                         <span className={`inline-flex items-center gap-1.5 sm:whitespace-nowrap ${overdue || dueToday ? "text-rose-600 dark:text-rose-400" : dueTomorrow ? "text-amber-600 dark:text-amber-400" : "text-zinc-500"}`}>
                                           {dueTomorrow ? <TriangleAlert size={13} /> : <AlertCircle size={13} />}
-                                          Due {formatDueLabel(task.due_at, now)}
+                                          {dueToday ? "Due today" : `Due ${formatDueLabel(task.due_at, now)}`}
                                         </span>
                                       )}
                                     </div>
@@ -763,25 +777,31 @@ export function DashboardContent({
                                       </p>
                                     )}
                                   </div>
-                                  <div className="flex w-full shrink-0 flex-col gap-2 sm:ml-auto sm:w-auto sm:flex-row sm:flex-wrap sm:justify-end sm:self-start">
+                                  <div
+                                    className="flex shrink-0 items-center gap-2 sm:ml-auto sm:self-start"
+                                    onClick={(e) => e.stopPropagation()}
+                                  >
                                     <Button
-                                      size="sm"
+                                      isIconOnly
+                                      size="md"
                                       variant="flat"
-                                      className={`${flatButtonClass} w-full sm:w-auto`}
-                                      startContent={<Play size={14} />}
+                                      aria-label="Start work"
+                                      className={`${flatButtonClass} h-11 w-11 min-w-11`}
                                       onPress={() => void handleStartWork(task)}
                                       isLoading={startingTaskId === task.id}
                                     >
-                                      Starting work
+                                      <Play size={16} />
                                     </Button>
                                     <Button
-                                      size="sm"
+                                      isIconOnly
+                                      size="md"
                                       variant="flat"
-                                      className={`${flatButtonClass} w-full sm:w-auto`}
-                                      startContent={<SquarePen size={14} />}
-                                      onPress={() => setSelectedPersonalTaskId(task.id)}
+                                      aria-label="Mark done"
+                                      className={`${flatButtonClass} h-11 w-11 min-w-11`}
+                                      onPress={() => void handleMarkDone(task)}
+                                      isLoading={markingDoneId === task.id}
                                     >
-                                      Details
+                                      <SquareCheck size={16} />
                                     </Button>
                                   </div>
                                 </div>
@@ -806,52 +826,46 @@ export function DashboardContent({
                           <CardBody className="p-4 text-[13px] text-zinc-500">No completed Notion tasks yet.</CardBody>
                         </Card>
                       ) : (
-                        completedTodayPersonalTasks.map((task) => (
-                          <Card key={task.id} className="rounded-md border border-emerald-200 bg-emerald-50/80 shadow-none dark:border-emerald-500/30 dark:bg-emerald-500/[0.08]">
-                            <CardBody className="gap-3 p-4">
-                              <div className="flex flex-col gap-3 sm:flex-row sm:items-start">
-                                <div className="min-w-0 flex-1">
-                                  <h3 className="break-words text-sm font-medium text-emerald-900 dark:text-emerald-100">{task.title}</h3>
-                                  <div className="mt-2 flex flex-wrap items-center gap-2">
-                                    <Chip size="sm" variant="flat" color="success" className="h-5 whitespace-nowrap text-[10px] uppercase">
-                                      {(task.source_status || task.status).replace("_", " ")}
-                                    </Chip>
-                                  </div>
-                                  <div className="mt-2 flex flex-wrap items-center gap-x-4 gap-y-1 text-[12px] text-emerald-700 dark:text-emerald-200">
-                                    {task.scheduled_at && (
-                                      <span className="inline-flex items-center gap-1.5 sm:whitespace-nowrap">
-                                        <Clock3 size={13} />
-                                        Scheduled {formatScheduledLabel(task.scheduled_at)}
-                                      </span>
+                        completedTodayPersonalTasks.map((task) => {
+                          const dueToday = isSameLocalDay(task.due_at, now);
+                          const dueTone = dueToday ? "text-rose-600 dark:text-rose-400" : "text-emerald-700 dark:text-emerald-200";
+
+                          return (
+                            <Card
+                              key={task.id}
+                              isPressable
+                              onPress={() => setSelectedPersonalTaskId(task.id)}
+                              className="rounded-md border border-emerald-200 bg-emerald-50/80 shadow-none dark:border-emerald-500/30 dark:bg-emerald-500/[0.08]"
+                            >
+                              <CardBody className="gap-3 p-4">
+                                <div className="flex flex-col gap-3 sm:flex-row sm:items-start">
+                                  <div className="min-w-0 flex-1">
+                                    <h3 className="break-words text-sm font-medium text-emerald-900 dark:text-emerald-100">{task.title}</h3>
+                                    <div className="mt-2 flex flex-wrap items-center gap-x-4 gap-y-1 text-[12px] text-emerald-700 dark:text-emerald-200">
+                                      {task.scheduled_at && (
+                                        <span className="inline-flex items-center gap-1.5 sm:whitespace-nowrap">
+                                          <Clock3 size={13} />
+                                          Scheduled {formatScheduledLabel(task.scheduled_at)}
+                                        </span>
+                                      )}
+                                      {task.due_at && (
+                                        <span className={`inline-flex items-center gap-1.5 sm:whitespace-nowrap ${dueTone}`}>
+                                          <AlertCircle size={13} />
+                                          {dueToday ? "Due today" : `Due ${formatDueLabel(task.due_at, now)}`}
+                                        </span>
+                                      )}
+                                    </div>
+                                    {task.description && (
+                                      <p className="mt-2 line-clamp-3 break-words text-[13px] text-emerald-800/90 dark:text-emerald-100/85">
+                                        {task.description}
+                                      </p>
                                     )}
-                                    {task.due_at && (
-                                      <span className="inline-flex items-center gap-1.5 sm:whitespace-nowrap">
-                                        <AlertCircle size={13} />
-                                        Due {formatDueLabel(task.due_at, now)}
-                                      </span>
-                                    )}
                                   </div>
-                                  {task.description && (
-                                    <p className="mt-2 line-clamp-3 break-words text-[13px] text-emerald-800/90 dark:text-emerald-100/85">
-                                      {task.description}
-                                    </p>
-                                  )}
                                 </div>
-                                <div className="flex w-full shrink-0 flex-col gap-2 sm:ml-auto sm:w-auto sm:flex-row sm:flex-wrap sm:justify-end sm:self-start">
-                                  <Button
-                                    size="sm"
-                                    variant="flat"
-                                    className={`${flatButtonClass} w-full sm:w-auto`}
-                                    startContent={<SquarePen size={14} />}
-                                    onPress={() => setSelectedPersonalTaskId(task.id)}
-                                  >
-                                    Details
-                                  </Button>
-                                </div>
-                              </div>
-                            </CardBody>
-                          </Card>
-                        ))
+                              </CardBody>
+                            </Card>
+                          );
+                        })
                       )}
                     </div>
                   </div>
