@@ -13,6 +13,7 @@ import {
   Brain,
   BookOpen,
   CalendarDays,
+  Inbox,
   X,
 } from "lucide-react";
 import type { LucideIcon } from "lucide-react";
@@ -20,11 +21,12 @@ import { ThemeToggle } from "@/components/theme-toggle";
 
 const primaryItems: { href: string; label: string; Icon: LucideIcon }[] = [
   { href: "/", label: "Today", Icon: LayoutDashboard },
+  { href: "/inbox", label: "Inbox", Icon: Inbox },
   { href: "/tasks", label: "Team", Icon: CheckSquare },
-  { href: "/activity", label: "Activity", Icon: Activity },
 ];
 
 const moreItems: { href: string; label: string; Icon: LucideIcon }[] = [
+  { href: "/activity", label: "Activity", Icon: Activity },
   { href: "/projects", label: "Projects", Icon: FolderKanban },
   { href: "/team", label: "Agents", Icon: Users },
   { href: "/memory", label: "Memory", Icon: Brain },

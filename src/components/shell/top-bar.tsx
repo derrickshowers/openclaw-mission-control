@@ -6,6 +6,7 @@ import { useSSEStatus } from "@/hooks/use-sse";
 
 const pageTitles: Record<string, string> = {
   "/": "Today",
+  "/inbox": "Inbox",
   "/tasks": "Team",
   "/team": "Agents",
   "/memory": "Memory",

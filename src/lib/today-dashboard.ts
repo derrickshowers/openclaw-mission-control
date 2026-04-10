@@ -1,4 +1,5 @@
 import type { BrainChannelSummary, TodayNonNegotiable } from "./api";
+import { parseDate, type DateValue } from "@internationalized/date";
 
 export interface TodayUsageSummary {
   provider: string;
@@ -101,4 +102,49 @@ export function writeTodayDashboardCache(snapshot: TodayDashboardSnapshot) {
   } catch {
     // non-fatal: cache is just a fast path
   }
+}
+
+const DATE_ONLY_VALUE_RE = /^(\d{4})-(\d{2})-(\d{2})(?:T00:00:00(?:\.000)?Z)?$/;
+
+function parseCalendarDate(dateValue: string | null | undefined) {
+  if (!dateValue) return null;
+
+  const trimmed = dateValue.trim();
+  const dateOnlyMatch = trimmed.match(DATE_ONLY_VALUE_RE);
+  if (dateOnlyMatch) {
+    return new Date(
+      Number(dateOnlyMatch[1]),
+      Number(dateOnlyMatch[2]) - 1,
+      Number(dateOnlyMatch[3])
+    );
+  }
+
+  const parsed = new Date(trimmed);
+  return Number.isNaN(parsed.getTime()) ? null : parsed;
+}
+
+export function nextFridayDateKey(now = new Date()) {
+  const d = new Date(now);
+  const day = d.getDay();
+  const friday = 5;
+  let delta = (friday - day + 7) % 7;
+  if (delta === 0) delta = 7;
+  d.setDate(d.getDate() + delta);
+  return toLocalDateKey(d);
+}
+
+export function toDateInputValue(dateValue: string | null | undefined, fallback = "") {
+  const parsed = parseCalendarDate(dateValue);
+  return parsed ? toLocalDateKey(parsed) : fallback;
+}
+
+export function toCalendarDateValue(dateValue: string | null | undefined): DateValue | null {
+  const parsed = parseCalendarDate(dateValue);
+  if (!parsed) return null;
+  return parseDate(toLocalDateKey(parsed));
+}
+
+export function toIsoDateFromCalendar(value: DateValue | null): string | null {
+  if (!value) return null;
+  return value.toString();
 }
