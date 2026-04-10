@@ -723,8 +723,8 @@ export function DashboardContent({
                           const dueTomorrow = !overdue && !dueToday && isDueTomorrow(task.due_at, now);
 
                           const cardBg = task.status === "in_progress"
-                            ? "rounded-md border border-purple-200 bg-purple-50/60 shadow-none dark:border-purple-500/30 dark:bg-purple-500/[0.08]"
-                            : "rounded-md border border-zinc-200 bg-white shadow-none dark:border-white/10 dark:bg-[#080808]";
+                            ? "w-full rounded-md border border-purple-200 bg-purple-50/60 shadow-none dark:border-purple-500/30 dark:bg-purple-500/[0.08]"
+                            : "w-full rounded-md border border-zinc-200 bg-white shadow-none dark:border-white/10 dark:bg-[#080808]";
 
                           return (
                             <Card
@@ -835,7 +835,7 @@ export function DashboardContent({
                               key={task.id}
                               isPressable
                               onPress={() => setSelectedPersonalTaskId(task.id)}
-                              className="rounded-md border border-emerald-200 bg-emerald-50/80 shadow-none dark:border-emerald-500/30 dark:bg-emerald-500/[0.08]"
+                              className="w-full rounded-md border border-emerald-200 bg-emerald-50/80 shadow-none dark:border-emerald-500/30 dark:bg-emerald-500/[0.08]"
                             >
                               <CardBody className="gap-3 p-4">
                                 <div className="flex flex-col gap-3 sm:flex-row sm:items-start">
