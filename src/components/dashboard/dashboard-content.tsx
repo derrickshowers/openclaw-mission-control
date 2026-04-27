@@ -106,7 +106,9 @@ function formatDueLabel(dateValue: string | null | undefined, now: Date) {
   if (!parsed) return "";
 
   const diff = dayDiffFromNow(dateValue, now);
-  if (diff !== null && diff >= 0 && diff <= 5) {
+  if (diff === 0) return "today";
+  if (diff === 1) return "tomorrow";
+  if (diff !== null && diff >= 2 && diff <= 6) {
     return parsed.toLocaleDateString("en-US", { weekday: "short" });
   }
 
@@ -737,24 +739,14 @@ export function DashboardContent({
                                 <div className="flex flex-col gap-3 sm:flex-row sm:items-start">
                                   <div className="min-w-0 flex-1">
                                     <h3 className="break-words text-sm font-medium text-zinc-900 dark:text-zinc-100">{task.title}</h3>
-                                    {(overdue || dueTomorrow) && (
+                                    {overdue && (
                                       <div className="mt-2 flex flex-wrap items-center gap-2">
-                                        {overdue && (
-                                          <Chip size="sm" variant="flat" color="danger" className="h-5 whitespace-nowrap text-[10px] uppercase">
-                                            <span className="inline-flex items-center gap-1 whitespace-nowrap">
-                                              <AlertCircle size={12} />
-                                              Overdue
-                                            </span>
-                                          </Chip>
-                                        )}
-                                        {dueTomorrow && (
-                                          <Chip size="sm" variant="flat" color="warning" className="h-5 whitespace-nowrap text-[10px] uppercase">
-                                            <span className="inline-flex items-center gap-1 sm:whitespace-nowrap">
-                                              <TriangleAlert size={12} />
-                                              Due tomorrow
-                                            </span>
-                                          </Chip>
-                                        )}
+                                        <Chip size="sm" variant="flat" color="danger" className="h-5 whitespace-nowrap text-[10px] uppercase">
+                                          <span className="inline-flex items-center gap-1 whitespace-nowrap">
+                                            <AlertCircle size={12} />
+                                            Overdue
+                                          </span>
+                                        </Chip>
                                       </div>
                                     )}
                                     <div className="mt-2 flex flex-wrap items-center gap-x-4 gap-y-1 text-[12px] text-zinc-500">
@@ -767,7 +759,7 @@ export function DashboardContent({
                                       {task.due_at && (
                                         <span className={`inline-flex items-center gap-1.5 sm:whitespace-nowrap ${overdue || dueToday ? "text-rose-600 dark:text-rose-400" : dueTomorrow ? "text-amber-600 dark:text-amber-400" : "text-zinc-500"}`}>
                                           {dueTomorrow ? <TriangleAlert size={13} /> : <AlertCircle size={13} />}
-                                          {dueToday ? "Due today" : `Due ${formatDueLabel(task.due_at, now)}`}
+                                          {`Due ${formatDueLabel(task.due_at, now)}`}
                                         </span>
                                       )}
                                     </div>
@@ -851,7 +843,7 @@ export function DashboardContent({
                                       {task.due_at && (
                                         <span className={`inline-flex items-center gap-1.5 sm:whitespace-nowrap ${dueTone}`}>
                                           <AlertCircle size={13} />
-                                          {dueToday ? "Due today" : `Due ${formatDueLabel(task.due_at, now)}`}
+                                          {`Due ${formatDueLabel(task.due_at, now)}`}
                                         </span>
                                       )}
                                     </div>
