@@ -115,12 +115,31 @@ function formatDueLabel(dateValue: string | null | undefined, now: Date) {
   return parsed.toLocaleDateString("en-US", { month: "short", day: "numeric" });
 }
 
-function formatScheduledLabel(dateValue: string | null | undefined) {
+function formatScheduledLabel(dateValue: string | null | undefined, now: Date) {
   const parsed = parseCalendarDate(dateValue);
   if (!parsed) return "";
 
-  if (DATE_ONLY_VALUE_RE.test(dateValue?.trim() || "")) {
+  const isDateOnly = DATE_ONLY_VALUE_RE.test(dateValue?.trim() || "");
+  const diff = dayDiffFromNow(dateValue, now);
+
+  if (isDateOnly) {
+    if (diff === 0) return "today";
+    if (diff === 1) return "tomorrow";
+    if (diff !== null && diff >= 2 && diff <= 6) {
+      return parsed.toLocaleDateString("en-US", { weekday: "short" });
+    }
     return parsed.toLocaleDateString("en-US", { month: "short", day: "numeric" });
+  }
+
+  const timeLabel = parsed.toLocaleTimeString("en-US", {
+    hour: "numeric",
+    minute: "2-digit",
+  });
+
+  if (diff === 0) return `today at ${timeLabel}`;
+  if (diff === 1) return `tomorrow at ${timeLabel}`;
+  if (diff !== null && diff >= 2 && diff <= 6) {
+    return `${parsed.toLocaleDateString("en-US", { weekday: "short" })} at ${timeLabel}`;
   }
 
   return parsed.toLocaleString("en-US", {
@@ -753,7 +772,7 @@ export function DashboardContent({
                                       {task.scheduled_at && (
                                         <span className="inline-flex items-center gap-1.5 sm:whitespace-nowrap">
                                           <Clock3 size={13} />
-                                          Scheduled {formatScheduledLabel(task.scheduled_at)}
+                                          Scheduled {formatScheduledLabel(task.scheduled_at, now)}
                                         </span>
                                       )}
                                       {task.due_at && (
@@ -837,7 +856,7 @@ export function DashboardContent({
                                       {task.scheduled_at && (
                                         <span className="inline-flex items-center gap-1.5 sm:whitespace-nowrap">
                                           <Clock3 size={13} />
-                                          Scheduled {formatScheduledLabel(task.scheduled_at)}
+                                          Scheduled {formatScheduledLabel(task.scheduled_at, now)}
                                         </span>
                                       )}
                                       {task.due_at && (
