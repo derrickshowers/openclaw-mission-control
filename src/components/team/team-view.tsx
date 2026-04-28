@@ -283,7 +283,8 @@ export function TeamView({ agents }: TeamViewProps) {
     return {
       ...agent,
       status: live?.status || agent.status,
-      model: live?.model || agent.model,
+      // Keep the card model sourced from OpenClaw config; runtime session model already shows in Main Session Health.
+      model: agent.model,
       lastActiveAt: mainSession?.lastActiveAt ?? null,
     };
   });
@@ -555,21 +556,25 @@ const attentionConfig: Record<string, { color: "danger"; label: string }> = {
   aborted_last_run: { color: "danger", label: "Aborted last run" },
 };
 
-function formatModel(model?: string | { primary?: string; fallbacks?: string[] } | null): string {
+function getModelPrimary(model?: string | { primary?: string; fallbacks?: string[]; label?: string } | null): string {
   if (!model) return "";
 
-  const rawModel =
-    typeof model === "string"
-      ? model
-      : typeof model.primary === "string"
-        ? model.primary
-        : Array.isArray(model.fallbacks) && typeof model.fallbacks[0] === "string"
-          ? model.fallbacks[0]
-          : "";
+  if (typeof model === "string") return model;
+  if (typeof model.primary === "string") return model.primary;
+  if (Array.isArray(model.fallbacks) && typeof model.fallbacks[0] === "string") return model.fallbacks[0];
+  return "";
+}
 
+function formatModel(model?: string | { primary?: string; fallbacks?: string[]; label?: string } | null): string {
+  if (!model) return "";
+
+  if (typeof model === "object" && typeof model.label === "string" && model.label.trim()) {
+    return model.label.trim();
+  }
+
+  const rawModel = getModelPrimary(model);
   if (!rawModel) return "";
 
-  // e.g. "anthropic/claude-opus-4-6" → "Claude Opus 4.6"
   const name = rawModel.split("/").pop() || rawModel;
   return name
     .replace(/^claude-/, "Claude ")
@@ -661,11 +666,22 @@ function AgentCard({
             <p className="text-xs text-foreground-400 mt-0.5">
               {meta?.role || "Agent"}
             </p>
-            {agent.model && (
-              <p className="text-[11px] text-foreground-300 mt-0.5 font-mono">
-                {formatModel(agent.model)}
-              </p>
-            )}
+            {agent.model && (() => {
+              const primaryModel = getModelPrimary(agent.model);
+              const modelLabel = formatModel(agent.model);
+              return (
+                <div className="mt-0.5">
+                  <p className="text-[11px] text-foreground-300 font-mono" title={modelLabel || primaryModel}>
+                    {primaryModel || modelLabel}
+                  </p>
+                  {modelLabel && modelLabel !== primaryModel ? (
+                    <p className="text-[10px] text-foreground-400">
+                      {modelLabel}
+                    </p>
+                  ) : null}
+                </div>
+              );
+            })()}
             <p className="text-xs text-foreground-300 mt-2 line-clamp-2">
               {meta?.description || ""}
             </p>
