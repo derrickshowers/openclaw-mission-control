@@ -11,6 +11,7 @@ import { api } from "@/lib/api";
 import type { Task, TaskComment, TaskAttachment, Project, TaskRun } from "@/lib/api";
 import { formatLocal, parseUTC, timeAgo } from "@/lib/dates";
 import { KNOWN_AGENT_IDS, resolveAgentAvatarUrl } from "@/lib/agents";
+import { splitTextWithMentions } from "@/lib/mentions";
 import ReactMarkdown from "react-markdown";
 import remarkGfm from "remark-gfm";
 
@@ -38,18 +39,19 @@ const sortCommentsDesc = (items: TaskComment[]) =>
 // Helper to process text nodes and highlight @mentions
 const processChildrenForMentions = (children: any): any => {
   if (!children) return children;
-  
+
   const processNode = (child: any, index: number): any => {
-    if (typeof child === 'string') {
-      // Split on @mentions and wrap them
-      const parts = child.split(/(@\w+)/g);
-      return parts.map((part: string, i: number) =>
-        /^@\w+$/.test(part) ? (
-          <span key={`${index}-${i}`} className="inline-block rounded px-1 py-0.5 bg-primary-500/15 text-primary-600 dark:text-primary-400 font-medium text-xs">
-            {part}
+    if (typeof child === "string") {
+      return splitTextWithMentions(child).map((segment, segmentIndex) =>
+        segment.type === "mention" ? (
+          <span
+            key={`${index}-${segmentIndex}`}
+            className="inline-block rounded px-1 py-0.5 bg-primary-500/15 text-primary-600 dark:text-primary-400 font-medium text-xs"
+          >
+            @{segment.value}
           </span>
         ) : (
-          part
+          segment.value
         )
       );
     }
@@ -59,7 +61,7 @@ const processChildrenForMentions = (children: any): any => {
   if (Array.isArray(children)) {
     return children.map((child, i) => processNode(child, i));
   }
-  
+
   return processNode(children, 0);
 };
 

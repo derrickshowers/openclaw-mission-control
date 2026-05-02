@@ -2,6 +2,7 @@
 
 import { useState, useRef, useCallback, useEffect } from "react";
 import { KNOWN_AGENT_IDS } from "@/lib/agents";
+import { findMergedMentionPrefix } from "@/lib/mentions";
 
 interface MentionTextareaProps {
   value: string;
@@ -156,11 +157,65 @@ export function MentionTextarea({
     }
   }, [showMentions]);
 
+  const normalizeMergedMention = useCallback(() => {
+    const sel = window.getSelection();
+    if (!sel || !sel.rangeCount) return false;
+
+    const range = sel.getRangeAt(0);
+    if (!range.collapsed) return false;
+
+    const node = range.startContainer;
+    if (node.nodeType !== Node.TEXT_NODE) return false;
+
+    const textNode = node as Text;
+    const text = textNode.textContent || "";
+    const cursorOffset = range.startOffset;
+    const textBeforeCursor = text.slice(0, cursorOffset);
+    const match = textBeforeCursor.match(/(^|[\s])@([^\s@]+)$/);
+    if (!match) return false;
+
+    const mergedMention = findMergedMentionPrefix(match[2]);
+    if (!mergedMention) return false;
+
+    const { agent, remainder } = mergedMention;
+    const atIndex = cursorOffset - match[2].length - 1;
+    const before = text.slice(0, atIndex);
+    const after = text.slice(cursorOffset);
+    const parent = textNode.parentNode;
+    if (!parent) return false;
+
+    const mentionSpan = createMentionSpan(agent);
+    const trailingText = document.createTextNode(` ${remainder}${after}`);
+
+    if (before) {
+      parent.insertBefore(document.createTextNode(before), textNode);
+    }
+    parent.insertBefore(mentionSpan, textNode);
+    parent.insertBefore(trailingText, textNode);
+    parent.removeChild(textNode);
+
+    const nextRange = document.createRange();
+    nextRange.setStart(trailingText, 1 + remainder.length);
+    nextRange.collapse(true);
+    sel.removeAllRanges();
+    sel.addRange(nextRange);
+
+    setShowMentions(false);
+    mentionAnchor.current = null;
+    syncValue();
+    return true;
+  }, [syncValue]);
+
   const handleInput = useCallback((e: React.FormEvent) => {
     e.stopPropagation();
+
+    if (normalizeMergedMention()) {
+      return;
+    }
+
     syncValue();
     checkForMentionTrigger();
-  }, [syncValue, checkForMentionTrigger]);
+  }, [checkForMentionTrigger, normalizeMergedMention, syncValue]);
 
   /** Insert a mention at the current @ position */
   const insertMention = useCallback(
