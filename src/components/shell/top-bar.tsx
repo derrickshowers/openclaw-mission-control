@@ -1,8 +1,10 @@
 "use client";
 
+import { useCallback, useEffect, useState } from "react";
 import { usePathname } from "next/navigation";
 import { RefreshCw, Umbrella } from "lucide-react";
 import { useSSEStatus } from "@/hooks/use-sse";
+import { api } from "@/lib/api";
 
 const pageTitles: Record<string, string> = {
   "/": "Today",
@@ -15,9 +17,23 @@ const pageTitles: Record<string, string> = {
   "/activity": "Activity",
 };
 
+type OpenClawHealth = {
+  gateway?: string;
+};
+
 export function TopBar() {
   const pathname = usePathname();
   const connected = useSSEStatus();
+  const [openClawRunning, setOpenClawRunning] = useState<boolean | null>(null);
+
+  const refreshOpenClawHealth = useCallback(async () => {
+    try {
+      const health = await api.getHealth() as OpenClawHealth;
+      setOpenClawRunning(health.gateway === "connected");
+    } catch {
+      setOpenClawRunning(false);
+    }
+  }, []);
 
   const title =
     pageTitles[pathname] ||
@@ -30,6 +46,35 @@ export function TopBar() {
     window.location.reload();
   };
 
+  useEffect(() => {
+    const initialCheck = window.setTimeout(() => {
+      void refreshOpenClawHealth();
+    }, 0);
+
+    const interval = window.setInterval(() => {
+      void refreshOpenClawHealth();
+    }, 30_000);
+
+    return () => {
+      window.clearTimeout(initialCheck);
+      window.clearInterval(interval);
+    };
+  }, [refreshOpenClawHealth]);
+
+  const openClawLabel =
+    openClawRunning === null
+      ? "Checking"
+      : openClawRunning
+        ? "Running"
+        : "Down";
+
+  const openClawIndicatorClass =
+    openClawRunning === null
+      ? "bg-zinc-400 animate-pulse"
+      : openClawRunning
+        ? "bg-success"
+        : "bg-danger animate-pulse";
+
   return (
     <header className="standalone-topbar mx-2 mt-2 flex h-14 items-center justify-between rounded-xl border border-divider bg-content1/50 px-4 backdrop-blur-xl lg:mx-3 lg:px-5">
       <div className="flex items-center gap-3">
@@ -41,6 +86,15 @@ export function TopBar() {
           <div className={`h-1.5 w-1.5 rounded-full ${connected ? "bg-success" : "bg-danger animate-pulse"}`} />
           <span className="hidden text-[10px] text-foreground-500 lg:inline">
             {connected ? "Live" : "Offline"}
+          </span>
+        </div>
+        <div
+          className="flex items-center gap-1.5"
+          title={openClawRunning === null ? "Checking OpenClaw instance..." : openClawRunning ? "OpenClaw instance is running" : "OpenClaw instance is unavailable"}
+        >
+          <div className={`h-1.5 w-1.5 rounded-full ${openClawIndicatorClass}`} />
+          <span className="hidden text-[10px] text-foreground-500 lg:inline">
+            OpenClaw {openClawLabel}
           </span>
         </div>
         <button
