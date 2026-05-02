@@ -12,7 +12,8 @@ const pageTitles: Record<string, string> = {
   "/tasks": "Team",
   "/team": "Agents",
   "/memory": "Memory",
-  "/calendar": "Calendar",
+  "/time": "Time Logging",
+  "/calendar": "Time Logging",
   "/docs": "Docs",
   "/activity": "Activity",
 };

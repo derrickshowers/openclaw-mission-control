@@ -222,6 +222,82 @@ export interface TodayNonNegotiable {
   last_edited_at: string | null;
 }
 
+export interface TimeLoggingCategory {
+  name: string;
+  canonicalName: string;
+  idealWeekHours: number | null;
+  isLegacyOnly: boolean;
+  totalHoursAllTime: number;
+}
+
+export interface TimeLoggingCategoryHours {
+  category: string;
+  hours: number;
+}
+
+export interface TimeLoggingWeeklyCategory {
+  category: string;
+  actualHours: number;
+  idealHours: number | null;
+  deltaHours: number;
+  shareOfWeek: number;
+  hasTarget: boolean;
+  isLegacyCategory: boolean;
+}
+
+export interface TimeLoggingWeekBucket {
+  week: string;
+  isPartial: boolean;
+  totalHours: number;
+  byCategory: TimeLoggingCategoryHours[];
+}
+
+export interface TimeLoggingDayBucket {
+  day: string;
+  totalHours: number;
+  byCategory: TimeLoggingCategoryHours[];
+}
+
+export interface TimeLoggingMonthBucket {
+  month: string;
+  isPartial: boolean;
+  totalHours: number;
+  byCategory: TimeLoggingCategoryHours[];
+}
+
+export interface TimeLoggingSummary {
+  generatedAt: string;
+  timeZone: string;
+  counts: {
+    logs: number;
+    categories: number;
+  };
+  range: {
+    minDate: string | null;
+    maxDate: string | null;
+  };
+  categories: TimeLoggingCategory[];
+  weekly: {
+    selectedWeek: string;
+    latestWeek: string | null;
+    isPartial: boolean;
+    actualTotalHours: number;
+    idealTotalHours: number;
+    byCategory: TimeLoggingWeeklyCategory[];
+    daily: TimeLoggingDayBucket[];
+    last8Weeks: TimeLoggingWeekBucket[];
+  };
+  monthly: {
+    latestMonth: string | null;
+    currentMonth: string;
+    months: TimeLoggingMonthBucket[];
+    categoryBenchmarks: Array<{
+      category: string;
+      monthlyHoursBenchmark: number;
+    }>;
+  };
+}
+
 // Bee Insights (mock ingestion lane)
 export type BeeInsightStatus = "new" | "accepted" | "dismissed";
 export type BeeInsightConfidence = "high" | "medium" | "low";
@@ -441,6 +517,13 @@ export const api = {
     apiFetch<TodayNonNegotiable[]>("/today/non-negotiables", {
       params: {
         date: params?.date || "",
+      },
+    }),
+
+  getTimeLoggingSummary: (params?: { week?: string }) =>
+    apiFetch<TimeLoggingSummary>("/time-logging/summary", {
+      params: {
+        week: params?.week || "",
       },
     }),
 

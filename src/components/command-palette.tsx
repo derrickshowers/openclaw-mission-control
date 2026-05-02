@@ -6,7 +6,6 @@ import {
   Modal,
   ModalContent,
   ModalBody,
-  Input,
   Listbox,
   ListboxItem,
   Kbd,
@@ -20,7 +19,7 @@ import {
   Users,
   Brain,
   BookOpen,
-  CalendarDays,
+  BarChart3,
   Plus,
 } from "lucide-react";
 
@@ -30,7 +29,7 @@ const items = [
   { id: "tasks", label: "Team", href: "/tasks", icon: CheckSquare },
   { id: "team", label: "Agents", href: "/team", icon: Users },
   { id: "memory", label: "Memory", href: "/memory", icon: Brain },
-  { id: "calendar", label: "Calendar", href: "/calendar", icon: CalendarDays },
+  { id: "time-logging", label: "Time Logging", href: "/time", icon: BarChart3 },
   { id: "docs", label: "Docs", href: "/docs", icon: BookOpen },
   { id: "activity", label: "Activity", href: "/activity", icon: Activity },
   { id: "create-task", label: "Create Task", href: "/tasks?action=new", icon: Plus },
@@ -115,7 +114,7 @@ export function CommandPalette() {
               </Listbox>
             ) : (
               <div className="px-4 py-8 text-center text-sm text-foreground-400">
-                No results found for "{query}"
+                No results found for &quot;{query}&quot;
               </div>
             )}
           </div>

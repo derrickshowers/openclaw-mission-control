@@ -12,7 +12,7 @@ import {
   Users,
   Brain,
   BookOpen,
-  CalendarDays,
+  BarChart3,
   Inbox,
   X,
 } from "lucide-react";
@@ -30,7 +30,7 @@ const moreItems: { href: string; label: string; Icon: LucideIcon }[] = [
   { href: "/projects", label: "Projects", Icon: FolderKanban },
   { href: "/team", label: "Agents", Icon: Users },
   { href: "/memory", label: "Memory", Icon: Brain },
-  { href: "/calendar", label: "Calendar", Icon: CalendarDays },
+  { href: "/time", label: "Time Logging", Icon: BarChart3 },
   { href: "/docs", label: "Docs", Icon: BookOpen },
 ];
 
