@@ -11,7 +11,7 @@ import { api } from "@/lib/api";
 import type { Task, TaskComment, TaskAttachment, Project, TaskRun } from "@/lib/api";
 import { formatLocal, parseUTC, timeAgo } from "@/lib/dates";
 import { KNOWN_AGENT_IDS, resolveAgentAvatarUrl } from "@/lib/agents";
-import { splitTextWithMentions } from "@/lib/mentions";
+import { normalizeMentionText, splitTextWithMentions } from "@/lib/mentions";
 import ReactMarkdown from "react-markdown";
 import remarkGfm from "remark-gfm";
 
@@ -159,11 +159,13 @@ export function TaskDrawer({ task, isOpen, onClose, onUpdate }: TaskDrawerProps)
   }, [drawerEvent, isOpen, task.id]);
 
   const postComment = async () => {
-    if (!newComment.trim()) return;
+    const normalizedComment = normalizeMentionText(newComment).trim();
+    if (!normalizedComment) return;
+
     const author = session?.user?.name?.split(" ")[0].toLowerCase() || "unknown";
     setSubmitting(true);
     try {
-      const comment = await api.addComment(task.id, author, newComment.trim());
+      const comment = await api.addComment(task.id, author, normalizedComment);
       setComments((prev) => sortCommentsDesc([comment, ...prev]));
       setNewComment("");
     } catch (err) {
