@@ -7,33 +7,50 @@ import {
   splitTextWithMentions,
 } from "@/lib/mentions";
 
-test("normalizeMentionText repairs camel-case and lowercase merged mentions", () => {
+test("normalizeMentionText repairs camel-case merged mentions in saved text", () => {
   assert.equal(
     normalizeMentionText("@michaelCan you move this?"),
     "@michael Can you move this?"
   );
   assert.equal(
     normalizeMentionText("@michaelcan you move this?"),
-    "@michael can you move this?"
+    "@michaelcan you move this?"
   );
 });
 
-test("findMergedMentionPrefix handles lowercase merge regressions without short false positives", () => {
+test("findMergedMentionPrefix only allows lowercase merges when explicitly requested", () => {
   assert.deepEqual(findMergedMentionPrefix("michaelCan"), {
     agent: "michael",
     remainder: "Can",
   });
-  assert.deepEqual(findMergedMentionPrefix("michaelcan"), {
-    agent: "michael",
-    remainder: "can",
-  });
-  assert.equal(findMergedMentionPrefix("tommy"), null);
+  assert.equal(findMergedMentionPrefix("michaelcan"), null);
+  assert.deepEqual(
+    findMergedMentionPrefix("michaelcan", { allowLowercaseWordMerges: true }),
+    {
+      agent: "michael",
+      remainder: "can",
+    }
+  );
 });
 
-test("splitTextWithMentions highlights repaired mention tokens", () => {
-  assert.deepEqual(splitTextWithMentions("ping @michaelcan please"), [
+test("normalizeMentionText does not create false-positive short mentions", () => {
+  assert.equal(normalizeMentionText("@tomcat deploy"), "@tomcat deploy");
+  assert.equal(normalizeMentionText("@tomorrow maybe"), "@tomorrow maybe");
+});
+
+test("splitTextWithMentions preserves unmatched @ text and email addresses", () => {
+  assert.deepEqual(splitTextWithMentions("foo @bar baz"), [
+    { type: "text", value: "foo @bar baz" },
+  ]);
+  assert.deepEqual(splitTextWithMentions("email me@test.com"), [
+    { type: "text", value: "email me@test.com" },
+  ]);
+});
+
+test("splitTextWithMentions still highlights repaired mention tokens", () => {
+  assert.deepEqual(splitTextWithMentions("ping @michaelCan please"), [
     { type: "text", value: "ping " },
     { type: "mention", value: "michael" },
-    { type: "text", value: " can please" },
+    { type: "text", value: " Can please" },
   ]);
 });

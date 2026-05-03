@@ -4,19 +4,37 @@ export type MentionSegment =
   | { type: "text"; value: string }
   | { type: "mention"; value: string };
 
+interface MentionMatchOptions {
+  allowLowercaseWordMerges?: boolean;
+}
+
 const SORTED_AGENT_IDS = [...KNOWN_AGENT_IDS].sort((a, b) => b.length - a.length);
 const WORD_CHAR_RE = /[A-Za-z0-9_]/;
-const LOWERCASE_MERGE_MIN_LENGTH = 3;
+const ALLOWED_LOWERCASE_MERGE_WORDS = new Set([
+  "can",
+  "could",
+  "would",
+  "will",
+  "should",
+  "please",
+]);
 
 function isWordChar(char?: string): boolean {
   return !!char && WORD_CHAR_RE.test(char);
 }
 
-function isLowercaseMergeRemainder(remainder: string): boolean {
-  return /^[a-z0-9_]+$/.test(remainder) && remainder.length >= LOWERCASE_MERGE_MIN_LENGTH;
+function isAllowedLowercaseMergeRemainder(
+  remainder: string,
+  options?: MentionMatchOptions
+): boolean {
+  return !!options?.allowLowercaseWordMerges && ALLOWED_LOWERCASE_MERGE_WORDS.has(remainder);
 }
 
-function findMentionMatch(text: string, atIndex: number): {
+function findMentionMatch(
+  text: string,
+  atIndex: number,
+  options?: MentionMatchOptions
+): {
   agent: string;
   mergedRemainder: string;
   tokenEnd: number;
@@ -37,7 +55,7 @@ function findMentionMatch(text: string, atIndex: number): {
     if (
       mergedRemainder &&
       !/^[A-Z]/.test(mergedRemainder) &&
-      !isLowercaseMergeRemainder(mergedRemainder)
+      !isAllowedLowercaseMergeRemainder(mergedRemainder, options)
     ) {
       continue;
     }
@@ -48,11 +66,14 @@ function findMentionMatch(text: string, atIndex: number): {
   return null;
 }
 
-export function findMergedMentionPrefix(token: string): {
+export function findMergedMentionPrefix(
+  token: string,
+  options?: MentionMatchOptions
+): {
   agent: string;
   remainder: string;
 } | null {
-  const match = findMentionMatch(`@${token}`, 0);
+  const match = findMentionMatch(`@${token}`, 0, options);
   if (!match || !match.mergedRemainder) return null;
   return { agent: match.agent, remainder: match.mergedRemainder };
 }
@@ -90,29 +111,35 @@ export function normalizeMentionText(text: string): string {
 export function splitTextWithMentions(text: string): MentionSegment[] {
   const normalizedText = normalizeMentionText(text);
   const segments: MentionSegment[] = [];
-  let cursor = 0;
+  let textCursor = 0;
+  let scanCursor = 0;
 
-  while (cursor < normalizedText.length) {
-    const atIndex = normalizedText.indexOf("@", cursor);
+  while (scanCursor < normalizedText.length) {
+    const atIndex = normalizedText.indexOf("@", scanCursor);
     if (atIndex === -1) break;
 
     const match = findMentionMatch(normalizedText, atIndex);
     if (!match) {
-      cursor = atIndex + 1;
+      scanCursor = atIndex + 1;
       continue;
     }
 
-    if (atIndex > cursor) {
-      segments.push({ type: "text", value: normalizedText.slice(cursor, atIndex) });
+    if (atIndex > textCursor) {
+      segments.push({ type: "text", value: normalizedText.slice(textCursor, atIndex) });
     }
 
     segments.push({ type: "mention", value: match.agent });
-    cursor = atIndex + 1 + match.agent.length;
+    textCursor = atIndex + 1 + match.agent.length;
+    scanCursor = textCursor;
   }
 
-  if (cursor < normalizedText.length) {
-    segments.push({ type: "text", value: normalizedText.slice(cursor) });
+  if (textCursor < normalizedText.length) {
+    segments.push({ type: "text", value: normalizedText.slice(textCursor) });
   }
 
   return segments.length > 0 ? segments : [{ type: "text", value: normalizedText }];
 }
+
+export const mentionMergeTestUtils = {
+  ALLOWED_LOWERCASE_MERGE_WORDS,
+};

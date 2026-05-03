@@ -174,11 +174,17 @@ export function MentionTextarea({
     const match = textBeforeCursor.match(/(^|[\s])@([^\s@]+)$/);
     if (!match) return false;
 
-    const mergedMention = findMergedMentionPrefix(match[2]);
+    const anchor = mentionAnchor.current;
+    const atIndex = cursorOffset - match[2].length - 1;
+    const allowLowercaseWordMerges =
+      anchor?.node === textNode && anchor.offset === atIndex;
+
+    const mergedMention = findMergedMentionPrefix(match[2], {
+      allowLowercaseWordMerges,
+    });
     if (!mergedMention) return false;
 
     const { agent, remainder } = mergedMention;
-    const atIndex = cursorOffset - match[2].length - 1;
     const before = text.slice(0, atIndex);
     const after = text.slice(cursorOffset);
     const parent = textNode.parentNode;
