@@ -1,6 +1,7 @@
 "use client";
 
 import { useCallback, useEffect, useState } from "react";
+import { Button, Popover, PopoverContent, PopoverTrigger } from "@heroui/react";
 import { usePathname } from "next/navigation";
 import { RefreshCw, Umbrella } from "lucide-react";
 import { useSSEStatus } from "@/hooks/use-sse";
@@ -21,6 +22,27 @@ const pageTitles: Record<string, string> = {
 type OpenClawHealth = {
   gateway?: string;
 };
+
+type StatusItem = {
+  name: string;
+  value: string;
+  description: string;
+  indicatorClass: string;
+};
+
+function StatusRow({ name, value, description, indicatorClass }: StatusItem) {
+  return (
+    <div className="flex items-center gap-2" title={description}>
+      <div className={`h-1.5 w-1.5 rounded-full ${indicatorClass}`} />
+      <div className="flex items-baseline gap-1.5 leading-none">
+        <span className="text-[10px] font-medium text-foreground-700 dark:text-foreground-300">
+          {name}
+        </span>
+        <span className="text-[10px] text-foreground-500">{value}</span>
+      </div>
+    </div>
+  );
+}
 
 export function TopBar() {
   const pathname = usePathname();
@@ -76,6 +98,25 @@ export function TopBar() {
         ? "bg-success"
         : "bg-danger animate-pulse";
 
+  const missionControlStatus: StatusItem = {
+    name: "Mission Control",
+    value: connected ? "Live" : "Offline",
+    description: connected ? "Mission Control activity stream is connected" : "Mission Control activity stream is reconnecting",
+    indicatorClass: connected ? "bg-success" : "bg-danger animate-pulse",
+  };
+
+  const openClawStatus: StatusItem = {
+    name: "OpenClaw",
+    value: openClawLabel,
+    description:
+      openClawRunning === null
+        ? "Checking OpenClaw instance..."
+        : openClawRunning
+          ? "OpenClaw instance is running"
+          : "OpenClaw instance is unavailable",
+    indicatorClass: openClawIndicatorClass,
+  };
+
   return (
     <header className="standalone-topbar mx-2 mt-2 flex h-14 items-center justify-between rounded-xl border border-divider bg-content1/50 px-4 backdrop-blur-xl lg:mx-3 lg:px-5">
       <div className="flex items-center gap-3">
@@ -83,20 +124,34 @@ export function TopBar() {
         <h1 className="text-sm font-medium">{title}</h1>
       </div>
       <div className="flex items-center gap-3">
-        <div className="flex items-center gap-1.5" title={connected ? "Live" : "Reconnecting..."}>
-          <div className={`h-1.5 w-1.5 rounded-full ${connected ? "bg-success" : "bg-danger animate-pulse"}`} />
-          <span className="hidden text-[10px] text-foreground-500 lg:inline">
-            {connected ? "Live" : "Offline"}
-          </span>
+        <div className="hidden sm:flex flex-col items-end gap-1">
+          <StatusRow {...missionControlStatus} />
+          <StatusRow {...openClawStatus} />
         </div>
-        <div
-          className="flex items-center gap-1.5"
-          title={openClawRunning === null ? "Checking OpenClaw instance..." : openClawRunning ? "OpenClaw instance is running" : "OpenClaw instance is unavailable"}
-        >
-          <div className={`h-1.5 w-1.5 rounded-full ${openClawIndicatorClass}`} />
-          <span className="hidden text-[10px] text-foreground-500 lg:inline">
-            OpenClaw {openClawLabel}
-          </span>
+        <div className="sm:hidden">
+          <Popover placement="bottom-end">
+            <PopoverTrigger>
+              <Button
+                size="sm"
+                variant="flat"
+                className="min-w-0 border border-divider bg-default-100 px-2 text-foreground-600"
+              >
+                <div className="flex items-center gap-2">
+                  <div className="flex flex-col gap-1">
+                    <div className={`h-1.5 w-1.5 rounded-full ${missionControlStatus.indicatorClass}`} />
+                    <div className={`h-1.5 w-1.5 rounded-full ${openClawStatus.indicatorClass}`} />
+                  </div>
+                  <span className="text-xs">Status</span>
+                </div>
+              </Button>
+            </PopoverTrigger>
+            <PopoverContent className="min-w-[210px] p-3">
+              <div className="flex flex-col gap-2">
+                <StatusRow {...missionControlStatus} />
+                <StatusRow {...openClawStatus} />
+              </div>
+            </PopoverContent>
+          </Popover>
         </div>
         <button
           onClick={refreshPage}
