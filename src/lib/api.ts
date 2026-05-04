@@ -520,10 +520,11 @@ export const api = {
       },
     }),
 
-  getTimeLoggingSummary: (params?: { week?: string }) =>
+  getTimeLoggingSummary: (params?: { week?: string; includeMonthly?: boolean }) =>
     apiFetch<TimeLoggingSummary>("/time-logging/summary", {
       params: {
         week: params?.week || "",
+        includeMonthly: params?.includeMonthly === undefined ? "" : params.includeMonthly ? "1" : "0",
       },
     }),
 
