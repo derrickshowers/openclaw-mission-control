@@ -65,6 +65,10 @@ function formatPercent(value: number): string {
   return `${(value * 100).toFixed(1).replace(/\.0$/, "")}%`;
 }
 
+function roundHours(value: number): number {
+  return Math.round((value + Number.EPSILON) * 100) / 100;
+}
+
 function formatWeekLabel(week: string): string {
   const start = parseISO(`${week}T00:00:00`);
   const end = addDays(start, 6);
@@ -199,7 +203,13 @@ function writeCachedSummary(key: string, summary: TimeLoggingSummary): void {
 }
 
 function readBestCachedSummary(): TimeLoggingSummary | null {
-  return readCachedSummary(FULL_SUMMARY_CACHE_KEY) ?? readCachedSummary(WEEKLY_SUMMARY_CACHE_KEY);
+  const full = readCachedSummary(FULL_SUMMARY_CACHE_KEY);
+  if (full && !full.weekly.isPartial) return full;
+
+  const weekly = readCachedSummary(WEEKLY_SUMMARY_CACHE_KEY);
+  if (weekly && !weekly.weekly.isPartial) return weekly;
+
+  return null;
 }
 
 export function TimeLoggingView() {
@@ -360,38 +370,57 @@ export function TimeLoggingView() {
       ? `Last ${monthRange} months · including current partial month`
       : `Last ${monthRange} full months`;
 
+  const targetAwareWeeklyEntries = useMemo(
+    () => summary?.weekly.byCategory.filter((entry) => isVisibleCategory(entry.category) && entry.hasTarget) ?? [],
+    [summary],
+  );
+
+  const noTargetWeeklyEntries = useMemo(
+    () => summary?.weekly.byCategory.filter((entry) => isVisibleCategory(entry.category) && !entry.hasTarget) ?? [],
+    [summary],
+  );
+
   const weeklyMetrics = useMemo(() => {
     if (!summary) return null;
 
-    const visibleWeeklyCategories = summary.weekly.byCategory.filter((entry) => isVisibleCategory(entry.category));
-
-    const onTargetCount = visibleWeeklyCategories.filter(
-      (entry) => entry.hasTarget && Math.abs(entry.deltaHours) <= ON_TARGET_TOLERANCE_HOURS,
+    const onTargetCount = targetAwareWeeklyEntries.filter(
+      (entry) => Math.abs(entry.deltaHours) <= ON_TARGET_TOLERANCE_HOURS,
     ).length;
 
-    const largestUnder = visibleWeeklyCategories
+    const largestUnder = targetAwareWeeklyEntries
       .filter((entry) => entry.deltaHours < 0)
       .sort((a, b) => a.deltaHours - b.deltaHours)[0] ?? null;
-    const largestOver = visibleWeeklyCategories
+    const largestOver = targetAwareWeeklyEntries
       .filter((entry) => entry.deltaHours > 0)
       .sort((a, b) => b.deltaHours - a.deltaHours)[0] ?? null;
+    const targetAwareActualHours = roundHours(
+      targetAwareWeeklyEntries.reduce((sum, entry) => sum + entry.actualHours, 0),
+    );
+    const targetAwareIdealHours = roundHours(
+      targetAwareWeeklyEntries.reduce((sum, entry) => sum + (entry.idealHours ?? 0), 0),
+    );
+    const noTargetHours = roundHours(
+      noTargetWeeklyEntries.reduce((sum, entry) => sum + entry.actualHours, 0),
+    );
 
     return {
       onTargetCount,
       largestUnder,
       largestOver,
+      targetAwareActualHours,
+      targetAwareIdealHours,
+      noTargetHours,
     };
-  }, [summary]);
+  }, [summary, targetAwareWeeklyEntries, noTargetWeeklyEntries]);
 
   const weeklyComparisonData = useMemo(() => {
-    if (!summary) return [];
-    return summary.weekly.byCategory.filter((entry) => isVisibleCategory(entry.category)).map((entry) => ({
+    return targetAwareWeeklyEntries.map((entry) => ({
       category: entry.category,
       actualHours: entry.actualHours,
       idealHours: entry.idealHours ?? 0,
       deltaHours: entry.deltaHours,
     }));
-  }, [summary]);
+  }, [targetAwareWeeklyEntries]);
 
   const weekStackCategories = useMemo(
     () => getTopCategoriesFromBuckets(summary?.weekly.last8Weeks ?? []),
@@ -548,15 +577,17 @@ export function TimeLoggingView() {
             <div className="space-y-4">
               <div className="grid gap-3 md:grid-cols-2 xl:grid-cols-4">
                 <MetricCard
-                  label="Logged this week"
-                  value={formatHours(summary.weekly.actualTotalHours)}
-                  detail={`${formatHours(summary.weekly.actualTotalHours)} vs ${formatHours(summary.weekly.idealTotalHours)} ideal`}
+                  label="Logged toward targets"
+                  value={formatHours(weeklyMetrics.targetAwareActualHours)}
+                  detail={weeklyMetrics.noTargetHours > 0
+                    ? `${formatHours(weeklyMetrics.targetAwareIdealHours)} ideal • ${formatHours(weeklyMetrics.noTargetHours)} no target`
+                    : `${formatHours(weeklyMetrics.targetAwareIdealHours)} ideal`}
                 />
                 <MetricCard
                   label="Delta vs ideal"
-                  value={formatHours(summary.weekly.actualTotalHours - summary.weekly.idealTotalHours)}
-                  detail={summary.weekly.actualTotalHours >= summary.weekly.idealTotalHours ? "Over target" : "Under target"}
-                  accent={summary.weekly.actualTotalHours >= summary.weekly.idealTotalHours ? "warm" : "cool"}
+                  value={formatHours(weeklyMetrics.targetAwareActualHours - weeklyMetrics.targetAwareIdealHours)}
+                  detail={weeklyMetrics.targetAwareActualHours >= weeklyMetrics.targetAwareIdealHours ? "Over target" : "Under target"}
+                  accent={weeklyMetrics.targetAwareActualHours >= weeklyMetrics.targetAwareIdealHours ? "warm" : "cool"}
                 />
                 <MetricCard
                   label="Categories on target"
@@ -579,12 +610,12 @@ export function TimeLoggingView() {
 
               <CardShell
                 title="Where your time went this week vs plan"
-                subtitle="Actual vs ideal by category, sorted by largest drift so the biggest misses are visible first."
+                subtitle="Only categories with an actual ideal-week target are included here, so the main weekly story stays plan-aware."
                 footer={weeklyComparisonData.length > 0 ? (
                   <div className="text-xs text-foreground-400">
-                    Most under target: {summary.weekly.byCategory.filter((entry) => isVisibleCategory(entry.category) && entry.deltaHours < 0).slice(0, 3).map((entry) => `${entry.category} (${formatHours(entry.deltaHours)})`).join(", ") || "—"}
+                    Most under target: {targetAwareWeeklyEntries.filter((entry) => entry.deltaHours < 0).slice(0, 3).map((entry) => `${entry.category} (${formatHours(entry.deltaHours)})`).join(", ") || "—"}
                     <br />
-                    Most over target: {summary.weekly.byCategory.filter((entry) => isVisibleCategory(entry.category) && entry.deltaHours > 0).slice(0, 3).map((entry) => `${entry.category} (+${formatHours(entry.deltaHours)})`).join(", ") || "—"}
+                    Most over target: {targetAwareWeeklyEntries.filter((entry) => entry.deltaHours > 0).slice(0, 3).map((entry) => `${entry.category} (+${formatHours(entry.deltaHours)})`).join(", ") || "—"}
                   </div>
                 ) : null}
               >
@@ -620,6 +651,32 @@ export function TimeLoggingView() {
                   </ResponsiveContainer>
                 </div>
               </CardShell>
+
+              {noTargetWeeklyEntries.length > 0 ? (
+                <CardShell
+                  title="Unplanned / no target"
+                  subtitle="Real time you logged this week that does not have an ideal-week benchmark. Kept separate so it doesn’t distort the plan-vs-actual view above."
+                >
+                  <div className="grid gap-3 md:grid-cols-2 xl:grid-cols-4">
+                    <MetricCard
+                      label="No-target time"
+                      value={formatHours(weeklyMetrics.noTargetHours)}
+                      detail={`${noTargetWeeklyEntries.length} ${noTargetWeeklyEntries.length === 1 ? "category" : "categories"}`}
+                    />
+                    <div className="md:col-span-1 xl:col-span-3 rounded-md border border-divider bg-default-100/40 p-4">
+                      <div className="flex flex-wrap gap-2">
+                        {noTargetWeeklyEntries.map((entry) => (
+                          <span key={entry.category} className="inline-flex items-center gap-2 rounded-full border border-divider bg-content1 px-3 py-1.5 text-xs text-foreground-500 sm:text-sm">
+                            <span className="h-2 w-2 rounded-full" style={{ backgroundColor: getCategoryColor(entry.category) }} />
+                            <span className="text-foreground">{entry.category}</span>
+                            <span>{formatHours(entry.actualHours)}</span>
+                          </span>
+                        ))}
+                      </div>
+                    </div>
+                  </div>
+                </CardShell>
+              ) : null}
 
               <div className="grid gap-4 xl:grid-cols-2">
                 <CardShell title="Last 8 weeks" subtitle="Weekly composition and total logged time.">
@@ -679,7 +736,7 @@ export function TimeLoggingView() {
                 </CardShell>
               </div>
 
-              <CardShell title="Category detail" subtitle="Exact weekly numbers for copy/paste and close reading.">
+              <CardShell title="Category detail" subtitle="Exact weekly target-aware numbers for copy/paste and close reading.">
                 <div className="overflow-x-auto">
                   <table className="min-w-full text-sm">
                     <thead>
@@ -693,7 +750,7 @@ export function TimeLoggingView() {
                       </tr>
                     </thead>
                     <tbody>
-                      {summary.weekly.byCategory.filter((entry) => isVisibleCategory(entry.category)).map((entry) => (
+                      {targetAwareWeeklyEntries.map((entry) => (
                         <tr key={entry.category} className="border-b border-divider text-foreground-300 last:border-b-0">
                           <td className="px-3 py-2 font-medium text-foreground">{entry.category}</td>
                           <td className="px-3 py-2">{formatHours(entry.actualHours)}</td>
@@ -742,7 +799,7 @@ export function TimeLoggingView() {
                         key={value}
                         type="button"
                         onClick={() => setMonthRange(value as MonthRange)}
-                        className={`rounded border px-3 py-1.5 text-sm transition ${
+                        className={`rounded border px-3 py-1.5 text-xs transition sm:text-sm ${
                           monthRange === value ? activeControlClass : inactiveControlClass
                         }`}
                       >
@@ -752,7 +809,7 @@ export function TimeLoggingView() {
                     <button
                       type="button"
                       onClick={() => setIncludePartialMonth((current) => !current)}
-                      className={`rounded border px-3 py-1.5 text-sm transition ${
+                      className={`rounded border px-3 py-1.5 text-xs transition sm:text-sm ${
                         includePartialMonth ? activeControlClass : inactiveControlClass
                       }`}
                     >
@@ -764,7 +821,7 @@ export function TimeLoggingView() {
                           key={mode}
                           type="button"
                           onClick={() => setMonthMode(mode)}
-                          className={`rounded px-3 py-1.5 text-sm transition ${monthMode === mode ? activeControlClass : inactiveControlClass}`}
+                          className={`rounded px-3 py-1.5 text-xs transition sm:text-sm ${monthMode === mode ? activeControlClass : inactiveControlClass}`}
                         >
                           {mode === "hours" ? "Hours" : "% of month"}
                         </button>
@@ -803,7 +860,7 @@ export function TimeLoggingView() {
                           onClick={() => setSelectedCategories((current) => current.includes(category.canonicalName)
                             ? current.filter((value) => value !== category.canonicalName)
                             : [...current, category.canonicalName])}
-                          className={`inline-flex items-center gap-2 rounded-full border px-3 py-1.5 text-sm transition ${
+                          className={`inline-flex items-center gap-2 rounded-full border px-3 py-1.5 text-xs transition sm:text-sm ${
                             isSelected ? activeControlClass : inactiveControlClass
                           }`}
                         >
