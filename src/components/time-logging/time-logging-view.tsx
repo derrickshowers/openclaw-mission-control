@@ -50,6 +50,7 @@ const STACKED_CATEGORY_LIMIT = 7;
 const ON_TARGET_TOLERANCE_HOURS = 1;
 const WEEKLY_SUMMARY_CACHE_KEY = "mission-control:time-logging:summary:weekly";
 const FULL_SUMMARY_CACHE_KEY = "mission-control:time-logging:summary:full";
+const HIDDEN_CATEGORIES = new Set(["Uncategorized"]);
 
 type TabKey = "weekly" | "monthly";
 type MonthMode = "hours" | "share";
@@ -74,6 +75,10 @@ function formatMonthLabel(month: string): string {
   return format(parseISO(`${month}-01T00:00:00`), "MMM yyyy");
 }
 
+function isVisibleCategory(category: string): boolean {
+  return !HIDDEN_CATEGORIES.has(category);
+}
+
 function getCategoryColor(category: string): string {
   let hash = 0;
   for (let i = 0; i < category.length; i += 1) {
@@ -90,6 +95,7 @@ function getTopCategoriesFromBuckets(
   const totals = new Map<string, number>();
   for (const bucket of buckets) {
     for (const entry of bucket.byCategory) {
+      if (!isVisibleCategory(entry.category)) continue;
       totals.set(entry.category, (totals.get(entry.category) ?? 0) + entry.hours);
     }
   }
@@ -113,6 +119,7 @@ function buildStackedChartData<T extends { byCategory: TimeLoggingCategoryHours[
 
     let otherHours = 0;
     for (const entry of bucket.byCategory) {
+      if (!isVisibleCategory(entry.category)) continue;
       if (topCategories.includes(entry.category)) {
         row[entry.category] = entry.hours;
       } else {
@@ -215,11 +222,12 @@ export function TimeLoggingView() {
   const requestIdsRef = useRef({ weekly: 0, monthly: 0 });
   const [loading, setLoading] = useState(true);
   const [isRefreshing, setIsRefreshing] = useState(false);
-  const [usingCachedData, setUsingCachedData] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [monthlyLoading, setMonthlyLoading] = useState(false);
   const [monthlyError, setMonthlyError] = useState<string | null>(null);
   const [monthMode, setMonthMode] = useState<MonthMode>("hours");
+  const activeControlClass = "border-primary/30 bg-primary/10 text-primary-700 shadow-sm dark:text-primary-300";
+  const inactiveControlClass = "border-divider bg-default-100/70 text-foreground-600 hover:bg-default-100 hover:text-foreground";
   const [monthRange, setMonthRange] = useState<MonthRange>(12);
   const [includePartialMonth, setIncludePartialMonth] = useState(false);
   const [categoryQuery, setCategoryQuery] = useState("");
@@ -282,7 +290,6 @@ export function TimeLoggingView() {
       if (mergedSummary.monthly.months.length > 0) {
         writeCachedSummary(FULL_SUMMARY_CACHE_KEY, mergedSummary);
       }
-      setUsingCachedData(false);
       return mergedSummary;
     } catch (err) {
       const message = err instanceof Error ? err.message : "Failed to load time logging";
@@ -308,7 +315,6 @@ export function TimeLoggingView() {
       summaryRef.current = cachedSummary;
       setSummary(cachedSummary);
       setLoading(false);
-      setUsingCachedData(true);
     }
 
     void loadSummary(null, false);
@@ -330,11 +336,12 @@ export function TimeLoggingView() {
   useEffect(() => {
     if (!summary) return;
     setSelectedCategories((current) => {
-      const allCategories = summary.categories.map((category) => category.canonicalName);
+      const allCategories = summary.categories.filter((category) => isVisibleCategory(category.canonicalName)).map((category) => category.canonicalName);
       const preserved = current.filter((category) => allCategories.includes(category));
       if (preserved.length > 0) return preserved;
 
       const defaultCategories = summary.categories
+        .filter((category) => isVisibleCategory(category.canonicalName))
         .filter((category) => (category.idealWeekHours ?? 0) > 0 || category.totalHoursAllTime > 60)
         .slice(0, 6)
         .map((category) => category.canonicalName);
@@ -347,18 +354,25 @@ export function TimeLoggingView() {
   const weekLabel = currentWeekStart
     ? `${format(currentWeekStart, "MMM d")} – ${format(addDays(currentWeekStart, 6), "MMM d, yyyy")}`
     : "";
+  const headerContextLabel = activeTab === "weekly"
+    ? weekLabel
+    : includePartialMonth
+      ? `Last ${monthRange} months · including current partial month`
+      : `Last ${monthRange} full months`;
 
   const weeklyMetrics = useMemo(() => {
     if (!summary) return null;
 
-    const onTargetCount = summary.weekly.byCategory.filter(
+    const visibleWeeklyCategories = summary.weekly.byCategory.filter((entry) => isVisibleCategory(entry.category));
+
+    const onTargetCount = visibleWeeklyCategories.filter(
       (entry) => entry.hasTarget && Math.abs(entry.deltaHours) <= ON_TARGET_TOLERANCE_HOURS,
     ).length;
 
-    const largestUnder = summary.weekly.byCategory
+    const largestUnder = visibleWeeklyCategories
       .filter((entry) => entry.deltaHours < 0)
       .sort((a, b) => a.deltaHours - b.deltaHours)[0] ?? null;
-    const largestOver = summary.weekly.byCategory
+    const largestOver = visibleWeeklyCategories
       .filter((entry) => entry.deltaHours > 0)
       .sort((a, b) => b.deltaHours - a.deltaHours)[0] ?? null;
 
@@ -371,7 +385,7 @@ export function TimeLoggingView() {
 
   const weeklyComparisonData = useMemo(() => {
     if (!summary) return [];
-    return summary.weekly.byCategory.map((entry) => ({
+    return summary.weekly.byCategory.filter((entry) => isVisibleCategory(entry.category)).map((entry) => ({
       category: entry.category,
       actualHours: entry.actualHours,
       idealHours: entry.idealHours ?? 0,
@@ -417,6 +431,7 @@ export function TimeLoggingView() {
     if (!summary) return [];
     const query = categoryQuery.trim().toLowerCase();
     return summary.categories.filter((category) => {
+      if (!isVisibleCategory(category.canonicalName)) return false;
       if (!query) return true;
       return category.canonicalName.toLowerCase().includes(query);
     });
@@ -425,11 +440,6 @@ export function TimeLoggingView() {
   const monthlyTrendData = useMemo(
     () => buildMonthlyTrendData(monthBuckets, selectedCategories, monthMode),
     [monthBuckets, selectedCategories, monthMode],
-  );
-
-  const monthlyTotalData = useMemo<Array<{ label: string; totalHours: number; isPartial: boolean }>>(
-    () => monthBuckets.map((month) => ({ label: formatMonthLabel(month.month), totalHours: month.totalHours, isPartial: month.isPartial })),
-    [monthBuckets],
   );
 
   const handleWeekChange = async (nextWeek: string) => {
@@ -459,50 +469,33 @@ export function TimeLoggingView() {
   return (
     <div className="mx-auto flex h-full max-w-[1440px] flex-col gap-4 pb-6">
       <div className="flex flex-col gap-3 rounded-md border border-divider bg-content1 p-4 shadow-sm dark:shadow-none">
-        <div className="flex flex-col gap-3 lg:flex-row lg:items-center lg:justify-between">
+        <div className="flex flex-col gap-3 xl:flex-row xl:items-start xl:justify-between">
           <div>
-            <div className="flex items-center gap-2 text-lg font-semibold text-foreground">
+            <div className="flex items-center gap-2 text-base font-semibold text-foreground sm:text-lg">
               <BarChart3 size={18} />
               <span>Time Logging</span>
+              {isRefreshing ? <Spinner size="sm" color="primary" /> : null}
             </div>
-            <div className="mt-1 text-sm text-foreground-400">{weekLabel}</div>
-            <div className="mt-2 flex flex-wrap items-center gap-2 text-[11px] uppercase tracking-[0.12em] text-foreground-500">
-              {usingCachedData ? (
-                <span className="rounded-full border border-secondary/30 bg-secondary/10 px-2 py-1 text-secondary-600 dark:text-secondary-300">
-                  Showing cached data
+            <div className="mt-1 flex flex-wrap items-center gap-2 text-sm text-foreground-400">
+              <span>{headerContextLabel}</span>
+              {summary.weekly.isPartial && activeTab === "weekly" ? (
+                <span className="rounded-full border border-amber-500/30 bg-amber-500/10 px-2 py-1 text-[11px] uppercase tracking-[0.12em] text-amber-600 dark:text-amber-300">
+                  Partial week
                 </span>
               ) : null}
-              {isRefreshing ? (
-                <span className="inline-flex items-center gap-1 rounded-full border border-primary/30 bg-primary/10 px-2 py-1 text-primary-600 dark:text-primary-300">
-                  <Spinner size="sm" color="primary" className="scale-75" />
-                  Refreshing live data
-                </span>
-              ) : null}
-              {monthlyLoading && summary.monthly.months.length === 0 ? (
-                <span className="inline-flex items-center gap-1 rounded-full border border-secondary/30 bg-secondary/10 px-2 py-1 text-secondary-600 dark:text-secondary-300">
-                  <Spinner size="sm" color="secondary" className="scale-75" />
-                  Monthly trends loading
-                </span>
-              ) : null}
-              {error ? (
-                <span className="rounded-full border border-danger/30 bg-danger/10 px-2 py-1 text-danger-600 dark:text-danger-300">
-                  Live refresh failed
-                </span>
-              ) : null}
+              {error ? <span className="text-danger-600 dark:text-danger-300">Live refresh failed</span> : null}
             </div>
           </div>
 
-          <div className="flex flex-wrap items-center gap-2">
+          <div className="flex flex-col gap-2 xl:items-end">
             <div className="inline-flex rounded-md border border-divider bg-default-100/70 p-1">
               {(["weekly", "monthly"] as TabKey[]).map((tab) => (
                 <button
                   key={tab}
                   type="button"
                   onClick={() => setActiveTab(tab)}
-                  className={`rounded px-3 py-1.5 text-sm capitalize transition ${
-                    activeTab === tab
-                      ? "bg-content2 text-foreground shadow-sm"
-                      : "text-foreground-500 hover:text-foreground"
+                  className={`rounded px-3 py-1.5 text-sm transition ${
+                    activeTab === tab ? activeControlClass : inactiveControlClass
                   }`}
                 >
                   <span className="inline-flex items-center gap-1.5">
@@ -513,37 +506,36 @@ export function TimeLoggingView() {
               ))}
             </div>
 
-            <Button
-              size="sm"
-              variant="flat"
-              className="border border-divider bg-default-100/70 text-foreground"
-              onPress={() => currentWeekStart && void handleWeekChange(format(subWeeks(currentWeekStart, 1), "yyyy-MM-dd"))}
-            >
-              <ChevronLeft size={14} />
-              Previous week
-            </Button>
-            <Button
-              size="sm"
-              variant="flat"
-              className="border border-divider bg-default-100/70 text-foreground"
-              onPress={() => void handleWeekChange(format(new Date(), "yyyy-MM-dd"))}
-            >
-              This week
-            </Button>
-            <Button
-              size="sm"
-              variant="flat"
-              className="border border-divider bg-default-100/70 text-foreground"
-              onPress={() => currentWeekStart && void handleWeekChange(format(addWeeks(currentWeekStart, 1), "yyyy-MM-dd"))}
-            >
-              Next week
-              <ChevronRight size={14} />
-            </Button>
-            {summary.weekly.isPartial && (
-              <span className="rounded-full border border-amber-500/30 bg-amber-500/10 px-2 py-1 text-[11px] uppercase tracking-[0.12em] text-amber-600 dark:text-amber-300">
-                Partial week
-              </span>
-            )}
+            {activeTab === "weekly" ? (
+              <div className="flex flex-wrap items-center gap-2">
+                <Button
+                  size="sm"
+                  variant="flat"
+                  className="border border-divider bg-default-100/70 text-foreground"
+                  onPress={() => currentWeekStart && void handleWeekChange(format(subWeeks(currentWeekStart, 1), "yyyy-MM-dd"))}
+                >
+                  <ChevronLeft size={14} />
+                  Previous week
+                </Button>
+                <Button
+                  size="sm"
+                  variant="flat"
+                  className="border border-divider bg-default-100/70 text-foreground"
+                  onPress={() => void handleWeekChange(format(new Date(), "yyyy-MM-dd"))}
+                >
+                  This week
+                </Button>
+                <Button
+                  size="sm"
+                  variant="flat"
+                  className="border border-divider bg-default-100/70 text-foreground"
+                  onPress={() => currentWeekStart && void handleWeekChange(format(addWeeks(currentWeekStart, 1), "yyyy-MM-dd"))}
+                >
+                  Next week
+                  <ChevronRight size={14} />
+                </Button>
+              </div>
+            ) : null}
           </div>
         </div>
       </div>
@@ -588,11 +580,11 @@ export function TimeLoggingView() {
               <CardShell
                 title="Where your time went this week vs plan"
                 subtitle="Actual vs ideal by category, sorted by largest drift so the biggest misses are visible first."
-                footer={summary.weekly.byCategory.length > 0 ? (
+                footer={weeklyComparisonData.length > 0 ? (
                   <div className="text-xs text-foreground-400">
-                    Most under target: {summary.weekly.byCategory.filter((entry) => entry.deltaHours < 0).slice(0, 3).map((entry) => `${entry.category} (${formatHours(entry.deltaHours)})`).join(", ") || "—"}
+                    Most under target: {summary.weekly.byCategory.filter((entry) => isVisibleCategory(entry.category) && entry.deltaHours < 0).slice(0, 3).map((entry) => `${entry.category} (${formatHours(entry.deltaHours)})`).join(", ") || "—"}
                     <br />
-                    Most over target: {summary.weekly.byCategory.filter((entry) => entry.deltaHours > 0).slice(0, 3).map((entry) => `${entry.category} (+${formatHours(entry.deltaHours)})`).join(", ") || "—"}
+                    Most over target: {summary.weekly.byCategory.filter((entry) => isVisibleCategory(entry.category) && entry.deltaHours > 0).slice(0, 3).map((entry) => `${entry.category} (+${formatHours(entry.deltaHours)})`).join(", ") || "—"}
                   </div>
                 ) : null}
               >
@@ -604,7 +596,21 @@ export function TimeLoggingView() {
                       <YAxis type="category" dataKey="category" stroke={chartColors.axisStrong} width={168} tick={{ fontSize: 12 }} />
                       <Tooltip
                         cursor={{ fill: chartColors.tooltipCursor }}
-                        formatter={((value: unknown, name: unknown) => [formatHours(Number(value ?? 0)), name === "actualHours" ? "Actual" : name === "idealHours" ? "Ideal" : "Delta"]) as never}
+                        content={({ active, payload }) => {
+                          const row = payload?.[0]?.payload as { category: string; actualHours: number; idealHours: number; deltaHours: number } | undefined;
+                          if (!active || !row) return null;
+
+                          return (
+                            <div className="rounded-md border border-divider bg-content1 p-3 text-sm shadow-lg dark:shadow-none">
+                              <div className="font-medium text-foreground">{row.category}</div>
+                              <div className="mt-2 space-y-1 text-foreground-500">
+                                <div className="flex items-center justify-between gap-4"><span>Actual</span><span className="text-foreground">{formatHours(row.actualHours)}</span></div>
+                                <div className="flex items-center justify-between gap-4"><span>Ideal</span><span className="text-foreground">{formatHours(row.idealHours)}</span></div>
+                                <div className="flex items-center justify-between gap-4"><span>Difference</span><span className={`font-medium ${row.deltaHours > 0 ? "text-amber-500 dark:text-amber-300" : row.deltaHours < 0 ? "text-sky-600 dark:text-sky-300" : "text-foreground"}`}>{row.deltaHours > 0 ? "+" : ""}{formatHours(row.deltaHours)}</span></div>
+                              </div>
+                            </div>
+                          );
+                        }}
                       />
                       <Legend />
                       <ReferenceLine x={0} stroke={chartColors.reference} />
@@ -687,7 +693,7 @@ export function TimeLoggingView() {
                       </tr>
                     </thead>
                     <tbody>
-                      {summary.weekly.byCategory.map((entry) => (
+                      {summary.weekly.byCategory.filter((entry) => isVisibleCategory(entry.category)).map((entry) => (
                         <tr key={entry.category} className="border-b border-divider text-foreground-300 last:border-b-0">
                           <td className="px-3 py-2 font-medium text-foreground">{entry.category}</td>
                           <td className="px-3 py-2">{formatHours(entry.actualHours)}</td>
@@ -737,9 +743,7 @@ export function TimeLoggingView() {
                         type="button"
                         onClick={() => setMonthRange(value as MonthRange)}
                         className={`rounded border px-3 py-1.5 text-sm transition ${
-                          monthRange === value
-                            ? "border-divider bg-content2 text-foreground shadow-sm"
-                            : "border-divider bg-default-100/70 text-foreground-500 hover:text-foreground"
+                          monthRange === value ? activeControlClass : inactiveControlClass
                         }`}
                       >
                         Last {value} months
@@ -749,20 +753,23 @@ export function TimeLoggingView() {
                       type="button"
                       onClick={() => setIncludePartialMonth((current) => !current)}
                       className={`rounded border px-3 py-1.5 text-sm transition ${
-                        includePartialMonth
-                          ? "border-divider bg-content2 text-foreground shadow-sm"
-                          : "border-divider bg-default-100/70 text-foreground-500 hover:text-foreground"
+                        includePartialMonth ? activeControlClass : inactiveControlClass
                       }`}
                     >
                       {includePartialMonth ? "Including partial month" : "Exclude partial month"}
                     </button>
-                    <button
-                      type="button"
-                      onClick={() => setMonthMode((current) => (current === "hours" ? "share" : "hours"))}
-                      className="rounded border border-divider bg-default-100/70 px-3 py-1.5 text-sm text-foreground"
-                    >
-                      {monthMode === "hours" ? "Hours" : "% of month"}
-                    </button>
+                    <div className="inline-flex rounded-md border border-divider bg-default-100/70 p-1">
+                      {(["hours", "share"] as MonthMode[]).map((mode) => (
+                        <button
+                          key={mode}
+                          type="button"
+                          onClick={() => setMonthMode(mode)}
+                          className={`rounded px-3 py-1.5 text-sm transition ${monthMode === mode ? activeControlClass : inactiveControlClass}`}
+                        >
+                          {mode === "hours" ? "Hours" : "% of month"}
+                        </button>
+                      ))}
+                    </div>
                   </div>
 
                   <div className="flex flex-wrap items-center gap-2">
@@ -797,9 +804,7 @@ export function TimeLoggingView() {
                             ? current.filter((value) => value !== category.canonicalName)
                             : [...current, category.canonicalName])}
                           className={`inline-flex items-center gap-2 rounded-full border px-3 py-1.5 text-sm transition ${
-                            isSelected
-                              ? "border-divider bg-content2 text-foreground shadow-sm"
-                              : "border-divider bg-default-100/70 text-foreground-500 hover:text-foreground"
+                            isSelected ? activeControlClass : inactiveControlClass
                           }`}
                         >
                           <span className="h-2 w-2 rounded-full" style={{ backgroundColor: getCategoryColor(category.canonicalName) }} />
@@ -812,25 +817,6 @@ export function TimeLoggingView() {
               </div>
 
               {summary.monthly.months.length > 0 ? (
-                <>
-                  <CardShell title="Monthly total hours" subtitle="Context for whether category shifts are real or just total-volume changes.">
-                    <div className="h-72">
-                      <ResponsiveContainer width="100%" height="100%">
-                        <BarChart data={monthlyTotalData} margin={{ top: 8, right: 12, left: 0, bottom: 8 }}>
-                          <CartesianGrid stroke={chartColors.grid} vertical={false} />
-                          <XAxis dataKey="label" stroke={chartColors.axis} tick={{ fontSize: 12 }} />
-                          <YAxis stroke={chartColors.axis} tickFormatter={(value) => `${value}h`} />
-                          <Tooltip formatter={((value: unknown) => [formatHours(Number(value ?? 0)), "Total hours"]) as never} />
-                          <Bar dataKey="totalHours" radius={[4, 4, 0, 0]}>
-                            {monthlyTotalData.map((entry) => (
-                              <Cell key={entry.label} fill={entry.isPartial ? chartColors.partialBar : "#8b5cf6"} />
-                            ))}
-                          </Bar>
-                        </BarChart>
-                      </ResponsiveContainer>
-                    </div>
-                  </CardShell>
-
                   <CardShell title="Category trends" subtitle={monthMode === "hours" ? "Track category hours across months." : "Track each category as a share of the month."}>
                     {selectedCategories.length === 0 ? (
                       <div className="flex h-72 items-center justify-center rounded-md border border-dashed border-divider text-sm text-foreground-400">
@@ -866,7 +852,6 @@ export function TimeLoggingView() {
                       </div>
                     )}
                   </CardShell>
-                </>
               ) : null}
             </div>
           )}
@@ -913,7 +898,7 @@ function MetricCard({
   return (
     <div className="rounded-md border border-divider bg-content1 p-4 shadow-sm dark:shadow-none">
       <div className="text-[11px] uppercase tracking-[0.12em] text-foreground-400">{label}</div>
-      <div className={`mt-2 break-words text-xl font-semibold leading-tight sm:text-2xl ${accent === "warm" ? "text-amber-500 dark:text-amber-300" : accent === "cool" ? "text-sky-600 dark:text-sky-300" : "text-foreground"}`}>
+      <div className={`mt-2 break-words text-lg font-semibold leading-tight sm:text-[22px] ${accent === "warm" ? "text-amber-500 dark:text-amber-300" : accent === "cool" ? "text-sky-600 dark:text-sky-300" : "text-foreground"}`}>
         {value}
       </div>
       <div className="mt-2 text-sm text-foreground-400">{detail}</div>
