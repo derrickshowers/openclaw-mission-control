@@ -19,7 +19,7 @@ function getBaseUrl() {
   return "";
 }
 
-async function apiFetch<T = any>(path: string, options: FetchOptions = {}): Promise<T> {
+async function apiFetch<T = unknown>(path: string, options: FetchOptions = {}): Promise<T> {
   const { params, ...fetchOptions } = options;
 
   let url = `${getBaseUrl()}/api/mc${path}`;
@@ -136,7 +136,7 @@ export interface PersonalTask {
 }
 
 export interface PersonalTaskDetail extends PersonalTask {
-  raw_payload?: Record<string, any>;
+  raw_payload?: Record<string, unknown>;
   linked_team_tasks: Array<{
     id: string;
     personal_task_id: string;
@@ -296,6 +296,35 @@ export interface TimeLoggingSummary {
       monthlyHoursBenchmark: number;
     }>;
   };
+}
+
+export interface InboxTimeCategoryOption {
+  id: string;
+  name: string;
+  canonicalName: string;
+  idealWeekHours: number | null;
+}
+
+export interface InboxUncategorizedTimeLog {
+  id: string;
+  title: string;
+  timeStartedAt: string | null;
+  timeEndedAt: string | null;
+  dateKey: string;
+  hours: number;
+  legacyCategory: string | null;
+  sourceUrl: string | null;
+  lastEditedAt: string | null;
+}
+
+export interface InboxUncategorizedTimeLogsResponse {
+  generatedAt: string;
+  timeZone: string;
+  windowStart: string;
+  windowEnd: string;
+  count: number;
+  categories: InboxTimeCategoryOption[];
+  logs: InboxUncategorizedTimeLog[];
 }
 
 // Bee Insights (mock ingestion lane)
@@ -507,7 +536,7 @@ export const api = {
       relation?: "delegated" | "related";
     }
   ) =>
-    apiFetch<any>(`/personal-tasks/${id}/promote`, {
+    apiFetch<Record<string, unknown>>(`/personal-tasks/${id}/promote`, {
       method: "POST",
       body: JSON.stringify(data || {}),
     }),
@@ -526,6 +555,21 @@ export const api = {
         week: params?.week || "",
         includeMonthly: params?.includeMonthly === undefined ? "" : params.includeMonthly ? "1" : "0",
       },
+    }),
+
+  getInboxUncategorizedTimeLogs: () =>
+    apiFetch<InboxUncategorizedTimeLogsResponse>("/time-logging/uncategorized"),
+
+  categorizeTimeLog: (id: string, timeCategoryId: string) =>
+    apiFetch<{
+      ok: boolean;
+      id: string;
+      timeCategoryId: string;
+      timeCategoryName: string;
+      updatedLog: InboxUncategorizedTimeLog | null;
+    }>(`/time-logging/logs/${id}/category`, {
+      method: "PATCH",
+      body: JSON.stringify({ timeCategoryId }),
     }),
 
   updateTodayNonNegotiable: (id: string, completed: boolean) =>
@@ -613,24 +657,24 @@ export const api = {
     }),
 
   // Agents
-  getAgents: () => apiFetch<any[]>("/agents"),
-  getAgent: (name: string) => apiFetch<any>(`/agents/${name}`),
-  getAgentSessions: (name: string) => apiFetch<any[]>(`/agents/${name}/sessions`),
+  getAgents: () => apiFetch<Array<Record<string, unknown>>>("/agents"),
+  getAgent: (name: string) => apiFetch<Record<string, unknown>>(`/agents/${name}`),
+  getAgentSessions: (name: string) => apiFetch<Array<Record<string, unknown>>>(`/agents/${name}/sessions`),
   sendMessage: (name: string, message: string) =>
     apiFetch(`/agents/${name}/message`, { method: "POST", body: JSON.stringify({ message }) }),
 
   // Memory
-  getMemoryTree: () => apiFetch<Record<string, any>>("/memory"),
+  getMemoryTree: () => apiFetch<Record<string, unknown>>("/memory"),
   getAgentMemory: (agent: string, dir?: string) =>
-    apiFetch<any[]>(`/memory/${agent}`, { params: dir ? { dir } : undefined }),
+    apiFetch<Array<Record<string, unknown>>>(`/memory/${agent}`, { params: dir ? { dir } : undefined }),
   readMemoryFile: (agent: string, path: string) =>
     apiFetch<{ agent: string; path: string; content: string }>(`/memory/${agent}/${path}`),
   searchMemory: (query: string, agent?: string) =>
-    apiFetch<any[]>("/memory/search", { params: { q: query, ...(agent ? { agent } : {}) } }),
+    apiFetch<Array<Record<string, unknown>>>("/memory/search", { params: { q: query, ...(agent ? { agent } : {}) } }),
 
   // Activity
   getActivity: (params?: { agent?: string; type?: string; limit?: string }) =>
-    apiFetch<any[]>("/activity", { params: params as Record<string, string> }),
+    apiFetch<Array<Record<string, unknown>>>("/activity", { params: params as Record<string, string> }),
 
   // Task Runs
   getTaskRuns: (taskId: string, params?: { agent?: string; status?: string; limit?: number }) =>
@@ -649,11 +693,11 @@ export const api = {
     }),
 
   // System
-  getHealth: () => apiFetch<any>("/health"),
-  getStatus: () => apiFetch<any>("/system/status"),
-  restartOpenClaw: () => apiFetch<any>("/system/restart", { method: "POST" }),
+  getHealth: () => apiFetch<Record<string, unknown>>("/health"),
+  getStatus: () => apiFetch<Record<string, unknown>>("/system/status"),
+  restartOpenClaw: () => apiFetch<Record<string, unknown>>("/system/restart", { method: "POST" }),
   runDoctor: (fix = false) =>
-    apiFetch<any>("/system/doctor", {
+    apiFetch<Record<string, unknown>>("/system/doctor", {
       method: "POST",
       body: JSON.stringify({ fix }),
     }),

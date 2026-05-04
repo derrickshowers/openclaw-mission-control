@@ -10,12 +10,25 @@ import {
   ModalContent,
   ModalFooter,
   ModalHeader,
+  Select,
+  SelectItem,
   Textarea,
 } from "@heroui/react";
-import { MessageSquare, NotebookPen, X } from "lucide-react";
-import { api, type BeeInsight } from "@/lib/api";
+import { ExternalLink, MessageSquare, NotebookPen, X } from "lucide-react";
+import {
+  api,
+  type BeeInsight,
+  type InboxTimeCategoryOption,
+  type InboxUncategorizedTimeLog,
+} from "@/lib/api";
 import { timeAgo } from "@/lib/dates";
-import { nextFridayDateKey, toCalendarDateValue, toDateInputValue, toIsoDateFromCalendar, toLocalDateKey } from "@/lib/today-dashboard";
+import {
+  nextFridayDateKey,
+  toCalendarDateValue,
+  toDateInputValue,
+  toIsoDateFromCalendar,
+  toLocalDateKey,
+} from "@/lib/today-dashboard";
 
 const BEE_SOURCE_LABELS: Record<BeeInsight["source_type"], string> = {
   conversation: "conversation",
@@ -26,6 +39,40 @@ const BEE_SOURCE_LABELS: Record<BeeInsight["source_type"], string> = {
 
 const beeCardClass =
   "flex flex-col gap-2 rounded-md border border-zinc-200 bg-white p-3 transition-colors hover:border-zinc-300 dark:border-white/10 dark:bg-[#111] dark:hover:border-white/20";
+
+function formatTimeLogRange(startAt: string | null, endAt: string | null) {
+  if (!startAt) return "Unknown time";
+
+  const start = new Date(startAt);
+  if (Number.isNaN(start.getTime())) return "Unknown time";
+
+  const day = start.toLocaleDateString("en-US", {
+    weekday: "short",
+    month: "short",
+    day: "numeric",
+  });
+  const startTime = start.toLocaleTimeString("en-US", {
+    hour: "numeric",
+    minute: "2-digit",
+  });
+
+  if (!endAt) return `${day} · ${startTime}`;
+
+  const end = new Date(endAt);
+  if (Number.isNaN(end.getTime())) return `${day} · ${startTime}`;
+
+  const endTime = end.toLocaleTimeString("en-US", {
+    hour: "numeric",
+    minute: "2-digit",
+  });
+
+  return `${day} · ${startTime}–${endTime}`;
+}
+
+function formatHoursLabel(hours: number) {
+  const rounded = Math.round((hours + Number.EPSILON) * 100) / 100;
+  return `${rounded}h`;
+}
 
 function buildBeeInsightDescription(insight: BeeInsight, notes: string) {
   const sections: string[] = [];
@@ -46,17 +93,13 @@ function buildBeeInsightDescription(insight: BeeInsight, notes: string) {
 function formatScheduledLabel(dateValue: string | null | undefined) {
   if (!dateValue) return "";
   const DATE_ONLY_VALUE_RE = /^(\d{4})-(\d{2})-(\d{2})(?:T00:00:00(?:\.000)?Z)?$/;
-  
+
   const parseCalendarDate = (val: string | null | undefined) => {
     if (!val) return null;
     const trimmed = val.trim();
     const dateOnlyMatch = trimmed.match(DATE_ONLY_VALUE_RE);
     if (dateOnlyMatch) {
-      return new Date(
-        Number(dateOnlyMatch[1]),
-        Number(dateOnlyMatch[2]) - 1,
-        Number(dateOnlyMatch[3])
-      );
+      return new Date(Number(dateOnlyMatch[1]), Number(dateOnlyMatch[2]) - 1, Number(dateOnlyMatch[3]));
     }
     const parsed = new Date(trimmed);
     return Number.isNaN(parsed.getTime()) ? null : parsed;
@@ -183,9 +226,109 @@ function BeeInsightSkeleton() {
   );
 }
 
+function TimeLogSkeleton() {
+  return (
+    <div className="flex animate-pulse flex-col gap-3 rounded-md border border-zinc-200 bg-white p-3 dark:border-white/5 dark:bg-[#111] md:flex-row md:items-center md:justify-between">
+      <div className="space-y-2">
+        <div className="h-4 w-48 rounded bg-zinc-200 dark:bg-white/5" />
+        <div className="h-3 w-40 rounded bg-zinc-200 dark:bg-white/5" />
+      </div>
+      <div className="h-8 w-full rounded bg-zinc-200 dark:bg-white/5 md:w-52" />
+    </div>
+  );
+}
+
+function UncategorizedTimeLogCard({
+  log,
+  categories,
+  assigning,
+  onAssign,
+}: {
+  log: InboxUncategorizedTimeLog;
+  categories: InboxTimeCategoryOption[];
+  assigning: boolean;
+  onAssign: (logId: string, categoryId: string) => Promise<void>;
+}) {
+  return (
+    <div className="flex flex-col gap-3 rounded-md border border-zinc-200 bg-white p-3 dark:border-white/10 dark:bg-[#111] md:flex-row md:items-center md:justify-between">
+      <div className="min-w-0 space-y-2">
+        <div className="flex flex-wrap items-center gap-2">
+          <h3 className="text-sm font-medium text-zinc-900 dark:text-zinc-100">{log.title}</h3>
+          <Chip size="sm" variant="flat" className="h-5 border border-zinc-200 bg-zinc-100 text-[10px] font-medium dark:border-white/10 dark:bg-white/5">
+            {formatHoursLabel(log.hours)}
+          </Chip>
+          {log.legacyCategory && (
+            <Chip
+              size="sm"
+              variant="flat"
+              className="h-5 border border-amber-200 bg-amber-50 text-[10px] font-medium text-amber-700 dark:border-amber-500/20 dark:bg-amber-500/10 dark:text-amber-300"
+            >
+              Legacy: {log.legacyCategory}
+            </Chip>
+          )}
+        </div>
+        <div className="flex flex-wrap items-center gap-x-3 gap-y-1 text-[12px] text-zinc-500 dark:text-zinc-400">
+          <span>{formatTimeLogRange(log.timeStartedAt, log.timeEndedAt)}</span>
+          {log.sourceUrl && (
+            <a
+              href={log.sourceUrl}
+              target="_blank"
+              rel="noreferrer"
+              className="inline-flex items-center gap-1 text-zinc-500 transition-colors hover:text-zinc-800 dark:text-zinc-400 dark:hover:text-zinc-200"
+            >
+              Open in Notion
+              <ExternalLink size={12} />
+            </a>
+          )}
+        </div>
+      </div>
+
+      <Select
+        aria-label={`Assign time category for ${log.title}`}
+        placeholder="Set category"
+        disallowEmptySelection
+        selectedKeys={[]}
+        isDisabled={assigning}
+        onSelectionChange={(keys) => {
+          const next = Array.from(keys)[0] as string | undefined;
+          if (next) {
+            void onAssign(log.id, next);
+          }
+        }}
+        size="sm"
+        variant="flat"
+        className="w-full md:max-w-xs"
+        classNames={{
+          trigger: "h-9 min-h-9 rounded-sm border border-zinc-200 bg-zinc-100 shadow-none dark:border-white/10 dark:bg-white/5",
+          value: "text-sm text-zinc-700 dark:text-zinc-200",
+          popoverContent: "border border-zinc-200 bg-white dark:border-white/10 dark:bg-[#0d0d0d]",
+        }}
+        renderValue={() =>
+          assigning ? (
+            <span className="text-sm text-zinc-500 dark:text-zinc-400">Saving...</span>
+          ) : (
+            <span className="text-sm text-zinc-500 dark:text-zinc-400">Set category</span>
+          )
+        }
+      >
+        {categories.map((category) => (
+          <SelectItem key={category.id} textValue={category.name}>
+            {category.name}
+          </SelectItem>
+        ))}
+      </Select>
+    </div>
+  );
+}
+
 export function InboxContent() {
   const [beeInsights, setBeeInsights] = useState<BeeInsight[]>([]);
   const [beeInsightsLoading, setBeeInsightsLoading] = useState(true);
+  const [uncategorizedTimeLogs, setUncategorizedTimeLogs] = useState<InboxUncategorizedTimeLog[]>([]);
+  const [timeCategoryOptions, setTimeCategoryOptions] = useState<InboxTimeCategoryOption[]>([]);
+  const [timeLogsLoading, setTimeLogsLoading] = useState(true);
+  const [timeLogsError, setTimeLogsError] = useState<string | null>(null);
+  const [assigningLogIds, setAssigningLogIds] = useState<Record<string, boolean>>({});
   const [selectedBeeInsight, setSelectedBeeInsight] = useState<BeeInsight | null>(null);
   const [beeModalScheduledAt, setBeeModalScheduledAt] = useState<string | null>(toLocalDateKey(new Date()));
   const [beeModalDueAt, setBeeModalDueAt] = useState<string | null>(nextFridayDateKey());
@@ -201,6 +344,36 @@ export function InboxContent() {
       // non-fatal; leave existing state
     } finally {
       setBeeInsightsLoading(false);
+    }
+  }, []);
+
+  const refreshUncategorizedTimeLogs = useCallback(async () => {
+    try {
+      const response = await api.getInboxUncategorizedTimeLogs();
+      setUncategorizedTimeLogs(response.logs);
+      setTimeCategoryOptions(response.categories);
+      setTimeLogsError(null);
+    } catch (error) {
+      setTimeLogsError(error instanceof Error ? error.message : "Failed to load uncategorized time logs.");
+    } finally {
+      setTimeLogsLoading(false);
+    }
+  }, []);
+
+  const handleAssignTimeCategory = useCallback(async (logId: string, categoryId: string) => {
+    setTimeLogsError(null);
+    setAssigningLogIds((prev) => ({ ...prev, [logId]: true }));
+    try {
+      await api.categorizeTimeLog(logId, categoryId);
+      setUncategorizedTimeLogs((prev) => prev.filter((log) => log.id !== logId));
+    } catch (error) {
+      setTimeLogsError(error instanceof Error ? error.message : "Failed to update time category.");
+    } finally {
+      setAssigningLogIds((prev) => {
+        const next = { ...prev };
+        delete next[logId];
+        return next;
+      });
     }
   }, []);
 
@@ -249,16 +422,19 @@ export function InboxContent() {
 
   useEffect(() => {
     void refreshBeeInsights();
-  }, [refreshBeeInsights]);
+    void refreshUncategorizedTimeLogs();
+  }, [refreshBeeInsights, refreshUncategorizedTimeLogs]);
 
   useEffect(() => {
     const handleWindowFocus = () => {
       void refreshBeeInsights();
+      void refreshUncategorizedTimeLogs();
     };
 
     const handleVisibilityChange = () => {
       if (document.visibilityState === "visible") {
         void refreshBeeInsights();
+        void refreshUncategorizedTimeLogs();
       }
     };
 
@@ -269,7 +445,7 @@ export function InboxContent() {
       window.removeEventListener("focus", handleWindowFocus);
       document.removeEventListener("visibilitychange", handleVisibilityChange);
     };
-  }, [refreshBeeInsights]);
+  }, [refreshBeeInsights, refreshUncategorizedTimeLogs]);
 
   return (
     <div className="mx-auto flex max-w-[1280px] flex-col gap-5 pb-24">
@@ -277,6 +453,39 @@ export function InboxContent() {
         <div>
           <h1 className="text-2xl font-semibold text-zinc-900 dark:text-zinc-100">Inbox</h1>
           <p className="mt-1 text-[13px] text-zinc-500">Items that need attention, triage, or processing.</p>
+        </div>
+      </section>
+
+      <section className="space-y-3">
+        <div>
+          <h2 className="text-[11px] font-mono uppercase tracking-[0.14em] text-zinc-500">Time Log Categorization</h2>
+          <p className="mt-1 text-[13px] text-zinc-500">Uncategorized time logs from the past 7 days. Assign a Time Category to clear them from inbox.</p>
+        </div>
+        <div className="space-y-2">
+          {timeLogsLoading ? (
+            <>
+              <TimeLogSkeleton />
+              <TimeLogSkeleton />
+            </>
+          ) : timeLogsError ? (
+            <div className="rounded-md border border-rose-200 bg-rose-50 px-4 py-3 dark:border-rose-500/20 dark:bg-rose-500/10">
+              <p className="text-[13px] text-rose-700 dark:text-rose-300">{timeLogsError}</p>
+            </div>
+          ) : uncategorizedTimeLogs.length === 0 ? (
+            <div className="flex items-center justify-center rounded-md border border-dashed border-zinc-200 py-6 dark:border-white/10">
+              <p className="text-[13px] italic text-zinc-500 dark:text-gray-500">No uncategorized time logs from the past 7 days.</p>
+            </div>
+          ) : (
+            uncategorizedTimeLogs.map((log) => (
+              <UncategorizedTimeLogCard
+                key={log.id}
+                log={log}
+                categories={timeCategoryOptions}
+                assigning={!!assigningLogIds[log.id]}
+                onAssign={handleAssignTimeCategory}
+              />
+            ))
+          )}
         </div>
       </section>
 
@@ -417,9 +626,7 @@ export function InboxContent() {
                   }}
                 />
 
-                {beeModalError && (
-                  <p className="text-[13px] text-rose-600 dark:text-rose-400">{beeModalError}</p>
-                )}
+                {beeModalError && <p className="text-[13px] text-rose-600 dark:text-rose-400">{beeModalError}</p>}
               </>
             )}
           </ModalBody>
