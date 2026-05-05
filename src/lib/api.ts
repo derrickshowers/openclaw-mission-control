@@ -336,7 +336,8 @@ export interface NotionInboxItem {
 }
 
 export interface NotionInboxResponse {
-  page_id: string;
+  source_data_source_id: string;
+  source_title: string | null;
   count: number;
   items: NotionInboxItem[];
 }

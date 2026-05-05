@@ -591,8 +591,8 @@ export function InboxContent() {
 
         <div className="space-y-2 border-t border-zinc-200 pt-4 dark:border-white/10">
           <div>
-            <h3 className="text-[11px] font-mono uppercase tracking-[0.14em] text-zinc-500">Study Spots Inbox</h3>
-            <p className="mt-1 text-[13px] text-zinc-500">Move personal Notion inbox pages into Tasks. This week uses the upcoming Friday, Next week uses the following Friday, and No date leaves the due date empty.</p>
+            <h3 className="text-[11px] font-mono uppercase tracking-[0.14em] text-zinc-500">Notion Inbox</h3>
+            <p className="mt-1 text-[13px] text-zinc-500">Promote uncategorized Notion inbox items into Tasks. This week uses the upcoming Friday, Next week uses the following Friday, and No date leaves the due date empty.</p>
           </div>
           {notionInboxLoading ? (
             <>
@@ -605,7 +605,7 @@ export function InboxContent() {
             </div>
           ) : notionInboxItems.length === 0 ? (
             <div className="flex items-center justify-center rounded-md border border-dashed border-zinc-200 py-6 dark:border-white/10">
-              <p className="text-[13px] italic text-zinc-500 dark:text-gray-500">No pages waiting in the Study Spots inbox.</p>
+              <p className="text-[13px] italic text-zinc-500 dark:text-gray-500">No Notion inbox items waiting.</p>
             </div>
           ) : (
             notionInboxItems.map((item) => (
