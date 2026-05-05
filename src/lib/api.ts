@@ -327,6 +327,22 @@ export interface InboxUncategorizedTimeLogsResponse {
   logs: InboxUncategorizedTimeLog[];
 }
 
+export interface NotionInboxItem {
+  id: string;
+  title: string;
+  source_url: string | null;
+  last_edited_at: string | null;
+  created_at: string | null;
+}
+
+export interface NotionInboxResponse {
+  page_id: string;
+  count: number;
+  items: NotionInboxItem[];
+}
+
+export type NotionInboxTriageAction = "this_week" | "next_week" | "no_date";
+
 // Bee Insights (mock ingestion lane)
 export type BeeInsightStatus = "new" | "accepted" | "dismissed";
 export type BeeInsightConfidence = "high" | "medium" | "low";
@@ -570,6 +586,19 @@ export const api = {
     }>(`/time-logging/logs/${id}/category`, {
       method: "PATCH",
       body: JSON.stringify({ timeCategoryId }),
+    }),
+
+  getNotionInboxItems: () =>
+    apiFetch<NotionInboxResponse>("/personal-tasks/notion-inbox"),
+
+  triageNotionInboxItem: (id: string, action: NotionInboxTriageAction) =>
+    apiFetch<{
+      ok: boolean;
+      archived_page_id: string;
+      created_task: PersonalTaskDetail | null;
+    }>(`/personal-tasks/notion-inbox/${id}/triage`, {
+      method: "POST",
+      body: JSON.stringify({ action }),
     }),
 
   updateTodayNonNegotiable: (id: string, completed: boolean) =>

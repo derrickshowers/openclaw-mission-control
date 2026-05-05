@@ -20,6 +20,8 @@ import {
   type BeeInsight,
   type InboxTimeCategoryOption,
   type InboxUncategorizedTimeLog,
+  type NotionInboxItem,
+  type NotionInboxTriageAction,
 } from "@/lib/api";
 import { timeAgo } from "@/lib/dates";
 import {
@@ -238,6 +240,73 @@ function TimeLogSkeleton() {
   );
 }
 
+function NotionInboxCard({
+  item,
+  busyAction,
+  onTriage,
+}: {
+  item: NotionInboxItem;
+  busyAction: NotionInboxTriageAction | null;
+  onTriage: (id: string, action: NotionInboxTriageAction) => Promise<void>;
+}) {
+  const disabled = busyAction !== null;
+
+  return (
+    <div className="flex flex-col gap-3 rounded-md border border-zinc-200 bg-white p-3 dark:border-white/10 dark:bg-[#111] md:flex-row md:items-center md:justify-between">
+      <div className="min-w-0 space-y-2">
+        <h3 className="text-sm font-medium text-zinc-900 dark:text-zinc-100">{item.title}</h3>
+        <div className="flex flex-wrap items-center gap-x-3 gap-y-1 text-[12px] text-zinc-500 dark:text-zinc-400">
+          <span>{item.last_edited_at ? `Edited ${timeAgo(item.last_edited_at)}` : "Ready to triage"}</span>
+          {item.source_url && (
+            <a
+              href={item.source_url}
+              target="_blank"
+              rel="noreferrer"
+              className="inline-flex items-center gap-1 text-zinc-500 transition-colors hover:text-zinc-800 dark:text-zinc-400 dark:hover:text-zinc-200"
+            >
+              Open in Notion
+              <ExternalLink size={12} />
+            </a>
+          )}
+        </div>
+      </div>
+
+      <div className="flex flex-wrap gap-2 md:justify-end">
+        <Button
+          size="sm"
+          variant="flat"
+          isDisabled={disabled}
+          isLoading={busyAction === "this_week"}
+          onPress={() => void onTriage(item.id, "this_week")}
+          className="rounded-sm border border-zinc-200 bg-zinc-100 text-[12px] font-medium text-zinc-900 dark:border-white/10 dark:bg-white/5 dark:text-zinc-100"
+        >
+          This week
+        </Button>
+        <Button
+          size="sm"
+          variant="flat"
+          isDisabled={disabled}
+          isLoading={busyAction === "next_week"}
+          onPress={() => void onTriage(item.id, "next_week")}
+          className="rounded-sm border border-zinc-200 bg-zinc-100 text-[12px] font-medium text-zinc-900 dark:border-white/10 dark:bg-white/5 dark:text-zinc-100"
+        >
+          Next week
+        </Button>
+        <Button
+          size="sm"
+          variant="flat"
+          isDisabled={disabled}
+          isLoading={busyAction === "no_date"}
+          onPress={() => void onTriage(item.id, "no_date")}
+          className="rounded-sm border border-zinc-200 bg-zinc-100 text-[12px] font-medium text-zinc-900 dark:border-white/10 dark:bg-white/5 dark:text-zinc-100"
+        >
+          No date
+        </Button>
+      </div>
+    </div>
+  );
+}
+
 function UncategorizedTimeLogCard({
   log,
   categories,
@@ -329,6 +398,10 @@ export function InboxContent() {
   const [timeLogsLoading, setTimeLogsLoading] = useState(true);
   const [timeLogsError, setTimeLogsError] = useState<string | null>(null);
   const [assigningLogIds, setAssigningLogIds] = useState<Record<string, boolean>>({});
+  const [notionInboxItems, setNotionInboxItems] = useState<NotionInboxItem[]>([]);
+  const [notionInboxLoading, setNotionInboxLoading] = useState(true);
+  const [notionInboxError, setNotionInboxError] = useState<string | null>(null);
+  const [triagingInboxItems, setTriagingInboxItems] = useState<Record<string, NotionInboxTriageAction | null>>({});
   const [selectedBeeInsight, setSelectedBeeInsight] = useState<BeeInsight | null>(null);
   const [beeModalScheduledAt, setBeeModalScheduledAt] = useState<string | null>(toLocalDateKey(new Date()));
   const [beeModalDueAt, setBeeModalDueAt] = useState<string | null>(nextFridayDateKey());
@@ -360,6 +433,18 @@ export function InboxContent() {
     }
   }, []);
 
+  const refreshNotionInboxItems = useCallback(async () => {
+    try {
+      const response = await api.getNotionInboxItems();
+      setNotionInboxItems(response.items);
+      setNotionInboxError(null);
+    } catch (error) {
+      setNotionInboxError(error instanceof Error ? error.message : "Failed to load Notion inbox items.");
+    } finally {
+      setNotionInboxLoading(false);
+    }
+  }, []);
+
   const handleAssignTimeCategory = useCallback(async (logId: string, categoryId: string) => {
     setTimeLogsError(null);
     setAssigningLogIds((prev) => ({ ...prev, [logId]: true }));
@@ -374,6 +459,19 @@ export function InboxContent() {
         delete next[logId];
         return next;
       });
+    }
+  }, []);
+
+  const handleTriageNotionInboxItem = useCallback(async (id: string, action: NotionInboxTriageAction) => {
+    setNotionInboxError(null);
+    setTriagingInboxItems((prev) => ({ ...prev, [id]: action }));
+    try {
+      await api.triageNotionInboxItem(id, action);
+      setNotionInboxItems((prev) => prev.filter((item) => item.id !== id));
+    } catch (error) {
+      setNotionInboxError(error instanceof Error ? error.message : "Failed to triage Notion inbox item.");
+    } finally {
+      setTriagingInboxItems((prev) => ({ ...prev, [id]: null }));
     }
   }, []);
 
@@ -423,18 +521,21 @@ export function InboxContent() {
   useEffect(() => {
     void refreshBeeInsights();
     void refreshUncategorizedTimeLogs();
-  }, [refreshBeeInsights, refreshUncategorizedTimeLogs]);
+    void refreshNotionInboxItems();
+  }, [refreshBeeInsights, refreshUncategorizedTimeLogs, refreshNotionInboxItems]);
 
   useEffect(() => {
     const handleWindowFocus = () => {
       void refreshBeeInsights();
       void refreshUncategorizedTimeLogs();
+      void refreshNotionInboxItems();
     };
 
     const handleVisibilityChange = () => {
       if (document.visibilityState === "visible") {
         void refreshBeeInsights();
         void refreshUncategorizedTimeLogs();
+        void refreshNotionInboxItems();
       }
     };
 
@@ -445,7 +546,7 @@ export function InboxContent() {
       window.removeEventListener("focus", handleWindowFocus);
       document.removeEventListener("visibilitychange", handleVisibilityChange);
     };
-  }, [refreshBeeInsights, refreshUncategorizedTimeLogs]);
+  }, [refreshBeeInsights, refreshUncategorizedTimeLogs, refreshNotionInboxItems]);
 
   return (
     <div className="mx-auto flex max-w-[1280px] flex-col gap-5 pb-24">
@@ -483,6 +584,36 @@ export function InboxContent() {
                 categories={timeCategoryOptions}
                 assigning={!!assigningLogIds[log.id]}
                 onAssign={handleAssignTimeCategory}
+              />
+            ))
+          )}
+        </div>
+
+        <div className="space-y-2 border-t border-zinc-200 pt-4 dark:border-white/10">
+          <div>
+            <h3 className="text-[11px] font-mono uppercase tracking-[0.14em] text-zinc-500">Study Spots Inbox</h3>
+            <p className="mt-1 text-[13px] text-zinc-500">Move personal Notion inbox pages into Tasks. This week uses the upcoming Friday, Next week uses the following Friday, and No date leaves the due date empty.</p>
+          </div>
+          {notionInboxLoading ? (
+            <>
+              <TimeLogSkeleton />
+              <TimeLogSkeleton />
+            </>
+          ) : notionInboxError ? (
+            <div className="rounded-md border border-rose-200 bg-rose-50 px-4 py-3 dark:border-rose-500/20 dark:bg-rose-500/10">
+              <p className="text-[13px] text-rose-700 dark:text-rose-300">{notionInboxError}</p>
+            </div>
+          ) : notionInboxItems.length === 0 ? (
+            <div className="flex items-center justify-center rounded-md border border-dashed border-zinc-200 py-6 dark:border-white/10">
+              <p className="text-[13px] italic text-zinc-500 dark:text-gray-500">No pages waiting in the Study Spots inbox.</p>
+            </div>
+          ) : (
+            notionInboxItems.map((item) => (
+              <NotionInboxCard
+                key={item.id}
+                item={item}
+                busyAction={triagingInboxItems[item.id] ?? null}
+                onTriage={handleTriageNotionInboxItem}
               />
             ))
           )}
