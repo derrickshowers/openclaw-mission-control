@@ -150,6 +150,27 @@ function formatScheduledLabel(dateValue: string | null | undefined, now: Date) {
   });
 }
 
+function formatScheduledMetaLabel(dateValue: string | null | undefined, now: Date) {
+  const parsed = parseCalendarDate(dateValue);
+  if (!parsed) return "";
+
+  const isDateOnly = DATE_ONLY_VALUE_RE.test(dateValue?.trim() || "");
+  const diff = dayDiffFromNow(dateValue, now);
+
+  if (isDateOnly && diff === 0) return "Scheduled today";
+  if (!isDateOnly && diff === 0) {
+    return `Today at ${parsed.toLocaleTimeString("en-US", {
+      hour: "numeric",
+      minute: "2-digit",
+    })}`;
+  }
+
+  const label = formatScheduledLabel(dateValue, now);
+  if (!label) return "";
+
+  return label.charAt(0).toUpperCase() + label.slice(1);
+}
+
 function comparePersonalTasks(a: PersonalTask, b: PersonalTask) {
   const aScheduled = a.scheduled_at ? parseCalendarDate(a.scheduled_at)?.getTime() ?? Number.POSITIVE_INFINITY : Number.POSITIVE_INFINITY;
   const bScheduled = b.scheduled_at ? parseCalendarDate(b.scheduled_at)?.getTime() ?? Number.POSITIVE_INFINITY : Number.POSITIVE_INFINITY;
@@ -742,9 +763,10 @@ export function DashboardContent({
                           const overdue = isOverdue(task.due_at, now);
                           const dueToday = !overdue && isSameLocalDay(task.due_at, now);
                           const dueTomorrow = !overdue && !dueToday && isDueTomorrow(task.due_at, now);
+                          const scheduledToday = isSameLocalDay(task.scheduled_at, now);
 
-                          const cardBg = task.status === "in_progress"
-                            ? "w-full rounded-md border border-purple-200 bg-purple-50/60 shadow-none dark:border-purple-500/30 dark:bg-purple-500/[0.08]"
+                          const cardBg = scheduledToday
+                            ? "w-full rounded-md border border-indigo-200 bg-indigo-50/45 shadow-none dark:border-indigo-400/20 dark:bg-indigo-400/[0.06]"
                             : "w-full rounded-md border border-zinc-200 bg-white shadow-none dark:border-white/10 dark:bg-[#080808]";
 
                           return (
@@ -758,21 +780,42 @@ export function DashboardContent({
                                 <div className="flex flex-col gap-3 sm:flex-row sm:items-start">
                                   <div className="min-w-0 flex-1">
                                     <h3 className="break-words text-sm font-medium text-zinc-900 dark:text-zinc-100">{task.title}</h3>
-                                    {overdue && (
+                                    {(scheduledToday || task.status === "in_progress" || overdue) && (
                                       <div className="mt-2 flex flex-wrap items-center gap-2">
-                                        <Chip size="sm" variant="flat" color="danger" className="h-5 whitespace-nowrap text-[10px] uppercase">
-                                          <span className="inline-flex items-center gap-1 whitespace-nowrap">
-                                            <AlertCircle size={12} />
-                                            Overdue
-                                          </span>
-                                        </Chip>
+                                        {scheduledToday && (
+                                          <Chip
+                                            size="sm"
+                                            variant="flat"
+                                            className="h-5 border border-indigo-200 bg-indigo-100/70 px-1.5 text-[10px] uppercase tracking-[0.12em] text-indigo-700 dark:border-indigo-400/20 dark:bg-indigo-400/10 dark:text-indigo-200"
+                                          >
+                                            Today
+                                          </Chip>
+                                        )}
+                                        {task.status === "in_progress" && (
+                                          <Chip
+                                            size="sm"
+                                            variant="flat"
+                                            color="primary"
+                                            className="h-5 whitespace-nowrap text-[10px] uppercase"
+                                          >
+                                            In progress
+                                          </Chip>
+                                        )}
+                                        {overdue && (
+                                          <Chip size="sm" variant="flat" color="danger" className="h-5 whitespace-nowrap text-[10px] uppercase">
+                                            <span className="inline-flex items-center gap-1 whitespace-nowrap">
+                                              <AlertCircle size={12} />
+                                              Overdue
+                                            </span>
+                                          </Chip>
+                                        )}
                                       </div>
                                     )}
                                     <div className="mt-2 flex flex-wrap items-center gap-x-4 gap-y-1 text-[12px] text-zinc-500">
                                       {task.scheduled_at && (
                                         <span className="inline-flex items-center gap-1.5 sm:whitespace-nowrap">
                                           <Clock3 size={13} />
-                                          Scheduled {formatScheduledLabel(task.scheduled_at, now)}
+                                          {formatScheduledMetaLabel(task.scheduled_at, now)}
                                         </span>
                                       )}
                                       {task.due_at && (
