@@ -513,6 +513,14 @@ export function DashboardContent({
     [todayPersonalTasks],
   );
 
+  const scheduledTodayOpenPersonalTasks = openTodayPersonalTasks.filter((task) =>
+    isSameLocalDay(task.scheduled_at, now)
+  );
+
+  const flexibleOpenTodayPersonalTasks = openTodayPersonalTasks.filter((task) =>
+    !isSameLocalDay(task.scheduled_at, now)
+  );
+
   const completedTodayPersonalTasks = useMemo(
     () => todayPersonalTasks.filter((task) => task.status === "done"),
     [todayPersonalTasks],
@@ -759,110 +767,178 @@ export function DashboardContent({
                           <CardBody className="p-4 text-[13px] text-zinc-500">Nothing open in today’s Notion slice.</CardBody>
                         </Card>
                       ) : (
-                        openTodayPersonalTasks.map((task) => {
-                          const overdue = isOverdue(task.due_at, now);
-                          const dueToday = !overdue && isSameLocalDay(task.due_at, now);
-                          const dueTomorrow = !overdue && !dueToday && isDueTomorrow(task.due_at, now);
-                          const scheduledToday = isSameLocalDay(task.scheduled_at, now);
+                        <>
+                          {scheduledTodayOpenPersonalTasks.length > 0 && (
+                            <div className="rounded-lg border border-indigo-200/80 bg-indigo-50/25 p-3 dark:border-indigo-400/20 dark:bg-indigo-400/[0.04]">
+                              <p className="text-[11px] font-mono uppercase tracking-[0.14em] text-indigo-700 dark:text-indigo-200">
+                                Scheduled for today
+                              </p>
+                              <div className="mt-3 space-y-3">
+                                {scheduledTodayOpenPersonalTasks.map((task) => {
+                                  const overdue = isOverdue(task.due_at, now);
+                                  const dueToday = !overdue && isSameLocalDay(task.due_at, now);
+                                  const dueTomorrow = !overdue && !dueToday && isDueTomorrow(task.due_at, now);
 
-                          const cardBg = scheduledToday
-                            ? "w-full rounded-md border border-indigo-200 bg-indigo-50/45 shadow-none dark:border-indigo-400/20 dark:bg-indigo-400/[0.06]"
-                            : "w-full rounded-md border border-zinc-200 bg-white shadow-none dark:border-white/10 dark:bg-[#080808]";
+                                  return (
+                                    <Card
+                                      key={task.id}
+                                      isPressable
+                                      onPress={() => setSelectedPersonalTaskId(task.id)}
+                                      className="w-full rounded-md border border-zinc-200 bg-white shadow-none dark:border-white/10 dark:bg-[#080808]"
+                                    >
+                                      <CardBody className="gap-3 p-4">
+                                        <div className="flex flex-col gap-3 sm:flex-row sm:items-start">
+                                          <div className="min-w-0 flex-1">
+                                            <h3 className="break-words text-sm font-medium text-zinc-900 dark:text-zinc-100">{task.title}</h3>
+                                            {overdue && (
+                                              <div className="mt-2 flex flex-wrap items-center gap-2">
+                                                <Chip size="sm" variant="flat" color="danger" className="h-5 whitespace-nowrap text-[10px] uppercase">
+                                                  <span className="inline-flex items-center gap-1 whitespace-nowrap">
+                                                    <AlertCircle size={12} />
+                                                    Overdue
+                                                  </span>
+                                                </Chip>
+                                              </div>
+                                            )}
+                                            <div className="mt-2 flex flex-wrap items-center gap-x-4 gap-y-1 text-[12px] text-zinc-500">
+                                              {task.scheduled_at && (
+                                                <span className="inline-flex items-center gap-1.5 sm:whitespace-nowrap">
+                                                  <Clock3 size={13} />
+                                                  {formatScheduledMetaLabel(task.scheduled_at, now)}
+                                                </span>
+                                              )}
+                                              {task.due_at && (
+                                                <span className={`inline-flex items-center gap-1.5 sm:whitespace-nowrap ${overdue || dueToday ? "text-rose-600 dark:text-rose-400" : dueTomorrow ? "text-amber-600 dark:text-amber-400" : "text-zinc-500"}`}>
+                                                  {dueTomorrow ? <TriangleAlert size={13} /> : <AlertCircle size={13} />}
+                                                  {`Due ${formatDueLabel(task.due_at, now)}`}
+                                                </span>
+                                              )}
+                                            </div>
+                                            {task.description && (
+                                              <p className="mt-2 line-clamp-3 break-words text-[13px] text-zinc-600 dark:text-zinc-300">
+                                                {task.description}
+                                              </p>
+                                            )}
+                                          </div>
+                                          <div
+                                            className="flex shrink-0 items-center gap-2 sm:ml-auto sm:self-start"
+                                            onClick={(e) => e.stopPropagation()}
+                                          >
+                                            <Button
+                                              isIconOnly
+                                              size="md"
+                                              variant="flat"
+                                              aria-label="Start work"
+                                              className={`${flatButtonClass} h-11 w-11 min-w-11`}
+                                              onPress={() => void handleStartWork(task)}
+                                              isLoading={startingTaskId === task.id}
+                                            >
+                                              <Play size={16} />
+                                            </Button>
+                                            <Button
+                                              isIconOnly
+                                              size="md"
+                                              variant="flat"
+                                              aria-label="Mark done"
+                                              className={`${flatButtonClass} h-11 w-11 min-w-11`}
+                                              onPress={() => void handleMarkDone(task)}
+                                              isLoading={markingDoneId === task.id}
+                                            >
+                                              <SquareCheck size={16} />
+                                            </Button>
+                                          </div>
+                                        </div>
+                                      </CardBody>
+                                    </Card>
+                                  );
+                                })}
+                              </div>
+                            </div>
+                          )}
 
-                          return (
-                            <Card
-                              key={task.id}
-                              isPressable
-                              onPress={() => setSelectedPersonalTaskId(task.id)}
-                              className={cardBg}
-                            >
-                              <CardBody className="gap-3 p-4">
-                                <div className="flex flex-col gap-3 sm:flex-row sm:items-start">
-                                  <div className="min-w-0 flex-1">
-                                    <h3 className="break-words text-sm font-medium text-zinc-900 dark:text-zinc-100">{task.title}</h3>
-                                    {(scheduledToday || task.status === "in_progress" || overdue) && (
-                                      <div className="mt-2 flex flex-wrap items-center gap-2">
-                                        {scheduledToday && (
-                                          <Chip
-                                            size="sm"
-                                            variant="flat"
-                                            className="h-5 border border-indigo-200 bg-indigo-100/70 px-1.5 text-[10px] uppercase tracking-[0.12em] text-indigo-700 dark:border-indigo-400/20 dark:bg-indigo-400/10 dark:text-indigo-200"
-                                          >
-                                            Today
-                                          </Chip>
-                                        )}
-                                        {task.status === "in_progress" && (
-                                          <Chip
-                                            size="sm"
-                                            variant="flat"
-                                            color="primary"
-                                            className="h-5 whitespace-nowrap text-[10px] uppercase"
-                                          >
-                                            In progress
-                                          </Chip>
-                                        )}
-                                        {overdue && (
-                                          <Chip size="sm" variant="flat" color="danger" className="h-5 whitespace-nowrap text-[10px] uppercase">
-                                            <span className="inline-flex items-center gap-1 whitespace-nowrap">
-                                              <AlertCircle size={12} />
-                                              Overdue
-                                            </span>
-                                          </Chip>
-                                        )}
-                                      </div>
-                                    )}
-                                    <div className="mt-2 flex flex-wrap items-center gap-x-4 gap-y-1 text-[12px] text-zinc-500">
-                                      {task.scheduled_at && (
-                                        <span className="inline-flex items-center gap-1.5 sm:whitespace-nowrap">
-                                          <Clock3 size={13} />
-                                          {formatScheduledMetaLabel(task.scheduled_at, now)}
-                                        </span>
-                                      )}
-                                      {task.due_at && (
-                                        <span className={`inline-flex items-center gap-1.5 sm:whitespace-nowrap ${overdue || dueToday ? "text-rose-600 dark:text-rose-400" : dueTomorrow ? "text-amber-600 dark:text-amber-400" : "text-zinc-500"}`}>
-                                          {dueTomorrow ? <TriangleAlert size={13} /> : <AlertCircle size={13} />}
-                                          {`Due ${formatDueLabel(task.due_at, now)}`}
-                                        </span>
-                                      )}
-                                    </div>
-                                    {task.description && (
-                                      <p className="mt-2 line-clamp-3 break-words text-[13px] text-zinc-600 dark:text-zinc-300">
-                                        {task.description}
-                                      </p>
-                                    )}
-                                  </div>
-                                  <div
-                                    className="flex shrink-0 items-center gap-2 sm:ml-auto sm:self-start"
-                                    onClick={(e) => e.stopPropagation()}
+                          {flexibleOpenTodayPersonalTasks.length > 0 && (
+                            <div className="space-y-3">
+                              {flexibleOpenTodayPersonalTasks.map((task) => {
+                                const overdue = isOverdue(task.due_at, now);
+                                const dueToday = !overdue && isSameLocalDay(task.due_at, now);
+                                const dueTomorrow = !overdue && !dueToday && isDueTomorrow(task.due_at, now);
+
+                                return (
+                                  <Card
+                                    key={task.id}
+                                    isPressable
+                                    onPress={() => setSelectedPersonalTaskId(task.id)}
+                                    className="w-full rounded-md border border-zinc-200 bg-white shadow-none dark:border-white/10 dark:bg-[#080808]"
                                   >
-                                    <Button
-                                      isIconOnly
-                                      size="md"
-                                      variant="flat"
-                                      aria-label="Start work"
-                                      className={`${flatButtonClass} h-11 w-11 min-w-11`}
-                                      onPress={() => void handleStartWork(task)}
-                                      isLoading={startingTaskId === task.id}
-                                    >
-                                      <Play size={16} />
-                                    </Button>
-                                    <Button
-                                      isIconOnly
-                                      size="md"
-                                      variant="flat"
-                                      aria-label="Mark done"
-                                      className={`${flatButtonClass} h-11 w-11 min-w-11`}
-                                      onPress={() => void handleMarkDone(task)}
-                                      isLoading={markingDoneId === task.id}
-                                    >
-                                      <SquareCheck size={16} />
-                                    </Button>
-                                  </div>
-                                </div>
-                              </CardBody>
-                            </Card>
-                          );
-                        })
+                                    <CardBody className="gap-3 p-4">
+                                      <div className="flex flex-col gap-3 sm:flex-row sm:items-start">
+                                        <div className="min-w-0 flex-1">
+                                          <h3 className="break-words text-sm font-medium text-zinc-900 dark:text-zinc-100">{task.title}</h3>
+                                          {overdue && (
+                                            <div className="mt-2 flex flex-wrap items-center gap-2">
+                                              <Chip size="sm" variant="flat" color="danger" className="h-5 whitespace-nowrap text-[10px] uppercase">
+                                                <span className="inline-flex items-center gap-1 whitespace-nowrap">
+                                                  <AlertCircle size={12} />
+                                                  Overdue
+                                                </span>
+                                              </Chip>
+                                            </div>
+                                          )}
+                                          <div className="mt-2 flex flex-wrap items-center gap-x-4 gap-y-1 text-[12px] text-zinc-500">
+                                            {task.scheduled_at && (
+                                              <span className="inline-flex items-center gap-1.5 sm:whitespace-nowrap">
+                                                <Clock3 size={13} />
+                                                {formatScheduledMetaLabel(task.scheduled_at, now)}
+                                              </span>
+                                            )}
+                                            {task.due_at && (
+                                              <span className={`inline-flex items-center gap-1.5 sm:whitespace-nowrap ${overdue || dueToday ? "text-rose-600 dark:text-rose-400" : dueTomorrow ? "text-amber-600 dark:text-amber-400" : "text-zinc-500"}`}>
+                                                {dueTomorrow ? <TriangleAlert size={13} /> : <AlertCircle size={13} />}
+                                                {`Due ${formatDueLabel(task.due_at, now)}`}
+                                              </span>
+                                            )}
+                                          </div>
+                                          {task.description && (
+                                            <p className="mt-2 line-clamp-3 break-words text-[13px] text-zinc-600 dark:text-zinc-300">
+                                              {task.description}
+                                            </p>
+                                          )}
+                                        </div>
+                                        <div
+                                          className="flex shrink-0 items-center gap-2 sm:ml-auto sm:self-start"
+                                          onClick={(e) => e.stopPropagation()}
+                                        >
+                                          <Button
+                                            isIconOnly
+                                            size="md"
+                                            variant="flat"
+                                            aria-label="Start work"
+                                            className={`${flatButtonClass} h-11 w-11 min-w-11`}
+                                            onPress={() => void handleStartWork(task)}
+                                            isLoading={startingTaskId === task.id}
+                                          >
+                                            <Play size={16} />
+                                          </Button>
+                                          <Button
+                                            isIconOnly
+                                            size="md"
+                                            variant="flat"
+                                            aria-label="Mark done"
+                                            className={`${flatButtonClass} h-11 w-11 min-w-11`}
+                                            onPress={() => void handleMarkDone(task)}
+                                            isLoading={markingDoneId === task.id}
+                                          >
+                                            <SquareCheck size={16} />
+                                          </Button>
+                                        </div>
+                                      </div>
+                                    </CardBody>
+                                  </Card>
+                                );
+                              })}
+                            </div>
+                          )}
+                        </>
                       )}
                     </div>
                   </div>
