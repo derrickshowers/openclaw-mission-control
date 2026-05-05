@@ -778,13 +778,17 @@ export function DashboardContent({
                                   const overdue = isOverdue(task.due_at, now);
                                   const dueToday = !overdue && isSameLocalDay(task.due_at, now);
                                   const dueTomorrow = !overdue && !dueToday && isDueTomorrow(task.due_at, now);
+                                  const openCardClassName =
+                                    task.status === "in_progress"
+                                      ? "w-full rounded-md border border-amber-200 bg-amber-50/80 shadow-none dark:border-amber-500/30 dark:bg-amber-500/[0.08]"
+                                      : "w-full rounded-md border border-zinc-200 bg-white shadow-none dark:border-white/10 dark:bg-[#080808]";
 
                                   return (
                                     <Card
                                       key={task.id}
                                       isPressable
                                       onPress={() => setSelectedPersonalTaskId(task.id)}
-                                      className="w-full rounded-md border border-zinc-200 bg-white shadow-none dark:border-white/10 dark:bg-[#080808]"
+                                      className={openCardClassName}
                                     >
                                       <CardBody className="gap-3 p-4">
                                         <div className="flex flex-col gap-3 sm:flex-row sm:items-start">
@@ -862,13 +866,17 @@ export function DashboardContent({
                                 const overdue = isOverdue(task.due_at, now);
                                 const dueToday = !overdue && isSameLocalDay(task.due_at, now);
                                 const dueTomorrow = !overdue && !dueToday && isDueTomorrow(task.due_at, now);
+                                const openCardClassName =
+                                  task.status === "in_progress"
+                                    ? "w-full rounded-md border border-amber-200 bg-amber-50/80 shadow-none dark:border-amber-500/30 dark:bg-amber-500/[0.08]"
+                                    : "w-full rounded-md border border-zinc-200 bg-white shadow-none dark:border-white/10 dark:bg-[#080808]";
 
                                 return (
                                   <Card
                                     key={task.id}
                                     isPressable
                                     onPress={() => setSelectedPersonalTaskId(task.id)}
-                                    className="w-full rounded-md border border-zinc-200 bg-white shadow-none dark:border-white/10 dark:bg-[#080808]"
+                                    className={openCardClassName}
                                   >
                                     <CardBody className="gap-3 p-4">
                                       <div className="flex flex-col gap-3 sm:flex-row sm:items-start">
