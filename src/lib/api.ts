@@ -426,6 +426,7 @@ type TaskUpdate = Partial<Pick<Task, "title" | "description" | "status" | "assig
 };
 
 type PersonalTaskUpdate = {
+  title?: string;
   status?: "backlog" | "in_progress" | "blocked" | "done";
   source_status?: string | null;
   due_at?: string | null;

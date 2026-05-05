@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect, useMemo } from "react";
+import { useState, useEffect, useMemo, useRef } from "react";
 import {
   Button,
   Chip,
@@ -59,6 +59,22 @@ const FALLBACK_STATUS_OPTIONS = [
   { source: "Blocked", canonical: "blocked" as const },
   { source: "Done", canonical: "done" as const },
 ];
+
+type NotionPropertyOption = {
+  name?: string | null;
+};
+
+type NotionProperty = {
+  type?: string;
+  status?: {
+    name?: string | null;
+    options?: NotionPropertyOption[] | null;
+  } | null;
+  select?: {
+    name?: string | null;
+    options?: NotionPropertyOption[] | null;
+  } | null;
+};
 
 function normalizeSourceStatus(sourceStatus: string | null | undefined) {
   const normalized = (sourceStatus || "").trim().toLowerCase();
@@ -136,14 +152,14 @@ function extractCurrentSourceStatus(task: PersonalTaskDetail | null) {
   const properties = task.raw_payload?.properties;
   if (!properties || typeof properties !== "object") return "";
 
-  for (const property of Object.values(properties as Record<string, any>)) {
+  for (const property of Object.values(properties as Record<string, NotionProperty>)) {
     if (property?.type === "status") {
       const name = String(property?.status?.name || "").trim();
       if (name) return name;
     }
   }
 
-  for (const [name, property] of Object.entries(properties as Record<string, any>)) {
+  for (const [name, property] of Object.entries(properties as Record<string, NotionProperty>)) {
     if (property?.type === "select" && name.toLowerCase().includes("status")) {
       const value = String(property?.select?.name || "").trim();
       if (value) return value;
@@ -159,26 +175,26 @@ function getStatusOptions(task: PersonalTaskDetail | null) {
   const schemaOptions: string[] = [];
 
   if (properties && typeof properties === "object") {
-    for (const property of Object.values(properties as Record<string, any>)) {
+    for (const property of Object.values(properties as Record<string, NotionProperty>)) {
       if (property?.type === "status") {
         const options = property?.status?.options;
         if (Array.isArray(options)) {
           schemaOptions.push(
             ...options
-              .map((option: any) => String(option?.name || "").trim())
+              .map((option) => String(option?.name || "").trim())
               .filter(Boolean)
           );
         }
       }
     }
 
-    for (const [name, property] of Object.entries(properties as Record<string, any>)) {
+    for (const [name, property] of Object.entries(properties as Record<string, NotionProperty>)) {
       if (property?.type === "select" && name.toLowerCase().includes("status")) {
         const options = property?.select?.options;
         if (Array.isArray(options)) {
           schemaOptions.push(
             ...options
-              .map((option: any) => String(option?.name || "").trim())
+              .map((option) => String(option?.name || "").trim())
               .filter(Boolean)
           );
         }
@@ -201,8 +217,12 @@ export function PersonalTaskDrawer({ taskId, isOpen, onClose, onPromoted, onTask
   const [syncingToNotion, setSyncingToNotion] = useState(false);
   const [syncError, setSyncError] = useState<string | null>(null);
   const [projects, setProjects] = useState<Project[]>([]);
+  const [isEditingTitle, setIsEditingTitle] = useState(false);
+  const [draftTitle, setDraftTitle] = useState("");
+  const [titleError, setTitleError] = useState<string | null>(null);
   const [isEditingDescription, setIsEditingDescription] = useState(false);
   const [draftDescription, setDraftDescription] = useState("");
+  const skipTitleBlurRef = useRef(false);
   const { isOpen: isConfirmOpen, onOpen: onConfirmOpen, onClose: onConfirmClose } = useDisclosure();
 
   // Promotion form state
@@ -211,8 +231,8 @@ export function PersonalTaskDrawer({ taskId, isOpen, onClose, onPromoted, onTask
   const [promoAssignee, setPromoAssignee] = useState("");
   const [promoProject, setPromoProject] = useState("");
   const [promoPriority, setPromoPriority] = useState("0");
-  const [promoStatus, setPromoStatus] = useState("backlog");
-  const [promoRelation, setPromoRelation] = useState("delegated");
+  const [promoStatus, setPromoStatus] = useState<"backlog" | "in_progress" | "blocked">("backlog");
+  const [promoRelation, setPromoRelation] = useState<"delegated" | "related">("delegated");
   const [promoCreateAnother, setPromoCreateAnother] = useState(false);
 
   const statusOptions = useMemo(() => getStatusOptions(task), [task]);
@@ -236,6 +256,9 @@ export function PersonalTaskDrawer({ taskId, isOpen, onClose, onPromoted, onTask
           setPromoTitle(taskData.title);
           setPromoDescription(taskData.description || "");
           setPromoPriority(String(taskData.priority));
+          setDraftTitle(taskData.title);
+          setTitleError(null);
+          setIsEditingTitle(false);
           setDraftDescription(taskData.description || "");
           setIsEditingDescription(false);
           setSyncError(null);
@@ -247,6 +270,12 @@ export function PersonalTaskDrawer({ taskId, isOpen, onClose, onPromoted, onTask
         });
     }
   }, [isOpen, taskId]);
+
+  useEffect(() => {
+    if (!isEditingTitle && task) {
+      setDraftTitle(task.title);
+    }
+  }, [isEditingTitle, task]);
 
   const patchTask = async (
     payload: Parameters<typeof api.updatePersonalTask>[1],
@@ -264,10 +293,10 @@ export function PersonalTaskDrawer({ taskId, isOpen, onClose, onPromoted, onTask
       setTask((current) => (current ? ({ ...current, ...updated } as PersonalTaskDetail) : current));
       onTaskUpdated?.();
       return true;
-    } catch (err: any) {
+    } catch (err: unknown) {
       console.error("Failed to update personal task:", err);
       setTask(previousTask);
-      setSyncError(err?.message || "Failed to sync updates to Notion.");
+      setSyncError(err instanceof Error ? err.message : "Failed to sync updates to Notion.");
       return false;
     } finally {
       setSyncingToNotion(false);
@@ -304,6 +333,37 @@ export function PersonalTaskDrawer({ taskId, isOpen, onClose, onPromoted, onTask
     );
   };
 
+  const saveTitle = async () => {
+    if (!task) return;
+
+    const nextTitle = draftTitle.trim();
+    if (!nextTitle) {
+      setTitleError("Title is required.");
+      return;
+    }
+
+    if (nextTitle === task.title) {
+      setTitleError(null);
+      setIsEditingTitle(false);
+      return;
+    }
+
+    const didSave = await patchTask(
+      { title: nextTitle },
+      {
+        ...task,
+        title: nextTitle,
+      },
+    );
+
+    if (didSave) {
+      setPromoTitle(nextTitle);
+      setDraftTitle(nextTitle);
+      setTitleError(null);
+      setIsEditingTitle(false);
+    }
+  };
+
   const saveDescription = async () => {
     if (!task) return;
 
@@ -331,8 +391,8 @@ export function PersonalTaskDrawer({ taskId, isOpen, onClose, onPromoted, onTask
         assignee: promoAssignee || undefined,
         project_id: promoProject || undefined,
         priority: parseInt(promoPriority),
-        status: promoStatus as any,
-        relation: promoRelation as any,
+        status: promoStatus,
+        relation: promoRelation,
         create_another: createAnother
       });
       
@@ -386,7 +446,58 @@ export function PersonalTaskDrawer({ taskId, isOpen, onClose, onPromoted, onTask
               {/* Main Info */}
               <div className="space-y-5">
                 <div className="flex items-start justify-between gap-3">
-                  <h1 className="text-xl font-semibold leading-tight text-zinc-900 dark:text-zinc-100">{task.title}</h1>
+                  <div className="min-w-0 flex-1 space-y-1">
+                    {isEditingTitle ? (
+                      <>
+                        <Input
+                          aria-label="Edit Notion task title"
+                          autoFocus
+                          size="sm"
+                          value={draftTitle}
+                          onValueChange={setDraftTitle}
+                          onBlur={() => {
+                            if (skipTitleBlurRef.current) {
+                              skipTitleBlurRef.current = false;
+                              return;
+                            }
+                            void saveTitle();
+                          }}
+                          onKeyDown={(event) => {
+                            if (event.key === "Enter" && !event.shiftKey) {
+                              event.preventDefault();
+                              void saveTitle();
+                            } else if (event.key === "Escape") {
+                              event.preventDefault();
+                              skipTitleBlurRef.current = true;
+                              setDraftTitle(task.title);
+                              setTitleError(null);
+                              setIsEditingTitle(false);
+                            }
+                          }}
+                          isDisabled={syncingToNotion}
+                          endContent={syncingToNotion ? <Spinner size="sm" /> : undefined}
+                          variant="flat"
+                          classNames={{
+                            input: "text-lg font-semibold text-zinc-900 dark:text-zinc-100",
+                            inputWrapper: "min-h-0 rounded-sm border border-zinc-200 bg-zinc-100 px-2 shadow-none dark:border-white/10 dark:bg-white/5",
+                          }}
+                        />
+                        {titleError && <p className="text-[12px] text-danger">{titleError}</p>}
+                      </>
+                    ) : (
+                      <button
+                        type="button"
+                        className="-ml-1 w-full rounded-sm px-1 py-0.5 text-left transition-colors hover:bg-zinc-100 dark:hover:bg-white/5"
+                        onClick={() => {
+                          setDraftTitle(task.title);
+                          setTitleError(null);
+                          setIsEditingTitle(true);
+                        }}
+                      >
+                        <h1 className="text-xl font-semibold leading-tight text-zinc-900 dark:text-zinc-100">{task.title}</h1>
+                      </button>
+                    )}
+                  </div>
                   {task.source_url && (
                     <Button
                       isIconOnly
@@ -763,7 +874,12 @@ export function PersonalTaskDrawer({ taskId, isOpen, onClose, onPromoted, onTask
               <Select
                 label="Status"
                 selectedKeys={[promoStatus]}
-                onSelectionChange={(keys) => setPromoStatus(Array.from(keys)[0] as string || "backlog")}
+                onSelectionChange={(keys) => {
+                  const next = Array.from(keys)[0];
+                  if (next === "backlog" || next === "in_progress" || next === "blocked") {
+                    setPromoStatus(next);
+                  }
+                }}
                 variant="bordered"
                 size="sm"
                 classNames={{ trigger: "border-zinc-200 dark:border-white/10 bg-zinc-100 dark:bg-white/5" }}
@@ -789,7 +905,12 @@ export function PersonalTaskDrawer({ taskId, isOpen, onClose, onPromoted, onTask
               <Select
                 label="Relation"
                 selectedKeys={[promoRelation]}
-                onSelectionChange={(keys) => setPromoRelation(Array.from(keys)[0] as string || "delegated")}
+                onSelectionChange={(keys) => {
+                  const next = Array.from(keys)[0];
+                  if (next === "delegated" || next === "related") {
+                    setPromoRelation(next);
+                  }
+                }}
                 variant="bordered"
                 size="sm"
                 classNames={{ trigger: "border-zinc-200 dark:border-white/10 bg-zinc-100 dark:bg-white/5" }}

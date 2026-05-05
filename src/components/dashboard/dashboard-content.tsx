@@ -1,6 +1,6 @@
 "use client";
 
-import { useCallback, useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { Button, Card, CardBody, Checkbox, Chip, DatePicker, Input, Modal, ModalBody, ModalContent, ModalFooter, ModalHeader, Spinner, Textarea } from "@heroui/react";
 import {
   AlertCircle,
@@ -241,6 +241,125 @@ function statusChipColor(status: Task["status"] | PersonalTask["status"]) {
   return "default" as const;
 }
 
+function EditablePersonalTaskTitle({
+  task,
+  titleClassName,
+  inputClassName,
+  errorClassName,
+  onUpdated,
+}: {
+  task: PersonalTask;
+  titleClassName: string;
+  inputClassName: string;
+  errorClassName: string;
+  onUpdated: (task: PersonalTask) => void;
+}) {
+  const [isEditing, setIsEditing] = useState(false);
+  const [draftTitle, setDraftTitle] = useState(task.title);
+  const [isSaving, setIsSaving] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+  const skipBlurSaveRef = useRef(false);
+
+  useEffect(() => {
+    if (!isEditing) {
+      setDraftTitle(task.title);
+    }
+  }, [isEditing, task.title]);
+
+  const stopCardOpen = useCallback((event: { stopPropagation: () => void }) => {
+    event.stopPropagation();
+  }, []);
+
+  const cancelEditing = useCallback(() => {
+    if (isSaving) return;
+    setDraftTitle(task.title);
+    setError(null);
+    setIsEditing(false);
+  }, [isSaving, task.title]);
+
+  const commitTitle = useCallback(async () => {
+    if (isSaving) return;
+
+    const trimmed = draftTitle.trim();
+    if (!trimmed) {
+      setError('Title is required.');
+      return;
+    }
+
+    if (trimmed === task.title) {
+      setError(null);
+      setIsEditing(false);
+      return;
+    }
+
+    setIsSaving(true);
+    setError(null);
+
+    try {
+      const updated = await api.updatePersonalTask(task.id, { title: trimmed });
+      onUpdated(updated);
+      setDraftTitle(updated.title);
+      setIsEditing(false);
+    } catch (error) {
+      setError(error instanceof Error ? error.message : 'Failed to update title.');
+    } finally {
+      setIsSaving(false);
+    }
+  }, [draftTitle, isSaving, onUpdated, task.id, task.title]);
+
+  return (
+    <div className="space-y-1" onClick={stopCardOpen} onMouseDown={stopCardOpen}>
+      {isEditing ? (
+        <>
+          <Input
+            aria-label="Edit Notion task title"
+            autoFocus
+            size="sm"
+            value={draftTitle}
+            onValueChange={setDraftTitle}
+            onBlur={() => {
+              if (skipBlurSaveRef.current) {
+                skipBlurSaveRef.current = false;
+                return;
+              }
+              void commitTitle();
+            }}
+            onKeyDown={(event) => {
+              if (event.key === "Enter" && !event.shiftKey) {
+                event.preventDefault();
+                void commitTitle();
+              } else if (event.key === "Escape") {
+                event.preventDefault();
+                skipBlurSaveRef.current = true;
+                cancelEditing();
+              }
+            }}
+            isDisabled={isSaving}
+            endContent={isSaving ? <Spinner size="sm" /> : undefined}
+            variant="flat"
+            classNames={{
+              input: inputClassName,
+              inputWrapper: "min-h-0 rounded-sm border border-zinc-200 bg-zinc-100 px-2 shadow-none dark:border-white/10 dark:bg-white/5",
+            }}
+          />
+          {error && <p className={`text-[12px] ${errorClassName}`}>{error}</p>}
+        </>
+      ) : (
+        <button
+          type="button"
+          onClick={() => {
+            setError(null);
+            setIsEditing(true);
+          }}
+          className="-ml-1 rounded-sm px-1 py-0.5 text-left transition-colors hover:bg-zinc-100/80 dark:hover:bg-white/5"
+        >
+          <span className={titleClassName}>{task.title}</span>
+        </button>
+      )}
+    </div>
+  );
+}
+
 function TeamTaskCard({
   task,
   onOpen,
@@ -329,6 +448,10 @@ export function DashboardContent({
   const refreshPersonalTasks = useCallback(async () => {
     const rows = await api.getPersonalTasks({ limit: 100, sort: "due" }).catch(() => []);
     setPersonalTasks(rows);
+  }, []);
+
+  const handlePersonalTaskUpdated = useCallback((updated: PersonalTask) => {
+    setPersonalTasks((prev) => prev.map((task) => (task.id === updated.id ? updated : task)));
   }, []);
 
   const applyTodaySnapshot = useCallback(
@@ -793,7 +916,13 @@ export function DashboardContent({
                                       <CardBody className="gap-3 p-4">
                                         <div className="flex flex-col gap-3 sm:flex-row sm:items-start">
                                           <div className="min-w-0 flex-1">
-                                            <h3 className="break-words text-sm font-medium text-zinc-900 dark:text-zinc-100">{task.title}</h3>
+                                            <EditablePersonalTaskTitle
+                                              task={task}
+                                              titleClassName="break-words text-sm font-medium text-zinc-900 dark:text-zinc-100"
+                                              inputClassName="text-sm font-medium text-zinc-900 dark:text-zinc-100"
+                                              errorClassName="text-rose-600 dark:text-rose-400"
+                                              onUpdated={handlePersonalTaskUpdated}
+                                            />
                                             {overdue && (
                                               <div className="mt-2 flex flex-wrap items-center gap-2">
                                                 <Chip size="sm" variant="flat" color="danger" className="h-5 whitespace-nowrap text-[10px] uppercase">
@@ -881,7 +1010,13 @@ export function DashboardContent({
                                     <CardBody className="gap-3 p-4">
                                       <div className="flex flex-col gap-3 sm:flex-row sm:items-start">
                                         <div className="min-w-0 flex-1">
-                                          <h3 className="break-words text-sm font-medium text-zinc-900 dark:text-zinc-100">{task.title}</h3>
+                                          <EditablePersonalTaskTitle
+                                            task={task}
+                                            titleClassName="break-words text-sm font-medium text-zinc-900 dark:text-zinc-100"
+                                            inputClassName="text-sm font-medium text-zinc-900 dark:text-zinc-100"
+                                            errorClassName="text-rose-600 dark:text-rose-400"
+                                            onUpdated={handlePersonalTaskUpdated}
+                                          />
                                           {overdue && (
                                             <div className="mt-2 flex flex-wrap items-center gap-2">
                                               <Chip size="sm" variant="flat" color="danger" className="h-5 whitespace-nowrap text-[10px] uppercase">
@@ -978,7 +1113,13 @@ export function DashboardContent({
                               <CardBody className="gap-3 p-4">
                                 <div className="flex flex-col gap-3 sm:flex-row sm:items-start">
                                   <div className="min-w-0 flex-1">
-                                    <h3 className="break-words text-sm font-medium text-emerald-900 dark:text-emerald-100">{task.title}</h3>
+                                    <EditablePersonalTaskTitle
+                                      task={task}
+                                      titleClassName="break-words text-sm font-medium text-emerald-900 dark:text-emerald-100"
+                                      inputClassName="text-sm font-medium text-emerald-900 dark:text-emerald-100"
+                                      errorClassName="text-rose-700 dark:text-rose-300"
+                                      onUpdated={handlePersonalTaskUpdated}
+                                    />
                                     <div className="mt-2 flex flex-wrap items-center gap-x-4 gap-y-1 text-[12px] text-emerald-700 dark:text-emerald-200">
                                       {task.scheduled_at && (
                                         <span className="inline-flex items-center gap-1.5 sm:whitespace-nowrap">
