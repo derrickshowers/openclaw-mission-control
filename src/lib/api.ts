@@ -342,7 +342,7 @@ export interface NotionInboxResponse {
   items: NotionInboxItem[];
 }
 
-export type NotionInboxTriageAction = "this_week" | "next_week" | "no_date";
+export type NotionInboxTriageAction = "today" | "this_week" | "next_week" | "no_date";
 
 // Bee Insights (mock ingestion lane)
 export type BeeInsightStatus = "new" | "accepted" | "dismissed";

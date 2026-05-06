@@ -276,6 +276,16 @@ function NotionInboxCard({
           size="sm"
           variant="flat"
           isDisabled={disabled}
+          isLoading={busyAction === "today"}
+          onPress={() => void onTriage(item.id, "today")}
+          className="rounded-sm border border-zinc-200 bg-zinc-100 text-[12px] font-medium text-zinc-900 dark:border-white/10 dark:bg-white/5 dark:text-zinc-100"
+        >
+          Today
+        </Button>
+        <Button
+          size="sm"
+          variant="flat"
+          isDisabled={disabled}
           isLoading={busyAction === "this_week"}
           onPress={() => void onTriage(item.id, "this_week")}
           className="rounded-sm border border-zinc-200 bg-zinc-100 text-[12px] font-medium text-zinc-900 dark:border-white/10 dark:bg-white/5 dark:text-zinc-100"
@@ -592,7 +602,7 @@ export function InboxContent() {
         <div className="space-y-2 border-t border-zinc-200 pt-4 dark:border-white/10">
           <div>
             <h3 className="text-[11px] font-mono uppercase tracking-[0.14em] text-zinc-500">Notion Inbox</h3>
-            <p className="mt-1 text-[13px] text-zinc-500">Promote uncategorized Notion inbox items into Tasks. This week uses the upcoming Friday, Next week uses the following Friday, and No date leaves the due date empty.</p>
+            <p className="mt-1 text-[13px] text-zinc-500">Promote uncategorized Notion inbox items into Tasks. Today schedules it for today and uses the upcoming Friday as the due date, This week uses the upcoming Friday, Next week uses the following Friday, and No date leaves the due date empty.</p>
           </div>
           {notionInboxLoading ? (
             <>
