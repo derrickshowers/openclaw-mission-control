@@ -421,6 +421,18 @@ export interface TaskRun {
   updated_at: string;
 }
 
+export interface TaskFollowUpResult {
+  ok: boolean;
+  run: TaskRun;
+  sessionKey: string;
+  discord: {
+    focus_command: string;
+    thread_binding_mode: "manual";
+    setup_required: string[];
+    optional_config: string[];
+  };
+}
+
 type TaskUpdate = Partial<Pick<Task, "title" | "description" | "status" | "assignee" | "priority" | "position" | "project_id">> & {
   tags?: string[] | null;
 };
@@ -721,6 +733,12 @@ export const api = {
     apiFetch<{ ok: boolean; run: TaskRun; sessionKey: string; sent: boolean }>(`/tasks/${taskId}/dispatch`, {
       method: "POST",
       body: JSON.stringify(data || {}),
+    }),
+
+  followUpTaskRun: (taskId: string, message: string) =>
+    apiFetch<TaskFollowUpResult>(`/tasks/${taskId}/follow-up`, {
+      method: "POST",
+      body: JSON.stringify({ message }),
     }),
 
   // System

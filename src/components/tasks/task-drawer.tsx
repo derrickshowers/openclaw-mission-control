@@ -89,7 +89,11 @@ export function TaskDrawer({ task, isOpen, onClose, onUpdate }: TaskDrawerProps)
   const [taskRuns, setTaskRuns] = useState<TaskRun[]>([]);
   const [dispatching, setDispatching] = useState(false);
   const [confirmDelete, setConfirmDelete] = useState(false);
-  const [copiedTaskId, setCopiedTaskId] = useState(false);
+  const [copiedKey, setCopiedKey] = useState<"task" | "session" | "focus" | null>(null);
+  const [followUpMessage, setFollowUpMessage] = useState("");
+  const [sendingFollowUp, setSendingFollowUp] = useState(false);
+  const [followUpError, setFollowUpError] = useState<string | null>(null);
+  const [followUpSentAt, setFollowUpSentAt] = useState<number | null>(null);
   const copyResetTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
 
@@ -108,7 +112,10 @@ export function TaskDrawer({ task, isOpen, onClose, onUpdate }: TaskDrawerProps)
   }, [task.title, task.description]);
 
   useEffect(() => {
-    setCopiedTaskId(false);
+    setCopiedKey(null);
+    setFollowUpMessage("");
+    setFollowUpError(null);
+    setFollowUpSentAt(null);
     if (copyResetTimeoutRef.current) {
       clearTimeout(copyResetTimeoutRef.current);
       copyResetTimeoutRef.current = null;
@@ -175,20 +182,24 @@ export function TaskDrawer({ task, isOpen, onClose, onUpdate }: TaskDrawerProps)
     }
   };
 
-  const copyTaskId = async () => {
+  const copyTextWithFeedback = async (value: string, key: "task" | "session" | "focus") => {
     try {
-      await navigator.clipboard.writeText(task.id);
-      setCopiedTaskId(true);
+      await navigator.clipboard.writeText(value);
+      setCopiedKey(key);
       if (copyResetTimeoutRef.current) {
         clearTimeout(copyResetTimeoutRef.current);
       }
       copyResetTimeoutRef.current = setTimeout(() => {
-        setCopiedTaskId(false);
+        setCopiedKey(null);
         copyResetTimeoutRef.current = null;
       }, 2000);
     } catch (err) {
-      console.error("Failed to copy task ID:", err);
+      console.error("Failed to copy text:", err);
     }
+  };
+
+  const copyTaskId = async () => {
+    await copyTextWithFeedback(task.id, "task");
   };
 
   const saveEdits = async () => {
@@ -241,6 +252,28 @@ export function TaskDrawer({ task, isOpen, onClose, onUpdate }: TaskDrawerProps)
       onClose();
     } catch (err) {
       console.error("Failed to delete:", err);
+    }
+  };
+
+  const activeRun = taskRuns.find((run) => run.status === "active" || run.status === "dispatched") || null;
+  const activeRunSessionKey = activeRun?.session_key?.trim() || "";
+  const discordFocusCommand = activeRunSessionKey ? `/focus ${activeRunSessionKey}` : "";
+
+  const sendTaskFollowUp = async () => {
+    const trimmed = followUpMessage.trim();
+    if (!trimmed) return;
+
+    setSendingFollowUp(true);
+    setFollowUpError(null);
+    try {
+      await api.followUpTaskRun(task.id, trimmed);
+      setFollowUpMessage("");
+      setFollowUpSentAt(Date.now());
+    } catch (err: any) {
+      console.error("Failed to send task follow-up:", err);
+      setFollowUpError(err?.message || "Failed to send follow-up");
+    } finally {
+      setSendingFollowUp(false);
     }
   };
 
@@ -330,7 +363,7 @@ export function TaskDrawer({ task, isOpen, onClose, onUpdate }: TaskDrawerProps)
               className="inline-flex items-center gap-1.5 px-2 py-1 rounded-md border border-white/5 bg-white/5 text-xs font-mono text-gray-400 hover:text-gray-100 hover:bg-white/10 hover:border-white/10 transition-all cursor-copy"
             >
               <span>{task.id.slice(0, 8)}</span>
-              {copiedTaskId ? (
+              {copiedKey === "task" ? (
                 <Check size={12} className="text-green-400" />
               ) : (
                 <Copy size={12} />
@@ -605,6 +638,101 @@ export function TaskDrawer({ task, isOpen, onClose, onUpdate }: TaskDrawerProps)
             {taskRuns.length === 0 && (
               <p className="text-xs text-gray-400 dark:text-[#555555]">
                 No worker sessions dispatched yet.
+              </p>
+            )}
+
+            {activeRun && (
+              <div className="rounded-md border border-primary-500/30 bg-primary-500/5 p-3">
+                <div className="flex items-start justify-between gap-3">
+                  <div>
+                    <p className="text-[10px] font-medium uppercase tracking-wider text-primary-700 dark:text-primary-300">
+                      Active worker session
+                    </p>
+                    <p className="mt-1 text-sm font-medium text-gray-900 dark:text-white capitalize">
+                      {activeRun.agent} · Run #{activeRun.run_seq}
+                    </p>
+                    <p className="mt-1 text-[11px] text-gray-500 dark:text-[#9A9A9A]">
+                      Follow-ups from here go straight to the live task worker. No fallback to main.
+                    </p>
+                  </div>
+                  <Chip size="sm" variant="flat" color={activeRun.status === "active" ? "primary" : "secondary"} className="h-5 text-[10px]">
+                    {activeRun.status}
+                  </Chip>
+                </div>
+
+                <div className="mt-3 rounded-md border border-gray-200 dark:border-[#222222] bg-white/70 dark:bg-[#101010] px-2.5 py-2 font-mono text-[11px] text-gray-600 dark:text-[#CFCFCF] break-all">
+                  {activeRunSessionKey}
+                </div>
+
+                <div className="mt-2 flex flex-wrap gap-2">
+                  <Button
+                    size="sm"
+                    variant="flat"
+                    className="h-7 text-xs"
+                    onPress={() => void copyTextWithFeedback(activeRunSessionKey, "session")}
+                    startContent={copiedKey === "session" ? <Check size={12} className="text-green-500" /> : <Copy size={12} strokeWidth={1.5} />}
+                  >
+                    {copiedKey === "session" ? "Copied session key" : "Copy session key"}
+                  </Button>
+                  <Button
+                    size="sm"
+                    variant="flat"
+                    className="h-7 text-xs"
+                    onPress={() => void copyTextWithFeedback(discordFocusCommand, "focus")}
+                    startContent={copiedKey === "focus" ? <Check size={12} className="text-green-500" /> : <Copy size={12} strokeWidth={1.5} />}
+                  >
+                    {copiedKey === "focus" ? "Copied Discord /focus" : "Copy Discord /focus"}
+                  </Button>
+                </div>
+
+                <p className="mt-3 text-[11px] leading-5 text-gray-500 dark:text-[#9A9A9A]">
+                  Discord thread follow-up: open a thread with OpenClaw, run <code className="rounded bg-black/5 px-1 py-0.5 font-mono dark:bg-white/10">{discordFocusCommand}</code>, then keep replying in that bound thread.
+                </p>
+                <p className="mt-1 text-[11px] leading-5 text-gray-500 dark:text-[#9A9A9A]">
+                  Required setup: <code className="rounded bg-black/5 px-1 py-0.5 font-mono dark:bg-white/10">session.threadBindings.enabled</code> or <code className="rounded bg-black/5 px-1 py-0.5 font-mono dark:bg-white/10">channels.discord.threadBindings.enabled</code>. Optional for future auto-bound spawns: <code className="rounded bg-black/5 px-1 py-0.5 font-mono dark:bg-white/10">channels.discord.threadBindings.spawnSessions=true</code>.
+                </p>
+
+                <div className="mt-3 space-y-2">
+                  <Textarea
+                    value={followUpMessage}
+                    onValueChange={(value) => {
+                      setFollowUpMessage(value);
+                      if (followUpError) setFollowUpError(null);
+                    }}
+                    placeholder={`Message ${activeRun.agent}'s task session...`}
+                    variant="bordered"
+                    size="sm"
+                    minRows={2}
+                    classNames={{ inputWrapper: "border-gray-200 dark:border-[#222222] bg-white dark:bg-[#080808]" }}
+                  />
+                  {followUpError && (
+                    <p className="text-[11px] text-danger-600 dark:text-danger-400">{followUpError}</p>
+                  )}
+                  {followUpSentAt && !followUpError && (
+                    <p className="text-[11px] text-green-600 dark:text-green-400">
+                      Sent to the active worker session.
+                    </p>
+                  )}
+                  <div className="flex justify-end">
+                    <Button
+                      size="sm"
+                      color="primary"
+                      isLoading={sendingFollowUp}
+                      isDisabled={!followUpMessage.trim()}
+                      onPress={sendTaskFollowUp}
+                      startContent={!sendingFollowUp && <Send size={12} strokeWidth={1.5} />}
+                      className="h-7 text-xs"
+                    >
+                      Message this task session
+                    </Button>
+                  </div>
+                </div>
+              </div>
+            )}
+
+            {!activeRun && taskRuns.length > 0 && (
+              <p className="text-xs text-gray-400 dark:text-[#555555]">
+                No active worker session right now. Dispatch or reopen a run before sending an exact follow-up or binding a Discord thread.
               </p>
             )}
 
