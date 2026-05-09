@@ -1,6 +1,14 @@
 export const KNOWN_AGENT_IDS = ["derrick", "frank", "tom", "michael", "joanna", "ivy"] as const;
 export const TEAM_AGENT_IDS = ["frank", "tom", "michael", "joanna", "ivy"] as const;
 
+const STATIC_AVATAR_URLS: Partial<Record<(typeof KNOWN_AGENT_IDS)[number], string>> = {
+  frank: "/avatars/frank.png",
+  tom: "/avatars/tom.png",
+  michael: "/avatars/michael.png",
+  joanna: "/avatars/joanna.png",
+  ivy: "/avatars/ivy.png",
+};
+
 export function normalizeAgentId(agentName?: string | null): string | null {
   if (!agentName) return null;
   const normalized = String(agentName).trim().toLowerCase();
@@ -28,6 +36,9 @@ export function resolveAgentAvatarUrl(
   if (!normalized || !isKnownAgent(normalized)) return null;
 
   if (normalized === "derrick") return "/images/team/derrick.jpg";
+
+  const staticAvatarUrl = STATIC_AVATAR_URLS[normalized as (typeof KNOWN_AGENT_IDS)[number]];
+  if (staticAvatarUrl) return staticAvatarUrl;
 
   const normalizedAvatarUrl = normalizeProxiedAvatarUrl(avatarUrl);
   if (normalizedAvatarUrl) return normalizedAvatarUrl;
