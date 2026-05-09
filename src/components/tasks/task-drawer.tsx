@@ -268,6 +268,7 @@ export function TaskDrawer({ task, isOpen, onClose, onUpdate }: TaskDrawerProps)
   };
 
   const activeRun = taskRuns.find((run) => run.status === "active" || run.status === "dispatched") || null;
+  const historicalRuns = activeRun ? taskRuns.filter((run) => run.id !== activeRun.id) : taskRuns;
   const activeRunSessionKey = activeRun?.session_key?.trim() || "";
   const discordFocusCommand = activeRunSessionKey ? `/focus ${activeRunSessionKey}` : "";
 
@@ -703,13 +704,6 @@ export function TaskDrawer({ task, isOpen, onClose, onUpdate }: TaskDrawerProps)
                   </Button>
                 </div>
 
-                <p className="mt-3 text-[11px] leading-5 text-gray-500 dark:text-[#9A9A9A]">
-                  Discord thread follow-up: open a thread with OpenClaw, run <code className="rounded bg-black/5 px-1 py-0.5 font-mono dark:bg-white/10">{discordFocusCommand}</code>, then keep replying in that bound thread.
-                </p>
-                <p className="mt-1 text-[11px] leading-5 text-gray-500 dark:text-[#9A9A9A]">
-                  Required setup: <code className="rounded bg-black/5 px-1 py-0.5 font-mono dark:bg-white/10">session.threadBindings.enabled</code> or <code className="rounded bg-black/5 px-1 py-0.5 font-mono dark:bg-white/10">channels.discord.threadBindings.enabled</code>. Optional for future auto-bound spawns: <code className="rounded bg-black/5 px-1 py-0.5 font-mono dark:bg-white/10">channels.discord.threadBindings.spawnSessions=true</code>.
-                </p>
-
                 <div className="mt-3 space-y-2">
                   <Textarea
                     value={followUpMessage}
@@ -754,9 +748,9 @@ export function TaskDrawer({ task, isOpen, onClose, onUpdate }: TaskDrawerProps)
               </p>
             )}
 
-            {taskRuns.length > 0 && (
+            {historicalRuns.length > 0 && (
               <div className="space-y-2">
-                {taskRuns.map((run) => {
+                {historicalRuns.map((run) => {
                   const isActive = run.status === "dispatched" || run.status === "active";
                   const isStalled = run.status === "stalled";
                   const isTerminal = ["done", "blocked", "handoff", "superseded", "failed"].includes(run.status);
