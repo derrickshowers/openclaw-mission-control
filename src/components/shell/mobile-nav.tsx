@@ -14,6 +14,7 @@ import {
   BookOpen,
   BarChart3,
   Inbox,
+  Gamepad2,
   X,
 } from "lucide-react";
 import type { LucideIcon } from "lucide-react";
@@ -26,6 +27,7 @@ const primaryItems: { href: string; label: string; Icon: LucideIcon }[] = [
 ];
 
 const moreItems: { href: string; label: string; Icon: LucideIcon }[] = [
+  { href: "/sims", label: "Sims", Icon: Gamepad2 },
   { href: "/activity", label: "Activity", Icon: Activity },
   { href: "/projects", label: "Projects", Icon: FolderKanban },
   { href: "/team", label: "Agents", Icon: Users },
