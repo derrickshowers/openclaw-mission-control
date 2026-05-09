@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect, useRef } from "react";
+import { useState, useEffect, useRef, useCallback } from "react";
 import { useSession } from "next-auth/react";
 import { useSSE } from "@/hooks/use-sse";
 import { Button, Input, Textarea, Select, SelectItem, Chip, Card, CardBody, Modal, ModalContent, ModalHeader, ModalBody, ModalFooter } from "@heroui/react";
@@ -87,6 +87,7 @@ export function TaskDrawer({ task, isOpen, onClose, onUpdate }: TaskDrawerProps)
   const [lightboxUrl, setLightboxUrl] = useState<string | null>(null);
   const [dragOver, setDragOver] = useState(false);
   const [taskRuns, setTaskRuns] = useState<TaskRun[]>([]);
+  const [taskRunsError, setTaskRunsError] = useState<string | null>(null);
   const [dispatching, setDispatching] = useState(false);
   const [confirmDelete, setConfirmDelete] = useState(false);
   const [copiedKey, setCopiedKey] = useState<"task" | "session" | "focus" | null>(null);
@@ -97,14 +98,25 @@ export function TaskDrawer({ task, isOpen, onClose, onUpdate }: TaskDrawerProps)
   const copyResetTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
 
+  const loadTaskRuns = useCallback(async () => {
+    try {
+      const runs = await api.getTaskRuns(task.id);
+      setTaskRuns(runs);
+      setTaskRunsError(null);
+    } catch (err: any) {
+      console.error("Failed to load task runs:", err);
+      setTaskRunsError(err?.message || "Failed to load worker sessions");
+    }
+  }, [task.id]);
+
   useEffect(() => {
     if (isOpen) {
       api.getComments(task.id).then((rows) => setComments(sortCommentsDesc(rows))).catch(console.error);
       api.getAttachments(task.id).then(setAttachments).catch(console.error);
       api.getProjects().then(setProjects).catch(console.error);
-      api.getTaskRuns(task.id).then(setTaskRuns).catch(console.error);
+      void loadTaskRuns();
     }
-  }, [isOpen, task.id]);
+  }, [isOpen, task.id, loadTaskRuns]);
 
   useEffect(() => {
     setTitle(task.title);
@@ -161,9 +173,9 @@ export function TaskDrawer({ task, isOpen, onClose, onUpdate }: TaskDrawerProps)
       (event === "task.dispatched" || event === "task.run.completed") &&
       data.taskId === task.id
     ) {
-      api.getTaskRuns(task.id).then(setTaskRuns).catch(console.error);
+      void loadTaskRuns();
     }
-  }, [drawerEvent, isOpen, task.id]);
+  }, [drawerEvent, isOpen, task.id, loadTaskRuns]);
 
   const postComment = async () => {
     const normalizedComment = normalizeMentionText(newComment).trim();
@@ -636,9 +648,15 @@ export function TaskDrawer({ task, isOpen, onClose, onUpdate }: TaskDrawerProps)
             </div>
 
             {taskRuns.length === 0 && (
-              <p className="text-xs text-gray-400 dark:text-[#555555]">
-                No worker sessions dispatched yet.
-              </p>
+              taskRunsError ? (
+                <p className="text-xs text-danger-600 dark:text-danger-400">
+                  Failed to load worker sessions: {taskRunsError}
+                </p>
+              ) : (
+                <p className="text-xs text-gray-400 dark:text-[#555555]">
+                  No worker sessions dispatched yet.
+                </p>
+              )
             )}
 
             {activeRun && (

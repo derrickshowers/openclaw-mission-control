@@ -722,6 +722,7 @@ export const api = {
   // Task Runs
   getTaskRuns: (taskId: string, params?: { agent?: string; status?: string; limit?: number }) =>
     apiFetch<TaskRun[]>(`/tasks/${taskId}/runs`, {
+      cache: "no-store",
       params: {
         agent: params?.agent || "",
         status: params?.status || "",
