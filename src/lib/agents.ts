@@ -1,5 +1,5 @@
-export const KNOWN_AGENT_IDS = ["derrick", "frank", "tom", "michael", "joanna"] as const;
-export const TEAM_AGENT_IDS = ["frank", "tom", "michael", "joanna"] as const;
+export const KNOWN_AGENT_IDS = ["derrick", "frank", "tom", "michael", "joanna", "ivy"] as const;
+export const TEAM_AGENT_IDS = ["frank", "tom", "michael", "joanna", "ivy"] as const;
 
 export function normalizeAgentId(agentName?: string | null): string | null {
   if (!agentName) return null;

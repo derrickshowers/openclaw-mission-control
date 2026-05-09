@@ -5,7 +5,7 @@ import { parseUTC } from "@/lib/dates";
 import { normalizeAgentId, resolveAgentAvatarUrl } from "@/lib/agents";
 import { StableImage } from "@/components/shared/stable-image";
 import { Button, Card, CardBody, Chip, Modal, ModalBody, ModalContent, ModalFooter, ModalHeader, Tooltip } from "@heroui/react";
-import { Crown, Crosshair, Landmark, Zap, Palette, Bot, Check, Loader2, Minus, CircleHelp, XCircle } from "lucide-react";
+import { Crown, Crosshair, Landmark, Zap, Palette, Sprout, Bot, Check, Loader2, Minus, CircleHelp, XCircle } from "lucide-react";
 import { useSSE } from "@/hooks/use-sse";
 import type { LucideIcon } from "lucide-react";
 
@@ -34,6 +34,11 @@ const agentMeta: Record<string, { role: string; description: string; Icon: Lucid
     role: "UX/Product Designer",
     description: "User experience, design direction, interaction patterns, accessibility.",
     Icon: Palette,
+  },
+  ivy: {
+    role: "Venture Researcher",
+    description: "Researches new business ideas, validates demand signals, and turns trend noise into grounded opportunities.",
+    Icon: Sprout,
   },
 };
 
