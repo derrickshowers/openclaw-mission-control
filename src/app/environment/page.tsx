@@ -4,7 +4,7 @@ import { serverApi } from "@/lib/server-api";
 
 export const dynamic = "force-dynamic";
 
-export default async function SimsRoutePage() {
+export default async function EnvironmentRoutePage() {
   let agents: unknown[] = [];
   let blockedTasks: Task[] = [];
   let activeTasks: Task[] = [];

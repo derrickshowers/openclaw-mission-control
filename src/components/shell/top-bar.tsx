@@ -9,7 +9,7 @@ import { api } from "@/lib/api";
 
 const pageTitles: Record<string, string> = {
   "/": "Today",
-  "/sims": "Sims",
+  "/environment": "Environment",
   "/inbox": "Inbox",
   "/tasks": "Team",
   "/team": "Agents",

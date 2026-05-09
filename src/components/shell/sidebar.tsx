@@ -3,14 +3,13 @@
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { useSession } from "next-auth/react";
-import { LayoutDashboard, CheckSquare, FolderKanban, Users, Brain, Activity, Umbrella, BookOpen, BarChart3, Inbox, Gamepad2 } from "lucide-react";
-import { Avatar, Skeleton } from "@heroui/react";
+import { LayoutDashboard, CheckSquare, FolderKanban, Users, Brain, Activity, Umbrella, BookOpen, BarChart3, Inbox, Trees } from "lucide-react";
+import { Avatar, Chip, Skeleton } from "@heroui/react";
 import type { LucideIcon } from "lucide-react";
 import { ThemeToggle } from "@/components/theme-toggle";
 
-const navItems: { href: string; label: string; Icon: LucideIcon }[] = [
+const navItems: { href: string; label: string; Icon: LucideIcon; beta?: boolean }[] = [
   { href: "/", label: "Today", Icon: LayoutDashboard },
-  { href: "/sims", label: "Sims", Icon: Gamepad2 },
   { href: "/inbox", label: "Inbox", Icon: Inbox },
   { href: "/projects", label: "Projects", Icon: FolderKanban },
   { href: "/tasks", label: "Team", Icon: CheckSquare },
@@ -19,6 +18,7 @@ const navItems: { href: string; label: string; Icon: LucideIcon }[] = [
   { href: "/time", label: "Time Logging", Icon: BarChart3 },
   { href: "/docs", label: "Docs", Icon: BookOpen },
   { href: "/activity", label: "Activity", Icon: Activity },
+  { href: "/environment", label: "Environment", Icon: Trees, beta: true },
 ];
 
 export function Sidebar() {
@@ -45,7 +45,7 @@ export function Sidebar() {
       {/* Navigation */}
       <nav className="flex-1 px-2 py-3">
         <ul className="space-y-0.5">
-          {navItems.map(({ href, label, Icon }) => {
+          {navItems.map(({ href, label, Icon, beta }) => {
             const isActive =
               href === "/"
                 ? pathname === "/"
@@ -62,7 +62,18 @@ export function Sidebar() {
                   }`}
                 >
                   <Icon size={20} strokeWidth={1.5} className="flex-shrink-0" />
-                  {label}
+                  <span className="flex min-w-0 flex-1 items-center justify-between gap-2">
+                    <span>{label}</span>
+                    {beta ? (
+                      <Chip
+                        size="sm"
+                        variant="flat"
+                        className="h-5 bg-purple-100 px-2 text-[10px] font-semibold uppercase tracking-wide text-purple-700 dark:bg-purple-500/15 dark:text-purple-300"
+                      >
+                        Beta
+                      </Chip>
+                    ) : null}
+                  </span>
                 </Link>
               </li>
             );

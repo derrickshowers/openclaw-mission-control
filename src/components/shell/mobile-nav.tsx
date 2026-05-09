@@ -14,9 +14,10 @@ import {
   BookOpen,
   BarChart3,
   Inbox,
-  Gamepad2,
+  Trees,
   X,
 } from "lucide-react";
+import { Chip } from "@heroui/react";
 import type { LucideIcon } from "lucide-react";
 import { ThemeToggle } from "@/components/theme-toggle";
 
@@ -26,14 +27,14 @@ const primaryItems: { href: string; label: string; Icon: LucideIcon }[] = [
   { href: "/tasks", label: "Team", Icon: CheckSquare },
 ];
 
-const moreItems: { href: string; label: string; Icon: LucideIcon }[] = [
-  { href: "/sims", label: "Sims", Icon: Gamepad2 },
+const moreItems: { href: string; label: string; Icon: LucideIcon; beta?: boolean }[] = [
   { href: "/activity", label: "Activity", Icon: Activity },
   { href: "/projects", label: "Projects", Icon: FolderKanban },
   { href: "/team", label: "Agents", Icon: Users },
   { href: "/memory", label: "Memory", Icon: Brain },
   { href: "/time", label: "Time Logging", Icon: BarChart3 },
   { href: "/docs", label: "Docs", Icon: BookOpen },
+  { href: "/environment", label: "Environment", Icon: Trees, beta: true },
 ];
 
 export function MobileNav() {
@@ -78,7 +79,7 @@ export function MobileNav() {
 
             {/* Menu Items */}
             <nav className="px-2 pb-4">
-              {moreItems.map(({ href, label, Icon }) => {
+              {moreItems.map(({ href, label, Icon, beta }) => {
                 const isActive =
                   href === "/"
                     ? pathname === "/"
@@ -96,7 +97,18 @@ export function MobileNav() {
                     }`}
                   >
                     <Icon size={18} strokeWidth={1.5} className="flex-shrink-0" />
-                    {label}
+                    <div className="flex min-w-0 flex-1 items-center justify-between gap-2">
+                      <span>{label}</span>
+                      {beta ? (
+                        <Chip
+                          size="sm"
+                          variant="flat"
+                          className="h-5 bg-purple-100 px-2 text-[10px] font-semibold uppercase tracking-wide text-purple-700 dark:bg-purple-500/15 dark:text-purple-300"
+                        >
+                          Beta
+                        </Chip>
+                      ) : null}
+                    </div>
                   </Link>
                 );
               })}

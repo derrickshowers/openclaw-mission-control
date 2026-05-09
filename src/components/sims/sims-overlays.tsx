@@ -149,7 +149,10 @@ export function SimsStatusStrip({
             <div>
               <div className="inline-flex items-center gap-2 rounded-full border border-zinc-200 bg-zinc-50 px-3 py-1 text-[11px] font-medium uppercase tracking-[0.16em] text-zinc-500 dark:border-white/10 dark:bg-white/5 dark:text-zinc-400">
                 <Sparkles size={12} />
-                Sims Prototype
+                Environment
+                <span className="rounded-full bg-purple-100 px-2 py-0.5 text-[10px] font-semibold tracking-wide text-purple-700 dark:bg-purple-500/15 dark:text-purple-300">
+                  Beta
+                </span>
               </div>
               <h2 className="mt-3 text-xl font-semibold text-zinc-950 dark:text-zinc-50">Team-only office mode, wired to live Mission Control data.</h2>
               <p className="mt-2 text-sm text-zinc-600 dark:text-zinc-300">
