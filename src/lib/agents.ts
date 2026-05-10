@@ -1,5 +1,5 @@
-export const KNOWN_AGENT_IDS = ["derrick", "frank", "tom", "michael", "joanna", "ivy"] as const;
-export const TEAM_AGENT_IDS = ["frank", "tom", "michael", "joanna", "ivy"] as const;
+export const KNOWN_AGENT_IDS = ["derrick", "frank", "tom", "michael", "joanna", "ivy", "sloane"] as const;
+export const TEAM_AGENT_IDS = ["frank", "tom", "michael", "joanna", "ivy", "sloane"] as const;
 
 const STATIC_AVATAR_URLS: Partial<Record<(typeof KNOWN_AGENT_IDS)[number], string>> = {
   frank: "/avatars/frank.png",
@@ -7,6 +7,7 @@ const STATIC_AVATAR_URLS: Partial<Record<(typeof KNOWN_AGENT_IDS)[number], strin
   michael: "/avatars/michael.png",
   joanna: "/avatars/joanna.png",
   ivy: "/avatars/ivy.png",
+  sloane: "/avatars/sloane.png",
 };
 
 export function normalizeAgentId(agentName?: string | null): string | null {

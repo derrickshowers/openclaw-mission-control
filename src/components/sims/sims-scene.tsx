@@ -24,6 +24,7 @@ const AGENT_SPRITE_PATHS: Record<string, string> = {
   michael: "/sims/agents/michael.png",
   joanna: "/sims/agents/joanna.png",
   ivy: "/sims/agents/ivy.png",
+  sloane: "/sims/agents/sloane.png",
 };
 
 export function SimsScene({ room, selectedTarget, onSelectTarget, motionEnabled }: SimsSceneProps) {
