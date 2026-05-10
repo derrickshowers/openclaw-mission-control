@@ -9,7 +9,7 @@ import { api } from "@/lib/api";
 
 const pageTitles: Record<string, string> = {
   "/": "Today",
-  "/environment": "Environment",
+  "/sims": "Environment",
   "/inbox": "Inbox",
   "/tasks": "Team",
   "/team": "Agents",
@@ -118,11 +118,20 @@ export function TopBar() {
     indicatorClass: openClawIndicatorClass,
   };
 
+  const isEnvironmentPage = pathname.startsWith("/sims");
+
   return (
     <header className="standalone-topbar mx-2 mt-2 flex h-14 items-center justify-between rounded-xl border border-divider bg-content1/50 px-4 backdrop-blur-xl lg:mx-3 lg:px-5">
       <div className="flex items-center gap-3">
         <Umbrella size={16} strokeWidth={1.5} className="text-foreground-400 lg:hidden" />
-        <h1 className="text-sm font-medium">{title}</h1>
+        <div className="flex items-center gap-2">
+          <h1 className="text-sm font-medium">{title}</h1>
+          {isEnvironmentPage ? (
+            <span className="rounded-full border border-violet-200 bg-violet-50 px-1.5 py-0.5 text-[9px] font-semibold uppercase tracking-[0.16em] text-violet-700 dark:border-violet-500/30 dark:bg-violet-500/10 dark:text-violet-300">
+              Beta
+            </span>
+          ) : null}
+        </div>
       </div>
       <div className="flex items-center gap-3">
         <div className="hidden sm:flex flex-col items-end gap-1">

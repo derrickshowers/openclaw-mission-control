@@ -17,7 +17,6 @@ import {
   Trees,
   X,
 } from "lucide-react";
-import { Chip } from "@heroui/react";
 import type { LucideIcon } from "lucide-react";
 import { ThemeToggle } from "@/components/theme-toggle";
 
@@ -34,7 +33,7 @@ const moreItems: { href: string; label: string; Icon: LucideIcon; beta?: boolean
   { href: "/memory", label: "Memory", Icon: Brain },
   { href: "/time", label: "Time Logging", Icon: BarChart3 },
   { href: "/docs", label: "Docs", Icon: BookOpen },
-  { href: "/environment", label: "Environment", Icon: Trees, beta: true },
+  { href: "/sims", label: "Environment", Icon: Trees, beta: true },
 ];
 
 export function MobileNav() {
@@ -97,18 +96,14 @@ export function MobileNav() {
                     }`}
                   >
                     <Icon size={18} strokeWidth={1.5} className="flex-shrink-0" />
-                    <div className="flex min-w-0 flex-1 items-center justify-between gap-2">
+                    <span className="flex items-center gap-2">
                       <span>{label}</span>
                       {beta ? (
-                        <Chip
-                          size="sm"
-                          variant="flat"
-                          className="h-5 bg-purple-100 px-2 text-[10px] font-semibold uppercase tracking-wide text-purple-700 dark:bg-purple-500/15 dark:text-purple-300"
-                        >
+                        <span className="rounded-full border border-violet-200 bg-violet-50 px-1.5 py-0.5 text-[9px] font-semibold uppercase tracking-[0.16em] text-violet-700 dark:border-violet-500/30 dark:bg-violet-500/10 dark:text-violet-300">
                           Beta
-                        </Chip>
+                        </span>
                       ) : null}
-                    </div>
+                    </span>
                   </Link>
                 );
               })}

@@ -14,8 +14,8 @@ const SimsCanvas = dynamic(
   {
     ssr: false,
     loading: () => (
-      <div className="flex min-h-[640px] items-center justify-center rounded-[28px] border border-zinc-200 bg-[#efe6d6] text-sm text-zinc-600 dark:border-white/10 dark:text-zinc-300">
-        Building the room…
+      <div className="flex min-h-[760px] items-center justify-center rounded-[28px] border border-zinc-200 bg-[#efe6d6] text-sm text-zinc-600 dark:border-white/10 dark:text-zinc-300">
+        Loading Environment…
       </div>
     ),
   },
@@ -40,6 +40,7 @@ export function SimsPage({
   const [selectedTarget, setSelectedTarget] = useState<SimsPanelTarget>({ kind: "overview" });
   const [motionEnabled, setMotionEnabled] = useState(true);
   const [drawerTask, setDrawerTask] = useState<Task | null>(null);
+  const [cameraResetToken, setCameraResetToken] = useState(0);
 
   const effectiveSelectedTarget = useMemo<SimsPanelTarget>(() => {
     if (selectedTarget.kind === "agent" && !findRoomAgent(room, selectedTarget.agentId)) {
@@ -49,21 +50,14 @@ export function SimsPage({
   }, [room, selectedTarget]);
 
   return (
-    <div className="mx-auto flex max-w-[1520px] flex-col gap-4 pb-20">
-      <SimsStatusStrip
-        room={room}
-        refreshing={refreshing}
-        motionEnabled={motionEnabled}
-        onRefresh={() => void refresh()}
-        onToggleMotion={() => setMotionEnabled((prev) => !prev)}
-      />
-
-      <div className="grid gap-4 xl:grid-cols-[minmax(0,1fr)_380px]">
+    <div className="mx-auto flex max-w-[1680px] flex-col gap-3 pb-20">
+      <div className="grid gap-3 xl:grid-cols-[minmax(0,1fr)_360px]">
         <SimsCanvas
           room={room}
           selectedTarget={effectiveSelectedTarget}
           onSelectTarget={setSelectedTarget}
           motionEnabled={motionEnabled}
+          cameraResetToken={cameraResetToken}
         />
         <SimsInspectorPanel
           room={room}
@@ -73,6 +67,14 @@ export function SimsPage({
         />
       </div>
 
+      <SimsStatusStrip
+        room={room}
+        refreshing={refreshing}
+        motionEnabled={motionEnabled}
+        onRefresh={() => void refresh()}
+        onResetCamera={() => setCameraResetToken((value) => value + 1)}
+        onToggleMotion={() => setMotionEnabled((prev) => !prev)}
+      />
       {drawerTask ? (
         <TaskDrawer
           task={drawerTask}

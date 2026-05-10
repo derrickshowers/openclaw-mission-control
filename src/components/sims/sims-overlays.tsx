@@ -2,17 +2,27 @@
 
 import type { ReactNode } from "react";
 import { Avatar, Button, Card, CardBody, Chip } from "@heroui/react";
-import { ArrowRight, AlertTriangle, Coffee, RefreshCw, Sparkles, Users, Workflow } from "lucide-react";
+import {
+  AlertTriangle,
+  ArrowRight,
+  Coffee,
+  Crown,
+  Move,
+  RefreshCw,
+  Trees,
+  Workflow,
+} from "lucide-react";
 import { parseUTC, timeAgo } from "@/lib/dates";
 import type { Task } from "@/lib/api";
 import { findRoomAgent, getZoneSummary } from "./sims-room-state";
-import type { SimsAgentSceneState, SimsPanelTarget, SimsRoomState } from "./sims-types";
+import type { SimsAgentSceneState, SimsPanelTarget, SimsRoomState, SimsZoneId } from "./sims-types";
 
 interface SimsStatusStripProps {
   room: SimsRoomState;
   refreshing: boolean;
   motionEnabled: boolean;
   onRefresh: () => void;
+  onResetCamera: () => void;
   onToggleMotion: () => void;
 }
 
@@ -116,7 +126,7 @@ function AgentQuickCard({
         <CardBody className="flex flex-row items-center gap-3 p-4">
           <Avatar src={agent.avatarUrl || undefined} name={agent.displayName} className="h-10 w-10" />
           <div className="min-w-0 flex-1">
-            <div className="flex items-center gap-2">
+            <div className="flex flex-wrap items-center gap-2">
               <p className="text-sm font-semibold text-zinc-900 dark:text-zinc-100">{agent.displayName}</p>
               <Chip size="sm" variant="flat" color={liveStatusColor(agent)} className="h-5 text-[10px] uppercase">
                 {liveStatusLabel(agent)}
@@ -126,6 +136,40 @@ function AgentQuickCard({
             <p className="mt-1 text-[12px] text-zinc-500 dark:text-zinc-400">
               {agent.currentTaskTitle || "No current task surfaced"}
             </p>
+            <p className="mt-1 text-[12px] text-zinc-500 dark:text-zinc-400">
+              Currently in {agent.currentZoneLabel}
+            </p>
+          </div>
+          <ArrowRight size={16} className="text-zinc-400" />
+        </CardBody>
+      </Card>
+    </button>
+  );
+}
+
+function ZoneQuickCard({
+  icon,
+  title,
+  body,
+  onSelect,
+}: {
+  icon: ReactNode;
+  title: string;
+  body: string;
+  onSelect: () => void;
+}) {
+  return (
+    <button type="button" onClick={onSelect} className="w-full text-left">
+      <Card className={panelCardClassName()}>
+        <CardBody className="flex flex-row items-center justify-between gap-3 p-4">
+          <div className="flex items-start gap-3">
+            <div className="mt-0.5 inline-flex h-9 w-9 items-center justify-center rounded-2xl border border-zinc-200 bg-zinc-50 text-zinc-700 dark:border-white/10 dark:bg-white/5 dark:text-zinc-200">
+              {icon}
+            </div>
+            <div>
+              <p className="text-sm font-semibold text-zinc-900 dark:text-zinc-100">{title}</p>
+              <p className="mt-1 text-[12px] text-zinc-500 dark:text-zinc-400">{body}</p>
+            </div>
           </div>
           <ArrowRight size={16} className="text-zinc-400" />
         </CardBody>
@@ -139,91 +183,89 @@ export function SimsStatusStrip({
   refreshing,
   motionEnabled,
   onRefresh,
+  onResetCamera,
   onToggleMotion,
 }: SimsStatusStripProps) {
+  const telemetry = [
+    { label: "Rooms", value: String(room.roomCount), tone: "default" as const },
+    { label: "Active agents", value: String(room.activeAgentsCount), tone: "default" as const },
+    { label: "Blocked", value: String(room.blockedTasks.length), tone: "danger" as const },
+    { label: "In flight", value: String(room.activeTasks.length), tone: "warning" as const },
+  ];
+
   return (
-    <div className="grid gap-3 lg:grid-cols-[minmax(0,1.6fr)_repeat(3,minmax(0,1fr))]">
-      <Card className="rounded-3xl border border-zinc-200 bg-white shadow-none dark:border-white/10 dark:bg-[#0f0f0f]">
-        <CardBody className="gap-3 p-5">
-          <div className="flex items-start justify-between gap-3">
-            <div>
-              <div className="inline-flex items-center gap-2 rounded-full border border-zinc-200 bg-zinc-50 px-3 py-1 text-[11px] font-medium uppercase tracking-[0.16em] text-zinc-500 dark:border-white/10 dark:bg-white/5 dark:text-zinc-400">
-                <Sparkles size={12} />
-                Environment
-                <span className="rounded-full bg-purple-100 px-2 py-0.5 text-[10px] font-semibold tracking-wide text-purple-700 dark:bg-purple-500/15 dark:text-purple-300">
-                  Beta
-                </span>
-              </div>
-              <h2 className="mt-3 text-xl font-semibold text-zinc-950 dark:text-zinc-50">Team-only office mode, wired to live Mission Control data.</h2>
-              <p className="mt-2 text-sm text-zinc-600 dark:text-zinc-300">
-                Click desks, the task wall, or the review table to open real task context without leaving the room.
+    <Card className="rounded-2xl border border-zinc-200 bg-white shadow-none dark:border-white/10 dark:bg-[#0f0f0f]">
+      <CardBody className="gap-3 p-3 sm:p-4">
+        <div className="flex flex-col gap-3 xl:flex-row xl:items-center xl:justify-between">
+          <div className="min-w-0">
+            <div className="flex flex-wrap items-center gap-2">
+              <Chip
+                size="sm"
+                variant="flat"
+                className="h-6 border border-violet-200 bg-violet-50 px-2 text-[10px] font-semibold uppercase tracking-[0.16em] text-violet-700 dark:border-violet-500/30 dark:bg-violet-500/10 dark:text-violet-300"
+                startContent={<Trees size={12} />}
+              >
+                Environment beta
+              </Chip>
+              <p className="text-sm font-semibold text-zinc-950 dark:text-zinc-50">Multi-room campus</p>
+              <p className="text-xs text-zinc-500 dark:text-zinc-400">
+                Office, break room, King&apos;s office, and patio in one frame.
               </p>
             </div>
-            <div className="flex flex-col gap-2 sm:flex-row sm:items-center">
-              <Button
-                size="sm"
-                variant="flat"
-                className="rounded-full border border-zinc-200 bg-zinc-100 dark:border-white/10 dark:bg-white/5"
-                startContent={<RefreshCw size={14} className={refreshing ? "animate-spin" : ""} />}
-                onPress={onRefresh}
-                isDisabled={refreshing}
-              >
-                Refresh
-              </Button>
-              <Button
-                size="sm"
-                variant="flat"
-                className="rounded-full border border-zinc-200 bg-zinc-100 dark:border-white/10 dark:bg-white/5"
-                onPress={onToggleMotion}
-              >
-                {motionEnabled ? "Reduce motion" : "Enable motion"}
-              </Button>
-            </div>
           </div>
-        </CardBody>
-      </Card>
 
-      <MetricCard icon={<Users size={14} />} label="Active agents" value={String(room.activeAgentsCount)} note={`${room.agents.length} in room`} />
-      <MetricCard icon={<AlertTriangle size={14} />} label="Blocked tasks" value={String(room.blockedTasks.length)} note="Task wall hotspot" tone="danger" />
-      <MetricCard icon={<Workflow size={14} />} label="In-flight work" value={String(room.activeTasks.length)} note="Review table hotspot" tone="warning" />
-    </div>
-  );
-}
-
-function MetricCard({
-  icon,
-  label,
-  value,
-  note,
-  tone = "default",
-}: {
-  icon: ReactNode;
-  label: string;
-  value: string;
-  note: string;
-  tone?: "default" | "warning" | "danger";
-}) {
-  const iconClassName =
-    tone === "danger"
-      ? "border-rose-200 bg-rose-50 text-rose-700 dark:border-rose-500/30 dark:bg-rose-500/10 dark:text-rose-300"
-      : tone === "warning"
-        ? "border-amber-200 bg-amber-50 text-amber-700 dark:border-amber-500/30 dark:bg-amber-500/10 dark:text-amber-300"
-        : "border-zinc-200 bg-zinc-50 text-zinc-700 dark:border-white/10 dark:bg-white/5 dark:text-zinc-200";
-
-  return (
-    <Card className="rounded-3xl border border-zinc-200 bg-white shadow-none dark:border-white/10 dark:bg-[#0f0f0f]">
-      <CardBody className="gap-3 p-5">
-        <div className={`inline-flex h-9 w-9 items-center justify-center rounded-2xl border ${iconClassName}`}>
-          {icon}
+          <div className="flex flex-wrap items-center gap-2">
+            {telemetry.map((item) => (
+              <Chip
+                key={item.label}
+                size="sm"
+                variant="flat"
+                color={item.tone === "danger" ? "danger" : item.tone === "warning" ? "warning" : "default"}
+                className="h-7 px-2.5 text-[11px]"
+              >
+                <span className="font-medium text-zinc-500 dark:text-zinc-400">{item.label}</span>
+                <span className="ml-1.5 font-semibold text-zinc-950 dark:text-zinc-50">{item.value}</span>
+              </Chip>
+            ))}
+          </div>
         </div>
-        <div>
-          <p className="text-[11px] font-medium uppercase tracking-[0.16em] text-zinc-500 dark:text-zinc-400">{label}</p>
-          <p className="mt-2 text-2xl font-semibold text-zinc-950 dark:text-zinc-50">{value}</p>
-          <p className="mt-1 text-[12px] text-zinc-500 dark:text-zinc-400">{note}</p>
+
+        <div className="flex flex-wrap items-center gap-2">
+          <Button
+            size="sm"
+            variant="flat"
+            className="rounded-full border border-zinc-200 bg-zinc-100 dark:border-white/10 dark:bg-white/5"
+            startContent={<RefreshCw size={14} className={refreshing ? "animate-spin" : ""} />}
+            onPress={onRefresh}
+            isDisabled={refreshing}
+          >
+            Refresh data
+          </Button>
+          <Button
+            size="sm"
+            variant="flat"
+            className="rounded-full border border-zinc-200 bg-zinc-100 dark:border-white/10 dark:bg-white/5"
+            startContent={<Move size={14} />}
+            onPress={onResetCamera}
+          >
+            Reset view
+          </Button>
+          <Button
+            size="sm"
+            variant="flat"
+            className="rounded-full border border-zinc-200 bg-zinc-100 dark:border-white/10 dark:bg-white/5"
+            onPress={onToggleMotion}
+          >
+            {motionEnabled ? "Reduce motion" : "Enable motion"}
+          </Button>
         </div>
       </CardBody>
     </Card>
   );
+}
+
+function agentsInZone(room: SimsRoomState, zoneId: SimsZoneId) {
+  return room.agents.filter((agent) => agent.currentZoneId === zoneId);
 }
 
 export function SimsInspectorPanel({
@@ -232,49 +274,47 @@ export function SimsInspectorPanel({
   onSelectTarget,
   onOpenTask,
 }: SimsInspectorPanelProps) {
-  let title = "Office overview";
-  let eyebrow = "Start here";
+  let title = "Environment overview";
+  let eyebrow = "Campus at a glance";
   let body: React.ReactNode = (
     <div className="space-y-4">
       <Card className={panelCardClassName()}>
         <CardBody className="gap-3 p-4">
           <p className="text-sm text-zinc-600 dark:text-zinc-300">
-            This first pass keeps the game feel in the scene and the dense workflow in normal Mission Control panels.
+            Drag across the world to move, zoom in to inspect desks, and pull back to read the office,
+            break room, King&apos;s office, and patio as one connected environment.
           </p>
           <div className="grid gap-3">
-            <button type="button" onClick={() => onSelectTarget({ kind: "zone", zoneId: "task-wall" })}>
-              <Card className={panelCardClassName()}>
-                <CardBody className="flex flex-row items-center justify-between gap-3 p-4">
-                  <div>
-                    <p className="text-sm font-semibold text-zinc-900 dark:text-zinc-100">Task Wall</p>
-                    <p className="text-[12px] text-zinc-500 dark:text-zinc-400">{room.blockedTasks.length} blocked tasks need attention.</p>
-                  </div>
-                  <ArrowRight size={16} className="text-zinc-400" />
-                </CardBody>
-              </Card>
-            </button>
-            <button type="button" onClick={() => onSelectTarget({ kind: "zone", zoneId: "review-table" })}>
-              <Card className={panelCardClassName()}>
-                <CardBody className="flex flex-row items-center justify-between gap-3 p-4">
-                  <div>
-                    <p className="text-sm font-semibold text-zinc-900 dark:text-zinc-100">Review Table</p>
-                    <p className="text-[12px] text-zinc-500 dark:text-zinc-400">{room.activeTasks.length} active tasks are currently in motion.</p>
-                  </div>
-                  <ArrowRight size={16} className="text-zinc-400" />
-                </CardBody>
-              </Card>
-            </button>
-            <button type="button" onClick={() => onSelectTarget({ kind: "zone", zoneId: "break-area" })}>
-              <Card className={panelCardClassName()}>
-                <CardBody className="flex flex-row items-center justify-between gap-3 p-4">
-                  <div>
-                    <p className="text-sm font-semibold text-zinc-900 dark:text-zinc-100">Break Area</p>
-                    <p className="text-[12px] text-zinc-500 dark:text-zinc-400">{room.idleAgentsCount} teammates are idle right now.</p>
-                  </div>
-                  <ArrowRight size={16} className="text-zinc-400" />
-                </CardBody>
-              </Card>
-            </button>
+            <ZoneQuickCard
+              icon={<AlertTriangle size={16} />}
+              title="Task Wall"
+              body={`${room.blockedTasks.length} blocked tasks need attention.`}
+              onSelect={() => onSelectTarget({ kind: "zone", zoneId: "task-wall" })}
+            />
+            <ZoneQuickCard
+              icon={<Workflow size={16} />}
+              title="Review Table"
+              body={`${room.activeTasks.length} active tasks are currently moving.`}
+              onSelect={() => onSelectTarget({ kind: "zone", zoneId: "review-table" })}
+            />
+            <ZoneQuickCard
+              icon={<Coffee size={16} />}
+              title="Break Room"
+              body={`${agentsInZone(room, "break-room").length} teammates are currently hanging here.`}
+              onSelect={() => onSelectTarget({ kind: "zone", zoneId: "break-room" })}
+            />
+            <ZoneQuickCard
+              icon={<Crown size={16} />}
+              title="King's Office"
+              body="A dedicated Derrick zone for direction, approvals, and escalations." 
+              onSelect={() => onSelectTarget({ kind: "zone", zoneId: "king-office" })}
+            />
+            <ZoneQuickCard
+              icon={<Trees size={16} />}
+              title="Outside Patio"
+              body={`${agentsInZone(room, "courtyard").length} teammates are taking the edge off outside.`}
+              onSelect={() => onSelectTarget({ kind: "zone", zoneId: "courtyard" })}
+            />
           </div>
         </CardBody>
       </Card>
@@ -305,7 +345,7 @@ export function SimsInspectorPanel({
                       {liveStatusLabel(agent)}
                     </Chip>
                     <Chip size="sm" variant="flat" className="h-5 border border-zinc-200 bg-zinc-100 text-[10px] uppercase dark:border-white/10 dark:bg-white/5">
-                      {agent.zoneLabel}
+                      {agent.currentZoneLabel}
                     </Chip>
                   </div>
                 </div>
@@ -320,6 +360,14 @@ export function SimsInspectorPanel({
                 <div className="rounded-2xl border border-zinc-200 bg-zinc-50 p-3 dark:border-white/10 dark:bg-white/5">
                   <p className="text-[11px] font-medium uppercase tracking-[0.16em] text-zinc-500 dark:text-zinc-400">Last active</p>
                   <p className="mt-2 text-sm text-zinc-700 dark:text-zinc-200">{formatLastActive(agent.lastActiveAt)}</p>
+                </div>
+                <div className="rounded-2xl border border-zinc-200 bg-zinc-50 p-3 dark:border-white/10 dark:bg-white/5">
+                  <p className="text-[11px] font-medium uppercase tracking-[0.16em] text-zinc-500 dark:text-zinc-400">Current room</p>
+                  <p className="mt-2 text-sm text-zinc-700 dark:text-zinc-200">{agent.currentZoneLabel}</p>
+                </div>
+                <div className="rounded-2xl border border-zinc-200 bg-zinc-50 p-3 dark:border-white/10 dark:bg-white/5">
+                  <p className="text-[11px] font-medium uppercase tracking-[0.16em] text-zinc-500 dark:text-zinc-400">Assigned desk</p>
+                  <p className="mt-2 text-sm text-zinc-700 dark:text-zinc-200">{agent.zoneLabel}</p>
                 </div>
               </div>
               {agent.activeTask ? (
@@ -376,30 +424,87 @@ export function SimsInspectorPanel({
       );
     }
 
-    if (selectedTarget.zoneId === "break-area") {
-      const idleAgents = room.agents.filter((agent) => !agent.isBusy && !agent.hasBlockedTask);
+    if (selectedTarget.zoneId === "break-room") {
+      const breakRoomAgents = agentsInZone(room, "break-room");
       body = (
         <div className="space-y-4">
           <Card className={panelCardClassName()}>
             <CardBody className="gap-3 p-5">
               <div className="inline-flex items-center gap-2 text-sm font-medium text-zinc-700 dark:text-zinc-200">
                 <Coffee size={16} />
-                A soft landing spot for quieter moments.
+                Coffee, decompression, and lighter presence.
               </div>
               <p className="text-sm text-zinc-600 dark:text-zinc-300">
-                Idle teammates stay here instead of pulling attention away from the active desks.
+                This room gives the scene somewhere softer to breathe when people are idle instead of keeping everyone glued to their desks.
               </p>
             </CardBody>
           </Card>
-          {idleAgents.length === 0 ? (
+          {breakRoomAgents.length === 0 ? (
             <Card className={panelCardClassName()}>
               <CardBody className="p-4 text-sm text-zinc-500 dark:text-zinc-400">
-                Nobody is idle right now — the whole room is in motion.
+                Nobody is in the break room right now.
               </CardBody>
             </Card>
           ) : (
             <div className="space-y-3">
-              {idleAgents.map((agent) => (
+              {breakRoomAgents.map((agent) => (
+                <AgentQuickCard key={agent.id} agent={agent} onSelect={() => onSelectTarget({ kind: "agent", agentId: agent.id })} />
+              ))}
+            </div>
+          )}
+        </div>
+      );
+    }
+
+    if (selectedTarget.zoneId === "king-office") {
+      const pressureTasks = room.blockedTasks.length > 0 ? room.blockedTasks.slice(0, 3) : room.activeTasks.slice(0, 3);
+      body = (
+        <div className="space-y-4">
+          <Card className={panelCardClassName()}>
+            <CardBody className="gap-3 p-5">
+              <div className="inline-flex items-center gap-2 text-sm font-medium text-zinc-700 dark:text-zinc-200">
+                <Crown size={16} />
+                Derrick&apos;s executive perch.
+              </div>
+              <p className="text-sm text-zinc-600 dark:text-zinc-300">
+                This is the room that can grow into approvals, escalations, and higher-level direction. For now it gives the campus a dedicated place to stage the work that matters most.
+              </p>
+            </CardBody>
+          </Card>
+          <TaskList
+            tasks={pressureTasks}
+            emptyMessage="No urgent work is bubbling up to the King's office right now."
+            accentClassName="border border-amber-200 bg-amber-50 text-amber-700 dark:border-amber-500/30 dark:bg-amber-500/10 dark:text-amber-300"
+            onOpenTask={onOpenTask}
+          />
+        </div>
+      );
+    }
+
+    if (selectedTarget.zoneId === "courtyard") {
+      const courtyardAgents = agentsInZone(room, "courtyard");
+      body = (
+        <div className="space-y-4">
+          <Card className={panelCardClassName()}>
+            <CardBody className="gap-3 p-5">
+              <div className="inline-flex items-center gap-2 text-sm font-medium text-zinc-700 dark:text-zinc-200">
+                <Trees size={16} />
+                The outside edge of the office.
+              </div>
+              <p className="text-sm text-zinc-600 dark:text-zinc-300">
+                Pull back and you can finally see the campus breathing a bit — not just a single room, but an office with some world around it.
+              </p>
+            </CardBody>
+          </Card>
+          {courtyardAgents.length === 0 ? (
+            <Card className={panelCardClassName()}>
+              <CardBody className="p-4 text-sm text-zinc-500 dark:text-zinc-400">
+                Nobody is outside right now.
+              </CardBody>
+            </Card>
+          ) : (
+            <div className="space-y-3">
+              {courtyardAgents.map((agent) => (
                 <AgentQuickCard key={agent.id} agent={agent} onSelect={() => onSelectTarget({ kind: "agent", agentId: agent.id })} />
               ))}
             </div>

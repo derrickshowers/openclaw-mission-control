@@ -1,5 +1,7 @@
 import type { Task } from "@/lib/api";
 
+export type SimsRoomId = "main-office" | "king-office" | "break-room" | "courtyard";
+
 export type SimsZoneId =
   | "frank-desk"
   | "tom-desk"
@@ -8,7 +10,9 @@ export type SimsZoneId =
   | "ivy-desk"
   | "task-wall"
   | "review-table"
-  | "break-area";
+  | "break-room"
+  | "king-office"
+  | "courtyard";
 
 export type SimsPanelTarget =
   | { kind: "overview" }
@@ -34,6 +38,9 @@ export interface SimsAgentSceneState extends SimsAgentSnapshot {
   accent: string;
   deskPosition: [number, number, number];
   avatarPosition: [number, number, number];
+  currentZoneId: SimsZoneId;
+  currentZoneLabel: string;
+  currentRoomId: SimsRoomId;
   activeTask: Task | null;
   blockedTasks: Task[];
   isBusy: boolean;
@@ -47,6 +54,13 @@ export interface SimsZoneSummary {
   description: string;
   accent: string;
   position: [number, number, number];
+  roomId: SimsRoomId;
+}
+
+export interface SimsRoomSummary {
+  id: SimsRoomId;
+  label: string;
+  description: string;
 }
 
 export interface SimsRoomState {
@@ -54,6 +68,8 @@ export interface SimsRoomState {
   blockedTasks: Task[];
   activeTasks: Task[];
   zones: SimsZoneSummary[];
+  rooms: SimsRoomSummary[];
+  roomCount: number;
   activeAgentsCount: number;
   idleAgentsCount: number;
 }
