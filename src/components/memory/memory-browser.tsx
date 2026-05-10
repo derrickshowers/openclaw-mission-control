@@ -3,8 +3,7 @@
 import { useState, useEffect, useCallback, useRef } from "react";
 import { Button, Input, Modal, ModalBody, ModalContent, ModalFooter, ModalHeader, Select, SelectItem } from "@heroui/react";
 import { Folder, FileText, Search, ArrowLeft, X, Pencil, Save } from "lucide-react";
-import ReactMarkdown from "react-markdown";
-import remarkGfm from "remark-gfm";
+import { MarkdownViewer } from "@/components/shared/markdown-viewer";
 import { TEAM_AGENT_IDS } from "@/lib/agents";
 
 const DEFAULT_SOURCES = [...TEAM_AGENT_IDS, "shared"];
@@ -412,9 +411,7 @@ export function MemoryBrowser() {
                   spellCheck={false}
                 />
               ) : (
-                <article className="markdown-prose prose prose-sm max-w-none dark:prose-invert prose-p:text-foreground-600 dark:prose-p:text-[#D4D4D8] prose-p:text-[13px] prose-p:leading-[1.6] prose-p:mb-4 prose-headings:text-foreground dark:prose-headings:text-white prose-h1:text-xl prose-h1:font-semibold prose-h1:mt-8 prose-h1:mb-4 prose-h2:text-base prose-h2:font-semibold prose-h2:mt-6 prose-h2:mb-3 prose-h3:text-xs prose-h3:font-bold prose-h3:mt-4 prose-h3:mb-2 prose-strong:text-foreground dark:prose-strong:text-white prose-a:text-primary dark:prose-a:text-[#8b5cf6] prose-a:no-underline hover:prose-a:underline prose-code:text-foreground-700 dark:prose-code:text-[#CCCCCC] prose-code:bg-gray-100 dark:prose-code:bg-[#1a1a1a] prose-code:border prose-code:border-divider dark:prose-code:border-[#333333] prose-code:px-1 prose-code:py-0.5 prose-code:rounded-sm prose-code:text-xs prose-code:font-mono prose-pre:bg-gray-50 dark:prose-pre:bg-[#111111] prose-pre:border prose-pre:border-divider dark:prose-pre:border-[#333333] prose-pre:rounded-md prose-pre:p-4 prose-pre:text-xs prose-pre:my-4 prose-ul:my-4 prose-ul:ml-0 prose-ul:pl-5 prose-ul:list-disc prose-ul:space-y-1.5 prose-ol:my-4 prose-ol:ml-0 prose-ol:pl-5 prose-ol:list-decimal prose-ol:space-y-1.5 prose-li:text-foreground-600 dark:prose-li:text-[#D4D4D8] prose-li:leading-[1.6] prose-li:my-1 prose-li:pl-1 prose-table:border-collapse prose-table:my-6 prose-table:w-full prose-th:border prose-th:border-divider dark:prose-th:border-[#333333] prose-th:bg-gray-100 dark:prose-th:bg-[#111111] prose-th:px-3 prose-th:py-1.5 prose-th:text-left prose-th:text-xs prose-th:font-medium prose-td:border prose-td:border-divider dark:prose-td:border-[#333333] prose-td:px-3 prose-td:py-1.5 prose-td:text-xs prose-blockquote:my-4 prose-blockquote:pl-4 prose-blockquote:py-1 prose-blockquote:border-l-2 prose-blockquote:border-divider dark:prose-blockquote:border-[#555555] prose-blockquote:text-foreground-400 dark:prose-blockquote:text-[#888888] prose-blockquote:italic prose-hr:my-8 prose-hr:border-0 prose-hr:border-t prose-hr:border-divider">
-                  <ReactMarkdown remarkPlugins={[remarkGfm]}>{fileContent}</ReactMarkdown>
-                </article>
+                <MarkdownViewer content={fileContent} />
               )}
             </div>
           </div>

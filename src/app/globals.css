@@ -147,28 +147,76 @@ button:not(.rounded-full) {
   min-height: 18px !important;
 }
 
-/* Force consistent markdown typography + spacing for docs/memory surfaces */
+/* Clean markdown reading surface for docs/memory in view mode */
 .markdown-prose {
-  font-size: 12px;
-  line-height: 1.55;
+  font-size: 13px;
+  line-height: 1.7;
 }
 
-.markdown-prose :where(h1) {
-  font-size: 1.25rem;
+.markdown-prose > * {
+  margin: 0;
 }
 
-.markdown-prose :where(h2) {
-  font-size: 1rem;
+.markdown-prose > :where(* + p) {
+  margin-top: 1rem;
 }
 
-.markdown-prose :where(h3) {
-  font-size: 0.875rem;
+.markdown-prose > :where(* + ul, * + ol) {
+  margin-top: 1.125rem;
+}
+
+.markdown-prose > :where(* + blockquote, * + pre, * + table, * + hr) {
+  margin-top: 1.5rem;
+}
+
+.markdown-prose > :where(h1, h2, h3, h4) {
+  color: hsl(var(--heroui-foreground));
+  line-height: 1.3;
+  text-wrap: balance;
+}
+
+.markdown-prose > :where(h1) {
+  font-size: 1.5rem;
+  font-weight: 600;
+  margin-bottom: 1rem;
+}
+
+.markdown-prose > :where(h2) {
+  font-size: 1.125rem;
+  font-weight: 600;
+  margin-bottom: 0.875rem;
+}
+
+.markdown-prose > :where(h3) {
+  font-size: 0.95rem;
+  font-weight: 700;
+  margin-bottom: 0.75rem;
+}
+
+.markdown-prose > :where(h4) {
+  font-size: 0.9rem;
+  font-weight: 700;
+  margin-bottom: 0.75rem;
+}
+
+.markdown-prose > :where(* + h1) {
+  margin-top: 3rem;
+}
+
+.markdown-prose > :where(* + h2) {
+  margin-top: 2.25rem;
+}
+
+.markdown-prose > :where(* + h3) {
+  margin-top: 1.75rem;
+}
+
+.markdown-prose > :where(* + h4) {
+  margin-top: 1.5rem;
 }
 
 .markdown-prose :where(ul, ol) {
-  margin-top: 1rem;
-  margin-bottom: 1rem;
-  padding-left: 1.25rem;
+  padding-left: 1.35rem;
 }
 
 .markdown-prose :where(ul) {
@@ -185,13 +233,125 @@ button:not(.rounded-full) {
   list-style-type: circle;
 }
 
+.markdown-prose :where(ul ul ul) {
+  list-style-type: square;
+}
+
 .markdown-prose :where(ol ol) {
   list-style-type: lower-alpha;
 }
 
-.markdown-prose :where(li) {
-  margin-top: 0.25rem;
-  margin-bottom: 0.25rem;
+.markdown-prose :where(ol ol ol) {
+  list-style-type: lower-roman;
+}
+
+.markdown-prose :where(li + li) {
+  margin-top: 0.4rem;
+}
+
+.markdown-prose :where(li > p + p) {
+  margin-top: 0.75rem;
+}
+
+.markdown-prose :where(li > ul, li > ol) {
+  margin-top: 0.65rem;
+}
+
+.markdown-prose :where(strong) {
+  color: hsl(var(--heroui-foreground));
+  font-weight: 600;
+}
+
+.markdown-prose :where(a) {
+  color: #8b5cf6;
+  text-decoration: none;
+}
+
+.markdown-prose :where(a:hover) {
+  text-decoration: underline;
+}
+
+.markdown-prose :where(code) {
+  color: hsl(var(--heroui-foreground));
+  background: #f3f4f6;
+  border: 1px solid rgba(0, 0, 0, 0.08);
+  border-radius: 4px;
+  padding: 0.125rem 0.35rem;
+  font-family: var(--font-mono);
+  font-size: 0.85em;
+}
+
+.dark .markdown-prose :where(code) {
+  color: #cccccc;
+  background: #1a1a1a;
+  border-color: #333333;
+}
+
+.markdown-prose :where(pre) {
+  overflow-x: auto;
+  border-radius: 8px;
+  border: 1px solid rgba(0, 0, 0, 0.08);
+  background: #f9fafb;
+  padding: 1rem;
+}
+
+.dark .markdown-prose :where(pre) {
+  border-color: #333333;
+  background: #111111;
+}
+
+.markdown-prose :where(pre code) {
+  background: transparent;
+  border: 0;
+  border-radius: 0;
+  padding: 0;
+}
+
+.markdown-prose :where(blockquote) {
+  border-left: 2px solid rgba(0, 0, 0, 0.12);
+  padding: 0.25rem 0 0.25rem 1rem;
+  color: #71717a;
+  font-style: italic;
+}
+
+.dark .markdown-prose :where(blockquote) {
+  border-left-color: #555555;
+  color: #888888;
+}
+
+.markdown-prose :where(hr) {
+  border: 0;
+  border-top: 1px solid rgba(0, 0, 0, 0.08);
+}
+
+.dark .markdown-prose :where(hr) {
+  border-top-color: #222222;
+}
+
+.markdown-prose :where(table) {
+  width: 100%;
+  border-collapse: collapse;
+}
+
+.markdown-prose :where(th) {
+  color: hsl(var(--heroui-foreground));
+  background: #f3f4f6;
+  font-weight: 600;
+}
+
+.dark .markdown-prose :where(th) {
+  background: #111111;
+}
+
+.markdown-prose :where(th, td) {
+  border: 1px solid rgba(0, 0, 0, 0.08);
+  padding: 0.5rem 0.75rem;
+  text-align: left;
+  vertical-align: top;
+}
+
+.dark .markdown-prose :where(th, td) {
+  border-color: #333333;
 }
 
 .comment-markdown ul {
@@ -211,28 +371,6 @@ button:not(.rounded-full) {
   margin-top: 0.375rem;
 }
 
-.markdown-prose li > ul,
-.markdown-prose li > ol {
-  margin-top: 0.375rem;
-  margin-bottom: 0.25rem;
-}
-
-.markdown-prose hr {
-  margin-top: 2rem;
-  margin-bottom: 2rem;
-  border: 0;
-  border-top: 1px solid #222222;
-}
-
-.light .markdown-prose hr {
-  border-top: 1px solid #e5e7eb;
-}
-
-.markdown-prose table {
-  margin-top: 1.5rem;
-  margin-bottom: 1.5rem;
-  width: 100%;
-}
 
 /* Safe area utilities for mobile */
 .pb-safe {
