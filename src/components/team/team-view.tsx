@@ -40,6 +40,11 @@ const agentMeta: Record<string, { role: string; description: string; Icon: Lucid
     description: "Researches new business ideas, validates demand signals, and turns trend noise into grounded opportunities.",
     Icon: Sprout,
   },
+  sloane: {
+    role: "Creator Intelligence Lead",
+    description: "Tracks creator communities, finds the real story underneath the public story, and turns creator noise into usable signal.",
+    Icon: Bot,
+  },
 };
 
 function formatLastActiveRelative(dateValue: string | number | Date | null | undefined): string {
