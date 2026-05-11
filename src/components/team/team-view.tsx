@@ -3,7 +3,9 @@
 import { useState, useEffect, useMemo, useRef } from "react";
 import { parseUTC } from "@/lib/dates";
 import { normalizeAgentId, resolveAgentAvatarUrl } from "@/lib/agents";
+import type { CronJob } from "@/lib/api";
 import { StableImage } from "@/components/shared/stable-image";
+import { CronCalendarSection } from "@/components/team/cron-calendar-section";
 import { Button, Card, CardBody, Chip, Modal, ModalBody, ModalContent, ModalFooter, ModalHeader, Tooltip } from "@heroui/react";
 import { Crown, Crosshair, Landmark, Zap, Palette, Sprout, Bot, Check, Loader2, Minus, CircleHelp, XCircle } from "lucide-react";
 import { useSSE } from "@/hooks/use-sse";
@@ -83,6 +85,7 @@ interface MainSessionRow {
 
 interface TeamViewProps {
   agents: any[];
+  initialCronJobs: CronJob[];
 }
 
 type CompactState =
@@ -109,7 +112,7 @@ function mapCompactState(status: string, outcome: string): CompactState {
   return "failed";
 }
 
-export function TeamView({ agents }: TeamViewProps) {
+export function TeamView({ agents, initialCronJobs }: TeamViewProps) {
   const [liveStatuses, setLiveStatuses] = useState<Map<string, any>>(new Map());
   const [mainSessions, setMainSessions] = useState<MainSessionRow[]>([]);
   const [sessionLoading, setSessionLoading] = useState<Record<string, boolean | "success">>({});
@@ -409,6 +412,8 @@ export function TeamView({ agents }: TeamViewProps) {
           </div>
         )}
       </div>
+
+      <CronCalendarSection initialJobs={initialCronJobs} />
 
       <Modal
         isOpen={!!resetConfirmSessionKey}

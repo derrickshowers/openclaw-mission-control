@@ -2,7 +2,7 @@
 // Used by server components that can't go through Next.js API routes
 // (middleware blocks internal server-to-server calls that lack a session cookie)
 
-import type { BrainChannelSummary, PersonalTask, PersonalTaskSummary, Project, Task, TodayNonNegotiable } from "./api";
+import type { BrainChannelSummary, CronJob, PersonalTask, PersonalTaskSummary, Project, Task, TodayNonNegotiable } from "./api";
 import type { TodayUsageBreakdownRow } from "./today-dashboard";
 
 const API_URL = process.env.MISSION_API_URL || "http://localhost:3001";
@@ -70,6 +70,7 @@ export const serverApi = {
     return serverFetch<TodayUsageBreakdownRow[]>(`/usage/breakdown?${searchParams.toString()}`);
   },
   getAgents: () => serverFetch<unknown[]>("/agents"),
+  getCronJobs: () => serverFetch<CronJob[]>("/cron/jobs"),
   getStatus: () => serverFetch<unknown>("/system/status"),
   getActivity: (params?: { limit?: string }) => {
     const qs = params?.limit ? `?limit=${params.limit}` : "";

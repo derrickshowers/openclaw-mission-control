@@ -258,6 +258,49 @@ export interface TimeLoggingDayBucket {
   byCategory: TimeLoggingCategoryHours[];
 }
 
+export interface CronJobSchedule {
+  kind: string;
+  expr?: string;
+  tz?: string;
+  at?: string;
+  staggerMs?: number;
+  [key: string]: unknown;
+}
+
+export interface CronJobState {
+  nextRunAtMs?: number;
+  lastRunAtMs?: number;
+  lastRunStatus?: string;
+  lastStatus?: string;
+  lastDurationMs?: number;
+  lastDeliveryStatus?: string;
+  consecutiveErrors?: number;
+  consecutiveSkipped?: number;
+  lastDiagnosticSummary?: string;
+  lastError?: string;
+  [key: string]: unknown;
+}
+
+export interface CronJob {
+  id: string;
+  agentId?: string;
+  sessionKey?: string;
+  name?: string;
+  description?: string;
+  enabled?: boolean;
+  deleteAfterRun?: boolean;
+  createdAtMs?: number;
+  schedule?: CronJobSchedule;
+  sessionTarget?: string;
+  wakeMode?: string;
+  payload?: Record<string, unknown>;
+  delivery?: Record<string, unknown>;
+  state?: CronJobState;
+  scheduleIdentity?: string | null;
+  stateUpdatedAtMs?: number | null;
+  [key: string]: unknown;
+}
+
 export interface TimeLoggingMonthBucket {
   month: string;
   isPartial: boolean;

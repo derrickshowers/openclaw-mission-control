@@ -4,7 +4,10 @@ import { serverApi } from "@/lib/server-api";
 export const dynamic = "force-dynamic";
 
 export default async function TeamPage() {
-  const agents = await serverApi.getAgents().catch(() => []);
+  const [agents, cronJobs] = await Promise.all([
+    serverApi.getAgents().catch(() => []),
+    serverApi.getCronJobs().catch(() => []),
+  ]);
 
-  return <TeamView agents={agents} />;
+  return <TeamView agents={agents} initialCronJobs={cronJobs} />;
 }
